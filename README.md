@@ -120,7 +120,7 @@ for the 500 samples from the approximate posterior:
 mean, median, lower 90% quantile interval, and upper 90% quantile interval.
 Bedgraph files are written for each genotype and strand in your analysis.
 
-``bash
+```bash
 cd <top_direc>
 mkdir enricherator_results/out_files
 SRCDIR="<srcdir>"
