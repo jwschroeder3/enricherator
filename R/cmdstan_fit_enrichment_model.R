@@ -17,7 +17,7 @@ option_list = list(
         help="Comma-separated list of contigs to remove from analysis."
     ),
     make_option(
-        c("--norm_method"), type="character",
+        c("--norm_method"), type="character", default="libsize",
         help="The normalization method to use. Can be one of 'spikein' or 'libsize'"
     ),
     make_option(
@@ -45,19 +45,19 @@ option_list = list(
         help="The name of the RData file containing stan data list",
     ),
     make_option(
-        c("--ext_fragment_length"), type="integer", default=50,
+        c("--ext_fragment_length"), type="integer", default=60,
         help="Sets the width of the smoothing kernel applied to sampled betas."
     ),
     make_option(
-        c("--ext_subsample_dist"), type="integer", default=5,
+        c("--ext_subsample_dist"), type="integer", default=30,
         help="Distance (in bp) between sampled betas, which will later be mixed using overlapping exponential kernels defined by --ext_fragment_length."
     ),
     make_option(
-        c("--input_fragment_length"), type="integer", default=125,
+        c("--input_fragment_length"), type="integer", default=120,
         help="Sets the width of the smoothing kernel applied to sampled betas."
     ),
     make_option(
-        c("--input_subsample_dist"), type="integer", default=5,
+        c("--input_subsample_dist"), type="integer", default=60,
         help="Distance (in bp) between sampled alphas, which will later be mixed using overlapping exponential kernels defined by --input_fragment_length."
     ),
     make_option(
@@ -65,7 +65,7 @@ option_list = list(
         help="The number of cores to use for parallel chains when doing MCMC."
     ),
     make_option(
-        c("--libsize_key"), type="character", default="tmm_deseq_size_factors",
+        c("--libsize_key"), type="character", default="tmm_size_factors",
         help="The key in stan_list to use as the libsize for size factor exposure."
     ),
     make_option(
@@ -98,6 +98,19 @@ options(mc.cores = opt$cores)
 debug = opt$debug
 
 model_file = opt$stan_file
+if (is.na(model_file)) {
+    stop("--stan_file argument is required, but was absent. Exiting now.")
+}
+if (is.na(opt$draws_direc)) {
+    stop("--draws_direc argument is required, but was absent. Exiting now.")
+}
+if (is.na(opt$fit_file)) {
+    stop("--fit_file argument is required, but was absent. Exiting now.")
+}
+if (is.na(opt$data_file)) {
+    stop("--data_file argument is required, but was absent. Exiting now.")
+}
+
 print(paste0("Compiling model in ", model_file))
 sm = cmdstan_model(model_file, cpp_options = list(stan_threads = TRUE))
 

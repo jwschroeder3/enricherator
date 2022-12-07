@@ -37,9 +37,24 @@ option_list = list(
 opt_parser = OptionParser(option_list=option_list)
 opt = parse_args(opt_parser)
 
+if (is.na(opt$params)) {
+    stop("--params argument was not provided, but is mandatory. Exiting now.")
+}
+
 params = str_split(opt$params, ",", simplify=TRUE)[1,]
 fit_file = opt$fit_file
 data_file = opt$data_file
+out_direc = opt$out_direc
+
+if (is.na(fit_file)) {
+    stop("--fit_file argument was not provided, but is mandatory. Exiting now.")
+}
+if (is.na(data_file)) {
+    stop("--data_file argument was not provided, but is mandatory. Exiting now.")
+}
+if (is.na(out_direc)) {
+    stop("--out_direc argument was not provided, but is mandatory. Exiting now.")
+}
 
 print("Reading data used by stan")
 load(data_file)
