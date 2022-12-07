@@ -70,6 +70,7 @@ argument.
 
 ```bash
 cd <top_direc>
+conda activate rstan
 
 mkdir enricherator_results
 mkdir enricherator_results/draws
@@ -122,6 +123,7 @@ Bedgraph files are written for each genotype and strand in your analysis.
 
 ```bash
 cd <top_direc>
+conda activate rstan
 mkdir enricherator_results/out_files
 SRCDIR="<srcdir>"
 
