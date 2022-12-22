@@ -136,8 +136,11 @@ Rscript $SRCDIR/R/cmdstan_gather_estimates_from_stanfit.R \
         2> "enricherator_results/gather.err"
 ```
 
-The bedgraph files will appear in `enricherator_results/out_files`.
-Robust z-scores and rolling means can be calculated using `bgtools`.
+Several new files will be produced by `cmdstan_gather_estimates_from_stanfit.R`.
+
+1. Bedgraph files containing scores on the log2 scale will appear in `enricherator_results/out_files`. The files with "Beta" in their name contain log2(enrichment) scores, and the files with "Alpha" in their name are a measure of the log2(normalized input abundance). Robust z-scores and rolling means can be calculated using `bgtools`.
+2. The file `enricherator_results/draws/summaries.txt` contains the information also found in the bedgraph files already mentioned, and is one output of the binary `$SRCDIR/bin/parse_cmdstan_csv`
+3. The file `enricherator_results/draws/samples.csv` contains the samples for only the parameters of interest (indicated by the `--params` argument to the `$SRCDIR/R/cmdstan_gather_estimates_from_stanfit.R` script). It is also an output of the binary `$SRCDIR/bin/parse_cmdstan_csv`. We typically keep this file for potential later use in setting up new contrasts of interest. For instance, if your analysis contains multiple genotypes or is stranded, you could set up a contrast to compare enrichments across those genotypes or across strands.
 
 At this point, if you have inspected the quantities output by the
 above script, and if they seem reasonable, it is recommended that you

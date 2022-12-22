@@ -28,10 +28,6 @@ option_list = list(
         c("-o", "--out_direc"), type="character",
         help="Name of directory to save output bedgraph files",
     )
-    #make_option(
-    #    c("--method"), type="character",
-    #    help="The name of the fitting method (can be either 'EM' or 'VB')",
-    #)
 )
  
 opt_parser = OptionParser(option_list=option_list)

@@ -17,7 +17,7 @@ option_list = list(
     ),
     make_option(
         c("-f", "--features"), type="character", default=NULL,
-        help="Optional. Contains tab-separated feature information for plotting with signals present in `infile`.",
+        help="Optional. A gff file with feature annotations.",
     ),
     make_option(
         c("-c", "--contig"), type="character",

@@ -623,15 +623,16 @@ gather_vb_estimates = function(fit, stan_data, direc, interval=90, cmdstan=FALSE
         bin_path = file.path(exec_direc, "../bin/parse_cmdstan_csv")
  
         in_file = fit$output_files()
-        out_file = file.path(dirname(in_file), "summaries.txt")
+        summary_out_file = file.path(dirname(in_file), "summaries.txt")
+        sample_out_file = file.path(dirname(in_file), "samples.csv")
         parse_cmd = paste(
-            bin_path, in_file, out_file, paste(params, collapse=","),
+            bin_path, in_file, summary_out_file, sample_out_file, "500", paste(params, collapse=","),
             sep=" "
         )
         print(parse_cmd)
         res = system2(
             bin_path,
-            c(in_file, out_file, "500", paste(params, collapse=",")),
+            c(in_file, summary_out_file, sample_out_file, "500", paste(params, collapse=",")),
             env="RUST_BACKTRACE=1",
             stderr="parse_csv.err",
             stdout="parse_csv.log"
@@ -639,7 +640,7 @@ gather_vb_estimates = function(fit, stan_data, direc, interval=90, cmdstan=FALSE
         if (res != 0) {
             stop("Error in summarizing cmdstan csv. Check parse_csv.err and parse_csv.log. Exiting now.")
         }
-        param_summaries = read_tsv(out_file)
+        param_summaries = read_tsv(summary_out_file)
         write_cmdstan_summaries(param_summaries, stan_data, direc, params)
     } else {
         list_of_draws = rstan::extract(fit, pars=c("Beta","prec"))
