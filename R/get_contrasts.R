@@ -95,11 +95,11 @@ res = system2(
     bin_path,
     args_vec,
     env="RUST_BACKTRACE=1",
-    stderr="contrast.err",
-    stdout="contrast.log"
+    stderr="",
+    stdout=""
 )
 if (res != 0) {
-    stop("Error running get_contrasts. Check contrast.err and contrast.log. Exiting now.")
+    stop("Error running get_contrasts. Check err and log files. Exiting now.")
 }
 param_summaries = read_tsv(contrast_fname)
 #print(head(param_summaries))

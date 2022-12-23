@@ -403,10 +403,10 @@ prep_stan_data = function(data_df, norm_method, spikein, spikein_rel_abund=0.05,
             u_out
         ),
         env="RUST_BACKTRACE=1",
-        stderr="ext_sparsify.err",
-        stdout="ext_sparsify.log"
+        stderr="",
+        stdout=""
     )
-    if (res != 0) stop("Error in sparse matrix creation. Check ext_sparsify.err and ext_sparsify.log.")
+    if (res != 0) stop("Error in sparse matrix creation. Check err and log files.")
     #} else {
     #    print(paste("File", w_out, "already exists. Reading it.", sep=" "))
     #}
@@ -446,11 +446,11 @@ prep_stan_data = function(data_df, norm_method, spikein, spikein_rel_abund=0.05,
             u_out
         ),
         env="RUST_BACKTRACE=1",
-        stderr="inp_sparsify.err",
-        stdout="inp_sparsify.log"
+        stderr="",
+        stdout=""
     )
     if (res != 0) {
-        stop("Error in sparse matrix creation. Check inp_sparsify.err and inp_sparsify.log.")
+        stop("Error in sparse matrix creation. Check err and log files.")
     }
     #} else {
     #    print(paste("File", w_out, "already exists. Reading it.", sep=" "))
@@ -645,11 +645,11 @@ gather_vb_estimates = function(fit, stan_data, direc, interval=90, cmdstan=FALSE
             bin_path,
             c(in_file, summary_out_file, sample_out_file, "500", paste(params, collapse=",")),
             env="RUST_BACKTRACE=1",
-            stderr="parse_csv.err",
-            stdout="parse_csv.log"
+            stderr="",
+            stdout=""
         )
         if (res != 0) {
-            stop("Error in summarizing cmdstan csv. Check parse_csv.err and parse_csv.log. Exiting now.")
+            stop("Error in summarizing cmdstan csv. Check err and log files. Exiting now.")
         }
         param_summaries = read_tsv(summary_out_file)
         write_cmdstan_summaries(param_summaries, stan_data, direc, params)
