@@ -102,5 +102,6 @@ if (res != 0) {
     stop("Error running get_contrasts. Check contrast.err and contrast.log. Exiting now.")
 }
 param_summaries = read_tsv(contrast_fname)
-write_cmdstan_summaries(contrast_fname, stan_list, out_dir, "Beta", contrasts)
+#print(head(param_summaries))
+write_cmdstan_summaries(param_summaries, stan_list, out_dir, "Beta", contrasts)
 
