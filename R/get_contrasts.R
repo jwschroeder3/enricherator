@@ -89,7 +89,7 @@ args_vec = c(
 )
 
 exec = c(bin_path, args_vec)
-print(paste0("Running the following: ", paste(exec, sep=" ")))
+print(paste0("Running the following: ", paste(exec, collapse=" ")))
 
 res = system2(
     bin_path,
