@@ -146,3 +146,23 @@ At this point, if you have inspected the quantities output by the
 above script, and if they seem reasonable, it is recommended that you
 delete the `draws-1.csv` file.
 
+## Running additional contrasts (currently only natively supported for genotype-level contrasts)
+
+To run contrasts using the samples from the approximate posterior, do the following:
+
+```bash
+cd <top_direc>
+conda activate rstan
+mkdir enricherator_results/contrasts
+SRCDIR="<srcdir>"
+
+Rscript $SRCDIR/R/get_contrasts.R \
+    --data_file enricherator_results/data.RData \
+    --samples_file enricherator_results/draws/samples.csv \
+    --contrasts <contrast1>,<contrast2> \
+    --out_direc enricherator_results/contrasts \
+    > enricherator_results/contrast.log \
+    2> enricherator_results/contrast.err
+```
+
+Note that `<contrast1>` and `<contrast2>` must be replaced with the contrasts of interest. For example, if you had three genotypes in your analysis, you could supply as the `--contrasts` argument `genoB-genoA,genoC-genoA,genoC-genoB` to perform pairwise comparisons of enrichments from genotype B to genotype A, genotype C to genotype A, and genotype C to genotype A, respectively. The list of contrasts can be arbitrarily long. The contrasts must be comma-separated with no spaces.
