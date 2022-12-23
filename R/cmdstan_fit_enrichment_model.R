@@ -4,8 +4,24 @@ library(cmdstanr)
 library(optparse)
 library(tidyverse)
 
+get_exec_file = function() {
+    # copied from https://stackoverflow.com/questions/1815606/determine-path-of-the-executing-script
+    cmdArgs = commandArgs(trailingOnly = FALSE)
+    needle = "--file="
+    match = grep(needle, cmdArgs)
+    if (length(match) > 0) {
+        # Rscript
+        return(normalizePath(sub(needle, "", cmdArgs[match])))
+    } else {
+        # 'source'd via R console
+        return(normalizePath(sys.frames()[[1]]$ofile))
+    }
+}
+
 options(stringsAsFactors = FALSE)
-source("stan_helpers.R")
+this_file = get_exec_file()
+this_direc = dirname(this_file)
+source(file.path(this_direc,"stan_helpers.R"))
 
 option_list = list(
     make_option(
