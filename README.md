@@ -115,11 +115,12 @@ are summarized in the next step.
 ## Extracting quantities of interest from the cmdstan output
 
 After the fitting step completes, run the following
-to get summaries for each parameter of interest.
-We write a bedgraph file for each of the following summary statistics
-for the 500 samples from the approximate posterior:
-mean, median, lower 90% quantile interval, and upper 90% quantile interval.
-Bedgraph files are written for each genotype and strand in your analysis.
+to filter the large csv file, keeping the parameters of interest, and to
+get summaries for each parameter of interest.
+We write a bedgraph file for each of the following summary statistics for each
+genotype and strand:
+mean of the 500 samples, median of the 500 samples, lower 90% quantile of the 
+500 samples, and the upper 90% quantile of the 500 samples.
 
 ```bash
 cd <top_direc>
@@ -165,4 +166,9 @@ Rscript $SRCDIR/R/get_contrasts.R \
     2> enricherator_results/contrast.err
 ```
 
-Note that `<contrast_arg>` must be replaced with the contrasts of interest. For example, if you had three genotypes in your analysis, you could supply as the `--contrasts` argument `genoB-genoA,genoC-genoA,genoC-genoB` to perform pairwise comparisons of enrichments from genotype B to genotype A, genotype C to genotype A, and genotype C to genotype A, respectively. The list of contrasts can be arbitrarily long. The contrasts must be comma-separated with no spaces.
+Note that `<contrast_arg>` must be replaced with the contrasts of interest. For example,
+if you had three genotypes in your analysis, you could supply as the `--contrasts` argument
+`genoB-genoA,genoC-genoA,genoC-genoB` to perform pairwise comparisons of enrichments from
+genotype B to genotype A, genotype C to genotype A, and genotype C to genotype A,
+respectively. The list of contrasts can be arbitrarily long.
+The contrasts must be comma-separated with no spaces.
