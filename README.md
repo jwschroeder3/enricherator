@@ -146,7 +146,7 @@ At this point, if you have inspected the quantities output by the
 above script, and if they seem reasonable, it is recommended that you
 delete the `draws-1.csv` file.
 
-## Running additional contrasts (currently only natively supported for genotype-level contrasts)
+## Running additional contrasts (currently only supported for genotype-level or strand-level contrasts)
 
 To run contrasts using the samples from the approximate posterior, do the following:
 
@@ -157,6 +157,7 @@ mkdir enricherator_results/contrasts
 SRCDIR="<srcdir>"
 
 Rscript $SRCDIR/R/get_contrasts.R \
+    --type <contrast_type> \
     --data_file enricherator_results/data.RData \
     --samples_file enricherator_results/draws/samples.csv \
     --contrasts <contrast_arg> \
@@ -165,4 +166,4 @@ Rscript $SRCDIR/R/get_contrasts.R \
     2> enricherator_results/contrast.err
 ```
 
-Note that `<contrast_arg>` must be replaced with the contrasts of interest. For example, if you had three genotypes in your analysis, you could supply as the `--contrasts` argument `genoB-genoA,genoC-genoA,genoC-genoB` to perform pairwise comparisons of enrichments from genotype B to genotype A, genotype C to genotype A, and genotype C to genotype A, respectively. The list of contrasts can be arbitrarily long. The contrasts must be comma-separated with no spaces.
+Note that `<contrast_type>` must be replaced with the type of contrast you're performing, i.e., "genotype" or "strand", and `<contrast_arg>` must be replaced by the contrasts of interest. For example, if you had three genotypes in your analysis, you could supply as the `--type` argument `genotype`, and for the `--contrasts` argument `genoB-genoA,genoC-genoA,genoC-genoB`. This would perform pairwise comparisons of enrichments from genotype B to genotype A, genotype C to genotype A, and genotype C to genotype A, respectively. The list of contrasts can be arbitrarily long. The contrasts must be comma-separated with no spaces.
