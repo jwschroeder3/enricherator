@@ -167,7 +167,6 @@ Rscript $SRCDIR/R/get_contrasts.R \
     2> enricherator_results/contrast.err
 ```
 
-<<<<<<< HEAD
 Note that `<contrast_type>` must be replaced with the type of
 contrast you're performing, i.e., "genotype" or "strand", and
 `<contrast_arg>` must be replaced by the contrasts of interest.
@@ -178,3 +177,8 @@ This would perform pairwise comparisons of enrichments from genotype B
 to genotype A, genotype C to genotype A, and genotype C to genotype A,
 respectively. The list of contrasts can be arbitrarily long.
 The contrasts must be comma-separated with no spaces.
+
+Similarly, to perform a contrast of minus strand over plus strand,
+you would set the `--type` argument to "strand" and the `--contrasts`
+argument to `minus-plus`, assuming your original sample info file
+assigned the minus strand as "minus" and the plus strand as "plus".
