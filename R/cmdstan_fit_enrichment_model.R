@@ -142,9 +142,10 @@ if (load) {
             mutate(
                 rep_id = ifelse(rep=="rep1", 1, 2),
                 sample_x = ifelse(sample=="input", 0, 1), # set hbd to 1
-                strand_x = ifelse(strand=="both", 1, ifelse(strand=="plus", 1, 2)), #plus strand is idx 1, minus is idx2
-                geno_x = ifelse(genotype=="py79", 1, ifelse(genotype=="rnhB", 2, 3))
+                strand_x = ifelse(strand=="both", 1, ifelse(strand=="plus", 1, 2)) #plus strand is idx 1, minus is idx2
             )
+        genotype_factor = factor(experiment_info$genotype)
+        experiment_info$geno_x = as.integer(genotype_factor)
 
         if (opt$no_beta) {
             experiment_info = experiment_info %>%
