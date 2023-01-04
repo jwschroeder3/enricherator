@@ -575,14 +575,22 @@ prep_param_df_for_file = function(df, stan_data, .genotype, .strand, .quant) {
 }
 
 
-write_cmdstan_summaries = function(summary_df, stan_data, out_direc, params, contrasts=NULL) {
+write_cmdstan_summaries = function(summary_df, stan_data, out_direc, params, contrasts=NULL, contrast_type=NULL) {
 
     info_df = stan_data[["info"]]
     if (is.null(contrasts)) {
         genotype_ids = sort(unique(stan_data[["geno_x"]]))
+        strand_ids = sort(unique(stan_data[["strand_x"]]))
     } else {
         contrast_vec = str_split(contrasts, ",", simplify=TRUE)[1,]
-        genotype_ids = 1:length(contrast_vec)
+        if (contrast_type == "genotype") {
+            genotype_ids = 1:length(contrast_vec)
+            strand_ids = sort(unique(stan_data[["strand_x"]]))
+        }
+        if (contrast_type == "strand") {
+            genotype_ids = sort(unique(stan_data[["geno_x"]]))
+            strand_ids = 1:length(contrast_vec)
+        }
     }
 
     print("Writing quantiles of interest to files")
@@ -592,10 +600,22 @@ write_cmdstan_summaries = function(summary_df, stan_data, out_direc, params, con
             if (is.null(contrasts)) {
                 genotype = info_df$genotype[info_df$geno_x == geno_id][1]
             } else {
-                genotype = contrast_vec[geno_id]
+                if (contrast_type == "genotype") {
+                    genotype = contrast_vec[geno_id]
+                } else {
+                    genotype = info_df$genotype[info_df$geno_x == geno_id][1]
+                }
             }
-            for (k in 1:stan_data[["Q"]]) {
+            for (k in strand_ids) {
+
                 .strand = info_df$strand[info_df$strand_x == k][1]
+
+                if (contrast_type == "genotype") {
+                    .strand = info_df$strand[info_df$strand_x == k][1]
+                } else { if (contrast_type == "strand") {
+                    .strand = contrast_vec[k]
+                }}
+
                 #print(paste0("Geno_id: ", geno_id))
                 this_df = summary_df %>%
                     filter(genotype == geno_id, strand == k, var_name == param) %>%

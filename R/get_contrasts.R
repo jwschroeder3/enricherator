@@ -134,5 +134,5 @@ if (res != 0) {
 }
 param_summaries = read_tsv(contrast_fname)
 #print(head(param_summaries))
-write_cmdstan_summaries(param_summaries, stan_list, out_dir, "Beta", contrasts)
+write_cmdstan_summaries(param_summaries, stan_list, out_dir, "Beta", contrasts, con_type)
 
