@@ -140,7 +140,7 @@ if (load) {
     if (is.null(opt$genome_data_file)) {
         experiment_info = read_csv(opt$info) %>%
             mutate(
-                rep_id = ifelse(rep=="rep1", 1, 2),
+                rep_id = ifelse(rep=="rep1", 1, ifelse(rep=="rep2", 2, 3)),
                 sample_x = ifelse(sample=="input", 0, 1), # set hbd to 1
                 strand_x = ifelse(strand=="both", 1, ifelse(strand=="plus", 1, 2)) #plus strand is idx 1, minus is idx2
             )
