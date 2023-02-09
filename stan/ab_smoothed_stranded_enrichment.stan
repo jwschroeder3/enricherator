@@ -90,7 +90,7 @@ transformed parameters {
     array[G,Q] vector[L] Alpha; // one intercept for each genotype/position combination
     array[S,Q] vector[L] Y_hat;
 
-    lprior += student_t_lpdf(Gamma | 3, -5, 5);
+    lprior += student_t_lpdf(Gamma | 3, 0, 5);
 
     {
         vector[b_sub_L] sub_Beta;
