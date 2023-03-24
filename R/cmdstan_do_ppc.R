@@ -35,16 +35,22 @@ load(opt$data_file)
 Y = stan_list[["Y"]]
 samp_ids = stan_list[["sample_x"]]
 post_pred_df = gather_draws(fit, post_pred[sample,strand,position])
+print(post_pred_df)
 ndraws = max(post_pred_df$.draw)
 #Y_hat = exp(extract(fit, pars="Y_hat")$Y_hat)
 y_dims = dim(Y)
+print(y_dims)
 y_vec_len = y_dims[1] * y_dims[2] * y_dims[3]
+print(y_vec_len)
 
 pred_mat = matrix(0, nrow=50, ncol=y_vec_len)
 Y_vec = c()
 pred_vec = c()
 group_vec = c()
 for (i in 1:y_dims[1]) {
+    print("##########################################")
+    print(paste0("i: ", i))
+    print("##########################################")
     genidx = stan_list[["geno_x"]][i]
     genoname = unique(stan_list[["info"]][stan_list[["info"]]$geno_x == genidx,]$genotype) 
     samptype = stan_list[["sample_x"]][i]
@@ -57,20 +63,29 @@ for (i in 1:y_dims[1]) {
         Y_vec = c(Y_vec, Y[i,j,])
         group_vec = c(group_vec, rep(paste0(i, "; ", genoname, "; ", sampname), y_dims[3]))
         fity_count = 1
-        start = 1 + 2*y_dims[3]*(i-1) + y_dims[3]*(j-1)
+        if (y_dims[2] == 1) {
+            start = 1 + y_dims[3]*(i-1) + y_dims[3]*(j-1)
+        } else if (y_dims[2] == 2) {
+            start = 1 + 2*y_dims[3]*(i-1) + y_dims[3]*(j-1)
+        }
         end = start + y_dims[3] - 1
         for (l in as.integer(seq(1,ndraws,length.out=50))) {
             this_vec = post_pred_df %>%
                 filter(.draw==l, sample==i, strand==j) %>% 
                 .$.value
+            print("++++++++++++++++++++++++")
+            print(length(this_vec))
+            print(fity_count)
+            print(start)
+            print(end)
             pred_mat[fity_count,start:end] = this_vec
             fity_count = fity_count + 1
         }
     }
 }
 
-
 p = ppc_dens_overlay_grouped(Y_vec, pred_mat, group_vec) +
-    coord_cartesian(xlim=c(0,250))
+    coord_cartesian(xlim=c(0,400)) +
+    theme(panel.background = element_rect(color="white", fill="white"))
 ggsave(filename=opt$ppc_file, plot=p)
 

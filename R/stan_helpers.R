@@ -246,18 +246,30 @@ insert_data = function(data, spike_name, spikein_rel_abund) {
         position_row=1:pos_num
     )
 
-    norm_df = data %>% 
-        select(-strand) %>%
-        unnest(data)
+    #print("norm_df line 252")
+    #print(norm_df)
     if (spike_name != "") {
-        norm_df = norm_df %>% filter(seqname == spikein)
+        norm_df = data %>% 
+            select(-c(strand,file,norm_factor)) %>%
+            unnest(data)
+        norm_factors = data$norm_factor[!duplicated(data$sample_id)]
+        norm_df = norm_df %>% filter(seqname == spike_name)
+    } else {
+        norm_df = data %>% 
+            select(-c(strand,file)) %>%
+            unnest(data)
+        norm_factors = 1
     }
+    #print("norm_df line 260")
+    #print(norm_df)
     # works, whether stranded or not
     norm_df = norm_df %>%
         select(sample_id, seqname, start, strand, score) %>%
         group_by(sample_id, seqname, start) %>%
         summarize(score = sum(score))
         #spread(strand, score) 
+    #print("norm_df line 268")
+    #print(norm_df)
     #norm_df = norm_df %>%
     #    group_by(sample_id,locus) %>%
     #    mutate(score=sum(`-`,`+`))
@@ -267,15 +279,23 @@ insert_data = function(data, spike_name, spikein_rel_abund) {
         ungroup() %>%
         spread(sample_id,score) %>%
         select(-c(seqname,start))
+    #print("norm_df line 279")
+    #print(norm_df)
     #sample_ids = names(spikein_df)
     norm_mat = as.matrix(norm_df)
     #tmm_deseq_size_factors = get_size_factors(spike_mat, summary_fn=get_trimmed_mean)
     #med_deseq_size_factors = get_size_factors(spike_mat, summary_fn=median)
     #mean_size_factors = apply(spike_mat, FUN=mean, MAR=2)
     tmm_size_factors = apply(norm_mat, FUN=get_trimmed_mean, MAR=2)
+    #print("size factor shape")
+    #print(dim(tmm_size_factors))
+    #print("norm factors")
+    #print(norm_factors)
+    #stop()
     
     #stan_list[["mean_size_factors"]] = mean_size_factors
     data_list[["tmm_size_factors"]] = tmm_size_factors
+    data_list[["spikein_norm_factors"]] = norm_factors
     #stan_list[["tmm_deseq_size_factors"]] = tmm_deseq_size_factors
     #stan_list[["med_deseq_size_factors"]] = med_deseq_size_factors
 
@@ -321,6 +341,7 @@ prep_stan_data = function(data_df, norm_method, spikein, spikein_rel_abund=0.05,
     stan_list[["Q"]] = strand_num
     stan_list[["geno_x"]] = info_df$geno_x
     stan_list[["sample_x"]] = info_df$sample_x
+    stan_list[["strand_x"]] = info_df$strand_x
     stan_list[["info"]] = data_df %>% select(-data)
     stan_list[["gather_log_lik"]] = log_lik
     data_arr = base::array(0, dim=c(samp_num,strand_num,pos_num))
@@ -593,9 +614,11 @@ write_cmdstan_summaries = function(summary_df, stan_data, out_direc, params, con
         }
     }
 
+    print(strand_ids)
+    print(genotype_ids)
     print("Writing quantiles of interest to files")
     for (param in params) {
-        #print(paste0("Param: ", param))
+        print(paste0("Param: ", param))
         for (geno_id in genotype_ids) {
             if (is.null(contrasts)) {
                 genotype = info_df$genotype[info_df$geno_x == geno_id][1]
@@ -616,7 +639,7 @@ write_cmdstan_summaries = function(summary_df, stan_data, out_direc, params, con
                     .strand = contrast_vec[k]
                 }}
 
-                #print(paste0("Geno_id: ", geno_id))
+                print(paste0("Geno_id: ", geno_id))
                 this_df = summary_df %>%
                     filter(genotype == geno_id, strand == k, var_name == param) %>%
                     mutate(

@@ -143,6 +143,16 @@ if (load) {
                 sample_x = ifelse(sample=="input", 0, 1), # set hbd to 1
                 strand_x = ifelse(strand=="both", 1, ifelse(strand=="plus", 1, 2)) #plus strand is idx 1, minus is idx2
             )
+
+        if (opt$norm_method == "spikein") {
+            if (is.null(opt$spikein_rel_abund)) {
+                stop("You set --norm_method to 'spikein', but you did not include the --spikein_rel_abund argument at the command line. To do spikein normalization you must include both. Enricherator was not run. Exiting now.")
+            }
+            if (is.null(experiment_info$norm_factor)) {
+                stop("You chose to do spike-in normalization, but no column named 'norm_factor' was found in the info file. Spike-in normalization factors should be a column in the info file.")
+            }
+        }
+
         genotype_factor = factor(experiment_info$genotype)
         experiment_info$geno_x = as.integer(genotype_factor)
 
@@ -180,7 +190,11 @@ if (load) {
     save(stan_list, file=opt$data_file)
 }
 
-stan_list[["libsize"]] = stan_list[[opt$libsize_key]]
+if (opt$norm_method == "libsize") {
+    stan_list[["libsize"]] = stan_list[[opt$libsize_key]] 
+} else if (opt$norm_method == "spikein") {
+    stan_list[["libsize"]] = stan_list[["spikein_norm_factors"]]
+}
 
 print("Fitting model using variational inference")
 
