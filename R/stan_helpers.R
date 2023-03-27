@@ -359,6 +359,13 @@ prep_stan_data = function(data_df, norm_method, spikein, spikein_rel_abund=0.05,
     stan_list[["Y"]] = data_arr
 
     resolution = stan_list[["position_mapper"]]$start[2] - stan_list[["position_mapper"]]$start[1]
+
+    # round to nearest multiple of "resolution"
+    input_subsample_dist_bp = round(input_subsample_dist_bp/resolution)*resolution
+    input_frag_len_bp = round(input_frag_len_bp/resolution)*resolution
+    ext_subsample_dist_bp = round(ext_subsample_dist_bp/resolution)*resolution
+    ext_frag_len_bp = round(ext_frag_len_bp/resolution)*resolution
+
     a_C = floor(input_subsample_dist_bp / resolution)
     b_C = floor(ext_subsample_dist_bp / resolution)
     b_K = ext_frag_len_bp / resolution
