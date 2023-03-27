@@ -30,9 +30,12 @@ read_file = function(fname, ignores, debug=FALSE) {
 
     if (debug) {
         tmp_tib = tmp_tib %>%
+            #filter(
+            #    ((seqname == "CP006881.1" & start > 1180500 & end < 1185500)
+            #    | seqname == "NC_011916.1")
+            #)
             filter(
-                ((seqname == "CP006881.1" & start > 1180500 & end < 1185500)
-                | seqname == "NC_011916.1")
+                (seqname == "gi|545778205|gb|U00096.3|" & start > 655000 & end < 660000)
             )
     }
 

@@ -84,11 +84,10 @@ parameters {
 
 transformed parameters {
     array[2] real<lower=0> prec = exp(log_prec);
-    real lprior = 0; // prior contributions to log posterior
     array[B,Q] vector[L] Beta;
     array[G,Q] vector[L] Alpha; // one intercept for each genotype/position combination
 
-    lprior += student_t_lpdf(Gamma | 3, 0, 5);
+    real lprior = 0.0;
 
     {
         array[B,Q] vector[L] tmp_Beta;
@@ -117,7 +116,6 @@ transformed parameters {
 
     for (g in 1:G) {
         for (q in 1:Q) {
-            lprior += normal_lpdf(sub_Alpha[g,q] | alpha_prior, 4);
             Alpha[g,q] = csr_matrix_times_vector(
                 L,
                 a_sub_L,
@@ -134,6 +132,22 @@ transformed parameters {
     lprior += inv_gamma_lpdf(hs_slab | 0.5 * hs_df_slab, 0.5 * hs_df_slab);
     lprior += gamma_lpdf(shape | 0.01, 0.01);
     lprior += normal_lpdf(log_prec | 2, 1);
+
+    for (b in 1:B) {
+        for (q in 1:Q) {
+            lprior += std_normal_lpdf(zbeta[b,q]);
+            lprior += student_t_lpdf(hs_local[b,q] | hs_df, 0, 1)
+              - num_hs * log(0.5);
+        }
+    }
+
+    for (g in 1:B) {
+        for (q in 1:Q) {
+            lprior += normal_lpdf(sub_Alpha[g,q] | alpha_prior, 4);
+        }
+    }
+
+    lprior += student_t_lpdf(Gamma | 3, 0, 5);
 }
 
 model {
@@ -143,13 +157,6 @@ model {
     vector[L] Y_hat_sq;
 
     target += lprior;
-    for (b in 1:B) {
-        for (q in 1:Q) {
-            target += std_normal_lpdf(zbeta[b,q]);
-            target += student_t_lpdf(hs_local[b,q] | hs_df, 0, 1)
-              - num_hs * log(0.5);
-        }
-    }
 
     for (s in 1:S) {
         sample_type = sample_x[s];
