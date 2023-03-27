@@ -85,14 +85,13 @@ parameters {
 transformed parameters {
     array[2] real<lower=0> prec = exp(log_prec);
     real lprior = 0; // prior contributions to log posterior
-    array[B,Q] vector[L] tmp_Beta;
     array[B,Q] vector[L] Beta;
     array[G,Q] vector[L] Alpha; // one intercept for each genotype/position combination
-    array[S,Q] vector[L] Y_hat;
 
     lprior += student_t_lpdf(Gamma | 3, 0, 5);
 
     {
+        array[B,Q] vector[L] tmp_Beta;
         vector[b_sub_L] sub_Beta;
         for (b in 1:B) {
             for (q in 1:Q) {
@@ -135,25 +134,13 @@ transformed parameters {
     lprior += inv_gamma_lpdf(hs_slab | 0.5 * hs_df_slab, 0.5 * hs_df_slab);
     lprior += gamma_lpdf(shape | 0.01, 0.01);
     lprior += normal_lpdf(log_prec | 2, 1);
-
-    {
-        int genotype;
-        int sample_type;
-        for (s in 1:S) {
-            genotype = geno_x[s];
-            sample_type = sample_x[s];
-            for (q in 1:Q) {
-                Y_hat[s,q] = Alpha[genotype,q]
-                    + sample_type * Beta[genotype,q]
-                    + cent_loglibsize[s];
-            }
-        }
-    }
 }
 
 model {
     int grainsize = 1;
     int sample_type;
+    int genotype;
+    vector[L] Y_hat_sq;
 
     target += lprior;
     for (b in 1:B) {
@@ -166,8 +153,12 @@ model {
 
     for (s in 1:S) {
         sample_type = sample_x[s];
+        genotype = geno_x[s];
         for (q in 1:Q) {
-            target += neg_binomial_2_log_lpmf(Y[s,q] | Y_hat[s,q], prec[sample_type+1]);
+            Y_hat_sq = Alpha[genotype,q]
+                + sample_type * Beta[genotype,q]
+                + cent_loglibsize[s];
+            target += neg_binomial_2_log_lpmf(Y[s,q] | Y_hat_sq, prec[sample_type+1]);
         }
     }
 }
@@ -176,15 +167,21 @@ generated quantities {
     vector[N] log_lik;
     array[S,Q] vector[L] post_pred;
     {
+        vector[L] Y_hat_sq;
         int n = 1;
+        int genotype;
         int sample_type;
         if (gather_log_lik) {
             for (s in 1:S) {
                 sample_type = sample_x[s];
+                genotype = geno_x[s];
                 for (q in 1:Q) {
+                    Y_hat_sq = Alpha[genotype,q]
+                        + sample_type * Beta[genotype,q]
+                        + cent_loglibsize[s];
                     for (l in 1:L) {
-                        post_pred[s,q][l] = neg_binomial_2_rng(exp(Y_hat[s,q][l]), prec[sample_type+1]);
-                        log_lik[n] = neg_binomial_2_log_lpmf(Y[s,q,l] | Y_hat[s,q][l], prec[sample_type+1]);
+                        post_pred[s,q][l] = neg_binomial_2_rng(exp(Y_hat_sq[l]), prec[sample_type+1]);
+                        log_lik[n] = neg_binomial_2_log_lpmf(Y[s,q,l] | Y_hat_sq[l], prec[sample_type+1]);
                         n += 1;
                     }
                 }

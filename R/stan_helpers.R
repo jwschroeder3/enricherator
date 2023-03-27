@@ -633,11 +633,13 @@ write_cmdstan_summaries = function(summary_df, stan_data, out_direc, params, con
 
                 .strand = info_df$strand[info_df$strand_x == k][1]
 
-                if (contrast_type == "genotype") {
-                    .strand = info_df$strand[info_df$strand_x == k][1]
-                } else { if (contrast_type == "strand") {
-                    .strand = contrast_vec[k]
-                }}
+                if (!is.null(contrasts)) {
+                    if (contrast_type == "genotype") {
+                        .strand = info_df$strand[info_df$strand_x == k][1]
+                    } else { if (contrast_type == "strand") {
+                        .strand = contrast_vec[k]
+                    }}
+                }
 
                 print(paste0("Geno_id: ", geno_id))
                 this_df = summary_df %>%
