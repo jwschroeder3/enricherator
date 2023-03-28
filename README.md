@@ -44,7 +44,9 @@ a `fix` argument that could be helpful.
 
 Enter directory containing sample info file
 (see `examples/nonstranded_sample_info.txt` and
-`examples/stranded_sample_info.txt` for sample info file templates).
+`examples/stranded_sample_info.txt` for sample info file templates.
+Note: the norm_factor column of these files is currently ignored, but
+just has to be present.).
 Run the following,
 substituting the location of the `enricherator` source tree for
 `<srcdir>`. You will also need to adjust several of the arguments
