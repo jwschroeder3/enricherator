@@ -333,9 +333,12 @@ prep_stan_data = function(data_df, norm_method, spikein, spikein_rel_abund=0.05,
     num_geno = length(unique(data_df$genotype))
     levels = unique(data_df$sample_id)
     strand_names = unique(data_df$strand)
+    #print(strand_names)
+    #stop("Reached stop point")
     samp_num = length(levels)
     strand_num = length(strand_names)
-    info_df = data_df %>% select(-data) %>% filter(!duplicated(sample_id))
+    strand_df = data_df %>% select(-data)
+    info_df = strand_df %>% filter(!duplicated(sample_id))
     stan_list[["L"]] = pos_num
     stan_list[["S"]] = samp_num
     stan_list[["B"]] = num_geno
@@ -344,7 +347,9 @@ prep_stan_data = function(data_df, norm_method, spikein, spikein_rel_abund=0.05,
     stan_list[["Q"]] = strand_num
     stan_list[["geno_x"]] = info_df$geno_x
     stan_list[["sample_x"]] = info_df$sample_x
-    stan_list[["strand_x"]] = info_df$strand_x
+    stan_list[["strand_x"]] = strand_df$strand_x
+    #print(stan_list[["strand_x"]])
+    #print(stan_list[["Q"]])
     stan_list[["info"]] = data_df %>% select(-data)
     stan_list[["gather_log_lik"]] = log_lik
     data_arr = base::array(0, dim=c(samp_num,strand_num,pos_num))
