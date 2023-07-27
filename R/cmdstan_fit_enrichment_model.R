@@ -210,6 +210,9 @@ include_vars = c(
 for (var in include_vars) {
     newlist[[var]] = stan_list[[var]]
 }
+if (!dir.exists(opt$draws_direc)) {
+    dir.create(opt$draws_direc, recursive=TRUE)
+}
 fit = sm$variational(
     data = newlist,
     threads = opt$cores,

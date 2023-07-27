@@ -1,10 +1,27 @@
 #!/usr/bin/env Rscript
 library(optparse)
 library(tidyverse)
+library(scales)
+
+get_exec_file = function() {
+    # copied from https://stackoverflow.com/questions/1815606/determine-path-of-the-executing-script
+    cmdArgs = commandArgs(trailingOnly = FALSE)
+    needle = "--file="
+    match = grep(needle, cmdArgs)
+    if (length(match) > 0) {
+        # Rscript
+        return(normalizePath(sub(needle, "", cmdArgs[match])))
+    } else {
+        # 'source'd via R console
+        return(normalizePath(sys.frames()[[1]]$ofile))
+    }
+}
 
 options(stringsAsFactors=FALSE)
 
-source("helpers.R")
+this_file = get_exec_file()
+this_direc = dirname(this_file)
+source(file.path(this_direc,"helpers.R"))
 
 option_list = list(
     make_option(
@@ -18,6 +35,10 @@ option_list = list(
     make_option(
         c("-f", "--features"), type="character", default=NULL,
         help="Optional. A gff file with feature annotations.",
+    ),
+    make_option(
+        c("--feature_name_field"), type="character", default=NULL,
+        help="Optional. Sets which field in the attribute column of your gff file contains the feature names to be plotted. If not provided, will use Name if it exists, and locus_tag if Name does not exist.",
     ),
     make_option(
         c("-c", "--contig"), type="character",
@@ -68,6 +89,10 @@ option_list = list(
         help="Name of the color variable, if such a variable exists",
     ),
     make_option(
+        c("--colorvalues"), type="character", default=NULL,
+        help="Optional comma-separated list of hexadecimal colors. If provided user must set a color value for each DISTINCT value provided in --samplenames.",
+    ),
+    make_option(
         c("--linetypevar"), type="character", default=NULL,
         help="Name of the linetype variable, if such a variable exists",
     ),
@@ -94,6 +119,10 @@ option_list = list(
     make_option(
         c("--include_feature_types"), type="character", default="CDS,tRNA,rRNA",
         help="Comma-separated list of feature types to include (default is 'CDS,tRNA,rRNA')"
+    ),
+    make_option(
+        c("--feature_colors"), type="character", default=NULL,
+        help="Optional comma-separated list of hexadecimal values assigning a color to each feature type provided by the --include_feature_types argument. If ommitted, ggplot defaults will be used."
     )
 )
  
@@ -103,7 +132,28 @@ opt = parse_args(opt_parser)
 
 infiles = str_split(opt$infiles, ",", simplify=TRUE)[1,]
 samples = str_split(opt$samplenames, ",", simplify=TRUE)[1,]
+distinct_samples = unique(samples)
 feature_types = str_split(opt$include_feature_types, ",", simplify=TRUE)[1,]
+if (opt$include_feature_types == "CDS,tRNA,rRNA") {
+    if (is.null(opt$feature_colors)) {
+        feature_colors = c("#43BA37", "#619CFF", "#F0766D")
+    } else {
+        feature_colors = str_split(opt$feature_colors, ",", simplify=TRUE)[1,]
+    }
+} else {
+    if (is.null(opt$feature_colors)) {
+        # get ggplot default colors
+        feature_colors = hue_pal()(length(feature_types))
+    } else {
+        feature_colors = str_split(opt$feature_colors, ",", simplify=TRUE)[1,]
+    }
+}
+
+if (length(feature_colors) != length(feature_types)) {
+    stop("The number of features provided by --feature_types and the number of hexadecimal colors provided by --feature_colors does not match. Edit the command so they are the same length. Exiting now.")
+}
+
+color_vals = NULL
 up=NULL
 low=NULL
 upper_files = NULL
@@ -111,6 +161,13 @@ lower_files = NULL
 
 if (length(infiles) != length(samples)) {
     stop("The number of input files must match the number of samples")
+}
+
+if (!is.null(opt$colorvalues)) {
+    color_vals = str_split(opt$colorvalues, ",", simplify=TRUE)[1,]
+    if (length(distinct_samples) != length(color_vals)) {
+        stop("The number of distinct sample names provided by --samplenames argument must match the number of hexadecimal color values supplied by --colorvalues, but the numbers do not match. For instance, if you provided --samplesnames A,A,B,B,C,C then there are three distinct samples, A,B,C, so you should have three values provided to --colorvalues. Exiting now.")
+    }
 }
 
 if (!is.null(opt$lower_files)) {
@@ -184,11 +241,15 @@ if (!is.null(opt$features)) {
         seqname == opt$contig,
         feature %in% feature_types
     )
-    gff$name = getAttributeField(gff$attributes, "Name")
-    gff$locus_tag = getAttributeField(gff$attributes, "locus_tag")
-    gff = gff %>% mutate(
-        name = ifelse(duplicated(name), locus_tag, name)
-    )
+    if (is.null(opt$feature_name_field)) {
+        gff$name = getAttributeField(gff$attributes, "Name")
+        gff$locus_tag = getAttributeField(gff$attributes, "locus_tag")
+        gff = gff %>% mutate(
+            name = ifelse(duplicated(name), locus_tag, name)
+        )
+    } else {
+        gff$name = getAttributeField(gff$attributes, opt$feature_name_field)
+    }
 } else {
     plot_features = FALSE
     gff = NULL
@@ -204,11 +265,14 @@ p = plot_locus(
     lineSize = opt$line_size,
     yvar = opt$yvar,
     color_var = opt$colorvar,
+    color_vals = color_vals,
     linetype_var = opt$linetypevar,
     ylabel = opt$ylabel,
     feat_var = opt$featurevar,
     facet = opt$facet,
     plotFeatures = plot_features,
+    feat_types = feature_types,
+    feat_colors = feature_colors,
     log_y = opt$log,
     feat_fill_var = "feature",
     name_angle = opt$name_angle,

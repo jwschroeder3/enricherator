@@ -73,6 +73,10 @@ load(data_file)
 print("Reading cmdstanVBfit object")
 load(fit_file)
 
+if (!dir.exists(opt$out_direc)) {
+    dir.create(opt$out_direc, recursive=TRUE)
+}
+
 gather_vb_estimates(
     fit,
     stan_list,

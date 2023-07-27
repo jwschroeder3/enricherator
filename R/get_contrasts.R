@@ -83,6 +83,10 @@ if (!(con_type == "genotype") & (!(con_type == "strand"))) {
     ))
 }
 
+if (!dir.exists(opt$out_dir)) {
+    dir.create(opt$out_dir, recursive=TRUE)
+}
+
 print("Reading data used by stan")
 load(data_file)
 
