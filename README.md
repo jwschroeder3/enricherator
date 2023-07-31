@@ -6,7 +6,10 @@ Chip-seq, IPOD-HR, HBD-seq, etc., vs. input DNA fragments.
 
 ## Conda env setup
 
-To set up the conda environment, run
+To start using Enricherator, clone this repository and enter
+the directory created.
+
+Then, to set up the conda environment, run
 
 ```bash
 conda env create -f conda_environment.yaml
