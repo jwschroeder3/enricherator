@@ -5,7 +5,8 @@ of sequencing fragments in an extracted sample, i.e.,
 Chip-seq, IPOD-HR, HBD-seq, etc., vs. input DNA fragments.
 
 For the under-the-hood workings of Enricherator,
-see supplemental material in the original Enricherator citation:
+see supplemental material in the original Enricherator citation,
+which also happens to be the work you should cite if using Enricherator in your own research:
 
     Schroeder, et al. 2023. Science Advances 9 (30): eadi5945. 
 
