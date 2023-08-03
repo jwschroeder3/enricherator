@@ -6,7 +6,8 @@ Chip-seq, IPOD-HR, HBD-seq, etc., vs. input DNA fragments.
 
 For the under-the-hood workings of Enricherator,
 see supplemental material in the original Enricherator citation:
-Schroeder, et al. 2023. Science Advances 9 (30): eadi5945. 
+
+    Schroeder, et al. 2023. Science Advances 9 (30): eadi5945. 
 
 ## Conda env setup
 
