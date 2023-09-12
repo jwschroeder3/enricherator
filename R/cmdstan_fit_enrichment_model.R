@@ -131,7 +131,11 @@ print(paste0("Compiling model in ", model_file))
 sm = cmdstan_model(model_file, cpp_options = list(stan_threads = TRUE))
 
 spikein = opt$spikein
-ignores = str_split(opt$ignore_ctgs, ",", simplify=TRUE)[1,]
+if (!is.null(opt$ignore_ctgs)) {
+    ignores = str_split(opt$ignore_ctgs, ",", simplify=TRUE)[1,]
+} else {
+    ignores = ""
+}
 load = opt$load_data_file
 
 if (load) {

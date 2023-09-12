@@ -332,7 +332,12 @@ prep_stan_data = function(data_df, norm_method, spikein, spikein_rel_abund=0.05,
     stan_list = res[[2]]
     num_geno = length(unique(data_df$genotype))
     levels = unique(data_df$sample_id)
-    strand_names = unique(data_df$strand)
+    strand_names = NA
+    distinct_strand_ids = sort(unique(data_df$strand_x))
+    for (q in distinct_strand_ids) {
+        strand_names[q] = data_df$strand[data_df$strand_x == q][1]
+    }
+    #strand_names = unique(data_df$strand)
     #print(strand_names)
     #stop("Reached stop point")
     samp_num = length(levels)
@@ -355,12 +360,22 @@ prep_stan_data = function(data_df, norm_method, spikein, spikein_rel_abund=0.05,
     data_arr = base::array(0, dim=c(samp_num,strand_num,pos_num))
     for (s in 1:samp_num) {
         level = levels[s]
+        #print(paste0("level: ", level))
         for (q in 1:strand_num) {
             strand_name = strand_names[q]
+            #print(paste0("strand idx: ", q))
+            #print(paste0("strand: ", strand_name))
+            #stop()
             which_row = which(data_df$sample_id == level & data_df$strand == strand_name)
+            #print(unique(data_df$strand))
+            #print(unique(data_df$sample_id))
             sq_data  = unlist(data_df$data[[which_row]] %>%
                 filter(seqname != spikein) %>%
-                select(score))
+                select(score)) %>%
+                unlist(use.names=F)
+            #print(sq_data %>% head)
+            #print(length(sq_data))
+            #print(dim(data_arr))
             data_arr[s,q,] = sq_data
         }
     }

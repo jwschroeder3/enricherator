@@ -167,12 +167,12 @@ plot_locus = function(signal_df, plotStart, plotEnd, chr_name,
                      log_y=FALSE, name_angle=0, upper=NULL, lower=NULL
 ) {
 
+
     yvar = sym(yvar)
     sym_color_var = sym(color_var)
     if (!is.null(linetype_var)) {
         linetype_var = sym(linetype_var)
     }
-    print(color_vals)
  
     plot_sig = signal_df %>%
         dplyr::filter(seqname==chr_name, start<=plotEnd, end>=plotStart) %>%
@@ -408,14 +408,21 @@ plot_locus = function(signal_df, plotStart, plotEnd, chr_name,
         coord_cartesian(xlim = c(plotStart/1e6, plotEnd/1e6)) +
         guides(colour = guide_legend(override.aes = list(alpha = 1)))
 
-        if (is.null(color_vals)) {
-            plot = plot +
-               scale_color_manual(name=color_var, values=fill_vals$fill)
-        } else {
-            distinct_samples = unlist(unique(plot_sig[,color_var]), use.names=FALSE)
-            plot = plot +
-               scale_color_manual(name=color_var, breaks=distinct_samples, values=color_vals)
-        }
+    g = ggplot_build(plot)
+    default_color_vals = unique(g$data[[1]]['colour'])
+    print(default_color_vals)
+    #print(names(g$data))
+    #print(head(g$data[[1]]))
+    #print(length(g$data))
+
+    if (is.null(color_vals)) {
+        plot = plot +
+           scale_color_manual(name=color_var, values=default_color_vals$colour)
+    } else {
+        distinct_samples = unlist(unique(plot_sig[,color_var]), use.names=FALSE)
+        plot = plot +
+           scale_color_manual(name=color_var, breaks=distinct_samples, values=color_vals)
+    }
 
     if (!(ylims == "detect")) {
         plot = plot + coord_cartesian(

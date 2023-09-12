@@ -38,7 +38,7 @@ option_list = list(
     ),
     make_option(
         c("--feature_name_field"), type="character", default=NULL,
-        help="Optional. Sets which field in the attribute column of your gff file contains the feature names to be plotted. If not provided, will use Name if it exists, and locus_tag if Name does not exist.",
+        help="Optional. Sets which field in the attribute column of your gff file contains the feature names to be plotted. If not provided, will use, in order of preference, gene, Name, locus_tag, and ID any of those fields exist. Note that for features to plot correctly, the chosen field MUST be uniqe to each feature to be plotted.",
     ),
     make_option(
         c("-c", "--contig"), type="character",
@@ -242,17 +242,34 @@ if (!is.null(opt$features)) {
         feature %in% feature_types
     )
     if (is.null(opt$feature_name_field)) {
-        gff$name = getAttributeField(gff$attributes, "Name")
+        gff$name = getAttributeField(gff$attributes, "gene")
+        gff$alt_name = getAttributeField(gff$attributes, "Name")
         gff$locus_tag = getAttributeField(gff$attributes, "locus_tag")
+        gff$ID = getAttributeField(gff$attributes, "ID")
+        gff = gff %>% mutate(
+            name = ifelse(duplicated(name), alt_name, name)
+        )
         gff = gff %>% mutate(
             name = ifelse(duplicated(name), locus_tag, name)
         )
+        gff = gff %>% mutate(
+            name = ifelse(duplicated(name), ID, name)
+        )
+        fields = c("gene", "Name", "locus_tag", "ID")
     } else {
         gff$name = getAttributeField(gff$attributes, opt$feature_name_field)
+        fields = c(opt$feature_name_field)
     }
 } else {
     plot_features = FALSE
     gff = NULL
+}
+
+duped = duplicated(gff$name)
+
+if (any(duped)) {
+    dup_names = gff$name[duped]
+    stop(paste0("Duplicated feature names exist in your gff file! You chose ", fields, " as your gff attribute field(s) to use for feature names.\nDuplicated names:\n", dup_names, "\nEither rename the features so the field is unique to each feature, or consider using a different field altogether."))
 }
 
 p = plot_locus(
