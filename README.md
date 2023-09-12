@@ -4,9 +4,18 @@ A set of tools to use Bayesian inference to infer enrichment
 of sequencing fragments in an extracted sample, i.e.,
 Chip-seq, IPOD-HR, HBD-seq, etc., vs. input DNA fragments.
 
+For the under-the-hood workings of Enricherator,
+see supplemental material in the original Enricherator [paper](https://www.science.org/doi/10.1126/sciadv.adi5945),
+which also happens to be the work you should cite if using Enricherator in your own research:
+
+    Schroeder, et al. 2023. Science Advances 9 (30): eadi5945. 
+
 ## Conda env setup
 
-To set up the conda environment, run
+To start using Enricherator, clone this repository and enter
+the directory created.
+
+Then, to set up the conda environment, run
 
 ```bash
 conda env create -f conda_environment.yaml
