@@ -13,11 +13,11 @@ file. The bug did not affect our publications using Enricherator, because
 we have always listed the plus stranded data first. The bug has been
 fixed in v0.2.0.
 
-## 0.1.0
+## [0.1.0]
 
 + Release published with PMID: 37494439.
 
 ### Bug
 
-+ See version 0.2.0 for note on bug involving strand assignments
++ See [version 0.2.0](#fixed) for note on bug involving strand assignments
 in this version.
