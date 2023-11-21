@@ -296,5 +296,6 @@ p = plot_locus(
     upper = up,
     lower = low
 )
+
 ggsave(plot=p, filename=opt$plot_file, height=opt$plot_height, width=opt$plot_width)
 

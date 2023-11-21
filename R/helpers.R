@@ -183,8 +183,24 @@ plot_locus = function(signal_df, plotStart, plotEnd, chr_name,
             dplyr::filter(seqname==chr_name, end > plotStart, start < plotEnd)
     }
 
-    min_sig = min(plot_sig[,yvar])
-    max_sig = max(plot_sig[,yvar])
+    if (!is.null(lower)) {
+        if (is.null(upper)) {
+            stop("When specifying a lower conf limit, you must also specify an upper conf limit. exiting now.")
+        }
+    }
+    if (!is.null(upper)) {
+        if (is.null(lower)) {
+            stop("When specifying an upper conf limit, you must also specify a lower conf limit. exiting now.")
+        }
+    }
+
+    if (is.null(lower)) {
+        min_sig = min(plot_sig[,yvar])
+        max_sig = max(plot_sig[,yvar])
+    } else {
+        min_sig = min(plot_sig[,lower])
+        max_sig = max(plot_sig[,upper])
+    }
     sig_range = max_sig - min_sig
     geneTop = min_sig - 0.05*sig_range
     geneBottom = geneTop - 0.075*sig_range
@@ -209,12 +225,6 @@ plot_locus = function(signal_df, plotStart, plotEnd, chr_name,
                 ),
                 alpha=0.4
             )
-    }
-
-    if (!is.null(lower)) {
-        if (is.null(upper)) {
-            stop("When specifying a lower conf limit, you must also specify an upper conf limit. exiting now.")
-        }
     }
 
     if (!is.null(upper)) {

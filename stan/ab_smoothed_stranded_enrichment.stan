@@ -69,7 +69,7 @@ transformed data {
 }
 
 parameters {
-    array[2] real log_prec; // stratify global precision inference by extracted vs input
+    vector<lower=0>[2] prec; // stratify global precision inference by extracted vs input
     array[G,Q] vector[a_sub_L] sub_Alpha; // one intercept for each genotype/sub-position
     vector[B] Gamma; // an intercept to offset hbd samples by
 
@@ -83,14 +83,13 @@ parameters {
 }
 
 transformed parameters {
-    array[2] real<lower=0> prec = exp(log_prec);
     array[B,Q] vector[L] Beta;
     array[G,Q] vector[L] Alpha; // one intercept for each genotype/position combination
 
     real lprior = 0.0;
 
     {
-        array[B,Q] vector[L] tmp_Beta;
+        vector[L] tmp_Beta;
         vector[b_sub_L] sub_Beta;
         for (b in 1:B) {
             for (q in 1:Q) {
@@ -101,7 +100,7 @@ transformed parameters {
                     hs_scale_slab^2 * hs_slab
                 );
                 //print(sub_Beta[1:5])
-                tmp_Beta[b,q] = csr_matrix_times_vector(
+                tmp_Beta = csr_matrix_times_vector(
                     L,
                     b_sub_L,
                     b_weights_vals,
@@ -109,7 +108,7 @@ transformed parameters {
                     b_row_non_zero_number,
                     sub_Beta
                 );
-                Beta[b,q] = tmp_Beta[b,q] + Gamma[b];
+                Beta[b,q] = tmp_Beta + Gamma[b];
             }
         }
     }
@@ -131,7 +130,6 @@ transformed parameters {
         - 1 * log(0.5);
     lprior += inv_gamma_lpdf(hs_slab | 0.5 * hs_df_slab, 0.5 * hs_df_slab);
     lprior += gamma_lpdf(shape | 0.01, 0.01);
-    lprior += normal_lpdf(log_prec | 2, 1);
 
     for (b in 1:B) {
         for (q in 1:Q) {
@@ -147,6 +145,7 @@ transformed parameters {
         }
     }
 
+    lprior += cauchy_lpdf(prec | 0, 1);
     lprior += student_t_lpdf(Gamma | 3, 0, 5);
 }
 
@@ -170,30 +169,30 @@ model {
     }
 }
 
-generated quantities {
-    vector[N] log_lik;
-    array[S,Q] vector[L] post_pred;
-    {
-        vector[L] Y_hat_sq;
-        int n = 1;
-        int genotype;
-        int sample_type;
-        if (gather_log_lik) {
-            for (s in 1:S) {
-                sample_type = sample_x[s];
-                genotype = geno_x[s];
-                for (q in 1:Q) {
-                    Y_hat_sq = Alpha[genotype,q]
-                        + sample_type * Beta[genotype,q]
-                        + cent_loglibsize[s];
-                    for (l in 1:L) {
-                        post_pred[s,q][l] = neg_binomial_2_rng(exp(Y_hat_sq[l]), prec[sample_type+1]);
-                        log_lik[n] = neg_binomial_2_log_lpmf(Y[s,q,l] | Y_hat_sq[l], prec[sample_type+1]);
-                        n += 1;
-                    }
-                }
-            }
-        }
-    }
-}
+//generated quantities {
+//    vector[N] log_lik;
+//    array[S,Q] vector[L] post_pred;
+//    {
+//        vector[L] Y_hat_sq;
+//        int n = 1;
+//        int genotype;
+//        int sample_type;
+//        if (gather_log_lik) {
+//            for (s in 1:S) {
+//                sample_type = sample_x[s];
+//                genotype = geno_x[s];
+//                for (q in 1:Q) {
+//                    Y_hat_sq = Alpha[genotype,q]
+//                        + sample_type * Beta[genotype,q]
+//                        + cent_loglibsize[s];
+//                    for (l in 1:L) {
+//                        post_pred[s,q][l] = neg_binomial_2_rng(exp(Y_hat_sq[l]), prec[sample_type+1]);
+//                        log_lik[n] = neg_binomial_2_log_lpmf(Y[s,q,l] | Y_hat_sq[l], prec[sample_type+1]);
+//                        n += 1;
+//                    }
+//                }
+//            }
+//        }
+//    }
+//}
 

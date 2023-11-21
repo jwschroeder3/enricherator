@@ -53,6 +53,10 @@ option_list = list(
         help="The name of the directory into which draws.csv will be written",
     ),
     make_option(
+        c("--seed"), type="integer",
+        help="Sets the seed to the (P)RNG for variational inference. Not usually set, but helpful for testing reproducibility.",
+    ),
+    make_option(
         c("--fit_file"), type="character",
         help="The name of the RData file containing stanfit object",
     ),
@@ -219,6 +223,7 @@ if (!dir.exists(opt$draws_direc)) {
 }
 fit = sm$variational(
     data = newlist,
+    seed = opt$seed,
     threads = opt$cores,
     output_samples = 500,
     output_dir = opt$draws_direc,

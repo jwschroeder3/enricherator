@@ -1,0 +1,45 @@
+Bootstrap: docker
+From: ubuntu
+Stage: build
+
+%setup
+    mkdir ${SINGULARITY_ROOTFS}/src
+    cp -r ../R ${SINGULARITY_ROOTFS}/src/
+    cp -r ../stan ${SINGULARITY_ROOTFS}/src/
+    cp -r ../bin ${SINGULARITY_ROOTFS}/src/
+    chmod -R 755 ${SINGULARITY_ROOTFS}/src
+
+%environment
+    export ENRICHERATOR_VER=0.0.1
+    export PATH="/conda/envs/rstan/bin:${PATH}"
+
+%files
+    conda_environment.yaml
+    enricherator.bashrc /enricherator.bashrc
+
+%runscript
+    /bin/bash -rcfile /enricherator.bashrc
+
+%post -c /bin/bash
+    apt -y update \
+    && apt -y install vim wget build-essential libsqlite3-dev libarchive-dev \
+    && wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh \
+    && bash miniconda.sh -b -p conda \
+    && source /conda/etc/profile.d/conda.sh \
+    && conda update -y -n base conda \
+    && conda activate base \
+    && conda install -c conda-forge mamba \
+    && mamba env create -f conda_environment.yaml \
+    && rm miniconda.sh -f \
+    && cd \
+    && conda activate rstan \
+    && echo -e 'options(repos=c("https://mc-stan.org/r-packages/"))' >> /conda/envs/rstan/lib/R/etc/Rprofile.site \
+    && R -e 'install.packages("cmdstanr")'
+
+    CUSTOM_ENV=/.singularity.d/env/99-zz_custom_env.sh
+    cat >$CUSTOM_ENV <<EOF
+#!/bin/bash
+PS1="[enricherator_0.0.1]\w \$"
+EOF
+    chmod 755 $CUSTOM_ENV
+
