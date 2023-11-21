@@ -80,7 +80,6 @@ parameters {
     //vector[S] wsh; // wsh term for how much wsh for a given sample
     vector<lower=0>[2] prec; // stratify global precision inference by extracted vs input
     array[G,Q] vector[a_sub_L] sub_Alpha; // one intercept for each genotype/sub-position
-    array[B,Q] vector[b_sub_L] sub_Beta; // one intercept for each genotype/sub-position
     vector[B] Gamma; // an intercept to offset hbd samples by
 
     // parameters for normal mixture prior
@@ -90,12 +89,12 @@ parameters {
     //array[B,Q] vector<lower=0>[b_sub_L] tausq;
 
     //// local parameters for horseshoe prior
-    //array[B,Q] vector[b_sub_L] zbeta;
-    //array[B,Q] vector<lower=0>[b_sub_L] hs_local;
-    //// horseshoe shrinkage parameters 
-    //real<lower=0> hs_global; 
-    //real<lower=0> hs_slab; 
-    //real<lower=0> shape; 
+    array[B,Q] vector[b_sub_L] zbeta;
+    array[B,Q] vector<lower=0>[b_sub_L] hs_local;
+    // horseshoe shrinkage parameters 
+    real<lower=0> hs_global; 
+    real<lower=0> hs_slab; 
+    real<lower=0> shape; 
 }
 
 transformed parameters {
@@ -105,17 +104,26 @@ transformed parameters {
     real lprior = 0.0;
 
     {
+        //array[B,Q] vector[b_sub_L] sub_Beta
+        vector[b_sub_L] sub_Beta; // one intercept for each genotype/sub-position
         vector[L] tmp_Beta;
         for (b in 1:B) {
             for (q in 1:Q) {
-                //print(sub_Beta[1:5])
+                //print(sub_Beta
+                sub_Beta = horseshoe(
+                    zbeta[b,q],
+                    hs_local[b,q],
+                    hs_global,
+                    hs_scale_slab^2 * hs_slab
+                );
                 tmp_Beta = csr_matrix_times_vector(
                     L,
                     b_sub_L,
                     b_weights_vals,
                     b_col_accessor,
                     b_row_non_zero_number,
-                    sub_Beta[b,q]
+                    sub_Beta
+                    //sub_Beta[b,q]
                 );
                 Beta[b,q] = tmp_Beta + Gamma[b];
             }
@@ -142,10 +150,10 @@ transformed parameters {
 
     for (b in 1:B) {
         for (q in 1:Q) {
-            lprior += normal_lpdf(sub_Beta[b,q] | 0, 1);
-            //lprior += std_normal_lpdf(zbeta[b,q]);
-            //lprior += student_t_lpdf(hs_local[b,q] | hs_df, 0, 1)
-            //  - num_hs * log(0.5);
+            //lprior += normal_lpdf(sub_Beta[b,q] | 0, 1);
+            lprior += std_normal_lpdf(zbeta[b,q]);
+            lprior += student_t_lpdf(hs_local[b,q] | hs_df, 0, 1)
+              - num_hs * log(0.5);
         }
     }
 

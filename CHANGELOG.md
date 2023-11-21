@@ -3,6 +3,12 @@
 Significant updates the the Enricherator code base will be noted
 in this file.
 
+## [0.3.0] - dev
+
++ introduction of signal-to-noise allocation in a mixture model instead
+of all reads having to come from the negative binomial process that fits
+enrichments.
+
 ## [0.2.0] - 2023-09-18
 
 ### Fixed

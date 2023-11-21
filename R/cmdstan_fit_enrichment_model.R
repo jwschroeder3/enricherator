@@ -52,6 +52,9 @@ option_list = list(
         c("--draws_direc"), type="character",
         help="The name of the directory into which draws.csv will be written",
     ),
+    make_option(c("--frac_genome_enriched"), type="float", default=NULL,
+        help="Prior expectation for the fraction of the genome enriched (positive and negative) for the signal of interest. Sets the degree of shrinkage applied to enrichment estimates.",
+    ),
     make_option(
         c("--seed"), type="integer",
         help="Sets the seed to the (P)RNG for variational inference. Not usually set, but helpful for testing reproducibility.",
@@ -193,7 +196,8 @@ if (load) {
         opt$input_fragment_length,
         opt$ext_subsample_dist,
         opt$ext_fragment_length,
-        opt$log_lik
+        opt$log_lik,
+        opt$frac_genome_enriched
     )
     save(stan_list, file=opt$data_file)
 }

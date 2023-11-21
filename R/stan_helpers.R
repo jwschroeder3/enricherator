@@ -306,7 +306,7 @@ insert_data = function(data, spike_name, spikein_rel_abund) {
 }
 
 
-prep_stan_data = function(data_df, norm_method, spikein, spikein_rel_abund=0.05, input_subsample_dist_bp=50, input_frag_len_bp=125, ext_subsample_dist_bp=50, ext_frag_len_bp=50, log_lik=FALSE) {
+prep_stan_data = function(data_df, norm_method, spikein, spikein_rel_abund=0.05, input_subsample_dist_bp=50, input_frag_len_bp=125, ext_subsample_dist_bp=50, ext_frag_len_bp=50, log_lik=FALSE, frac_genome_enriched=NULL) {
     # this sort step is VERY USEFUL for arranging data later on to keep size factors
     # associated with correct samples
     data_df = data_df %>% arrange(sample_id)
@@ -515,8 +515,18 @@ prep_stan_data = function(data_df, norm_method, spikein, spikein_rel_abund=0.05,
     stan_list[["a_col_accessor"]] = v
     stan_list[["a_row_non_zero_number"]] = u
 
+    if (!is.null(frac_genome_enriched)) {
+        N_per_hs = pos_num
+        coef_num_per_hs = b_sub_L 
+        num_enriched = b_sub_L * frac_genome_enriched
+        par_ratio = num_enriched / (N_per_hs - num_enriched)
+        scale = par_ratio / sqrt(N_per_hs)
+        stan_list[["hs_scale_global"]] = scale
+    } else {
+        stan_list[["hs_scale_global"]] = 1
+    }
+
     stan_list[["hs_df"]] = 1
-    stan_list[["hs_scale_global"]] = 1
     stan_list[["hs_df_global"]] = 1
     stan_list[["hs_scale_slab"]] = 2
     stan_list[["hs_df_slab"]] = 4
