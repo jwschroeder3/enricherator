@@ -76,7 +76,7 @@ Also, since we don't yet have spike-in normalization working as
 we'd like, keep the `--norm_method` argument set to `libsize`.
 
 Also note that whether your data and analysis are stranded or not,
-you'll use `ab_smoothed_stranded_enrichment.stan` as your `--stanfile`
+you'll use `sig_noise_alloc.stan` as your `--stanfile`
 argument.
 
 ```bash
@@ -90,7 +90,7 @@ SRCDIR="<srcdir>"
 
 Rscript $SRCDIR/R/cmdstan_fit_enrichment_model.R \
     --info stan_sample_info.txt \
-    --stan_file "${SRCDIR}/stan/ab_smoothed_stranded_enrichment.stan" \
+    --stan_file "${SRCDIR}/stan/sig_noise_alloc.stan" \
     --ignore_ctgs P2918_rnadna_spikein,NC_011916.1 \
     --norm_method libsize \
     --fit_file "enricherator_results/fit.RData" \
