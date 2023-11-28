@@ -197,7 +197,7 @@ model {
             Y_hat_signal = Alpha[genotype,q]
                 + sample_type * Beta[genotype,q]
                 + libsize_s;
-            //Y_hat_noise = libsize_s;
+            //Y_hat_noise = wsh_s + libsize_s;
  
             for (l in 1:L) {
                

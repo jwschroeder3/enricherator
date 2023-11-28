@@ -52,7 +52,7 @@ option_list = list(
         c("--draws_direc"), type="character",
         help="The name of the directory into which draws.csv will be written",
     ),
-    make_option(c("--frac_genome_enriched"), type="float", default=NULL,
+    make_option(c("--frac_genome_enriched"), type="double", default=NULL,
         help="Prior expectation for the fraction of the genome enriched (positive and negative) for the signal of interest. Sets the degree of shrinkage applied to enrichment estimates.",
     ),
     make_option(
