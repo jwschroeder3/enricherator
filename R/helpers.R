@@ -164,7 +164,7 @@ plot_locus = function(signal_df, plotStart, plotEnd, chr_name,
                      strand_colors=c("#4667FC", "#FB4B13"),
                      feat_types = c("CDS", "tRNA", "rRNA"),
                      feat_colors = c("#43BA37", "#619CFF", "#F0766D"),
-                     log_y=FALSE, name_angle=0, upper=NULL, lower=NULL
+                     log_y=FALSE, name_angle=0, upper=NULL, lower=NULL, ygrid=FALSE
 ) {
 
 
@@ -417,6 +417,14 @@ plot_locus = function(signal_df, plotStart, plotEnd, chr_name,
         labs(y=ylabel, x="Genome position (Mb)") +
         coord_cartesian(xlim = c(plotStart/1e6, plotEnd/1e6)) +
         guides(colour = guide_legend(override.aes = list(alpha = 1)))
+
+    if (ygrid) {
+        plot = plot +
+            theme(
+                panel.grid.major.y = element_line(color="#b5b5b5", linetype="dashed", size=0.25),
+                #panel.grid.minor.y = element_line(color="#595959", linetype="dashed")
+            )
+    }
 
     g = ggplot_build(plot)
     default_color_vals = unique(g$data[[1]]['colour'])

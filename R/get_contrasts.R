@@ -47,6 +47,10 @@ option_list = list(
         c("--out_direc"), type="character",
         help="Directory into which to write output bedgraph files.",
         default=NA
+    ),
+    make_option(
+        c("--parameter"), type="character", default="Beta",
+        help="Name of the parameter to perform contrasts for. Defaults to Beta.",
     )
 )
  
@@ -105,12 +109,11 @@ write.csv(strand_lut, strand_fname, row.names=FALSE, quote=FALSE)
 
 exec_f_path = get_exec_file()
 exec_direc = dirname(exec_f_path)
+bin_path = file.path(exec_direc, "../bin/get_contrasts")
 if (con_type == "genotype") {
-    bin_path = file.path(exec_direc, "../bin/get_genotype_contrasts")
     lut_fname = geno_fname
 }
 if (con_type == "strand") {
-    bin_path = file.path(exec_direc, "../bin/get_strand_contrasts")
     lut_fname = strand_fname
 }
 
@@ -118,9 +121,10 @@ args_vec = c(
     samples,
     contrast_fname,
     "501",
-    "Beta",
+    param,
     contrasts,
-    lut_fname
+    lut_fname,
+    con_type
 )
 
 exec = c(bin_path, args_vec)
@@ -138,5 +142,5 @@ if (res != 0) {
 }
 param_summaries = read_tsv(contrast_fname)
 #print(head(param_summaries))
-write_cmdstan_summaries(param_summaries, stan_list, out_dir, "Beta", contrasts, con_type)
+write_cmdstan_summaries(param_summaries, stan_list, out_dir, param, contrasts, con_type)
 

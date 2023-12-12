@@ -231,7 +231,9 @@ fit = sm$variational(
     threads = opt$cores,
     output_samples = 500,
     output_dir = opt$draws_direc,
-    output_basename = "draws"
+    output_basename = "draws",
+    algorithm = "meanfield",
+    grad_samples = 1
 )
 
 save(fit, file=opt$fit_file)

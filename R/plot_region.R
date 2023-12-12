@@ -94,23 +94,31 @@ option_list = list(
     ),
     make_option(
         c("--linetypevar"), type="character", default=NULL,
-        help="Name of the linetype variable, if such a variable exists",
+        help="Name of the linetype variable, if such a variable exists"
     ),
     make_option(
         c("--ylabel"), type="character", default="score",
-        help="Label assigned to y-axis",
+        help="Label assigned to y-axis"
+    ),
+    make_option(
+        c("--ylims"), type="character", default=NULL,
+        help="Limits (using coord_cartesian) to place on y-axis"
+    ),
+    make_option(
+        c("--ygrid"), type="logical", action="store_true", default=FALSE,
+        help="Include at command line if you want to plot a grid of horizonal lines."
     ),
     make_option(
         c("--featurevar"), type="character", default="name",
-        help="Variable in `features` with feature names",
+        help="Variable in `features` with feature names"
     ),
     make_option(
         c("--log"), type="logical", action="store_true", default=FALSE,
-        help="Include at command line if you want to plot the y-axis as a log scale",
+        help="Include at command line if you want to plot the y-axis as a log scale"
     ),
     make_option(
         c("--facet"), type="character", default=NULL,
-        help="Passed to facet_grid internally to set up facetted plotting",
+        help="Passed to facet_grid internally to set up facetted plotting"
     ),
     make_option(
         c("--name_angle"), type="numeric", default=0,
@@ -148,6 +156,19 @@ if (opt$include_feature_types == "CDS,tRNA,rRNA") {
         feature_colors = str_split(opt$feature_colors, ",", simplify=TRUE)[1,]
     }
 }
+
+print("ylab argument")
+print(opt$ylabel)
+ylims = opt$ylims
+print("--ylims arg")
+print(ylims)
+if (is.null(ylims)) {
+    ylims = "detect"
+} else {
+    ylims = eval(parse(text=ylims))
+}
+print("y-axis limits:")
+print(ylims)
 
 if (length(feature_colors) != length(feature_types)) {
     stop("The number of features provided by --feature_types and the number of hexadecimal colors provided by --feature_colors does not match. Edit the command so they are the same length. Exiting now.")
@@ -285,6 +306,7 @@ p = plot_locus(
     color_vals = color_vals,
     linetype_var = opt$linetypevar,
     ylabel = opt$ylabel,
+    ylims = ylims,
     feat_var = opt$featurevar,
     facet = opt$facet,
     plotFeatures = plot_features,
@@ -293,6 +315,7 @@ p = plot_locus(
     log_y = opt$log,
     feat_fill_var = "feature",
     name_angle = opt$name_angle,
+    ygrid = opt$ygrid,
     upper = up,
     lower = low
 )
