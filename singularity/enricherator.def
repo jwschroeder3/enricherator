@@ -39,7 +39,7 @@ Stage: build
     CUSTOM_ENV=/.singularity.d/env/99-zz_custom_env.sh
     cat >$CUSTOM_ENV <<EOF
 #!/bin/bash
-PS1="[enricherator_0.0.1]\w \$"
+PS1="[enricherator_0.3.0]\w \$"
 EOF
     chmod 755 $CUSTOM_ENV
 

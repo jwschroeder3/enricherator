@@ -10,7 +10,15 @@ which also happens to be the work you should cite if using Enricherator in your 
 
     Schroeder, et al. 2023. Science Advances 9 (30): eadi5945. 
 
-## Conda env setup
+## Using containerized Enricherator
+
+We provide a containerized version of Enricherator that should simplify its use. The container
+is build using Apptainer, which will allow the container to run on any Linux operating system
+with Apptainer installed. 
+
+## Building Enricherator (only recommended if you cannot use the Apptainer container)
+
+### Conda env setup
 
 To start using Enricherator, clone this repository and enter
 the directory created.
@@ -54,11 +62,9 @@ a `fix` argument that could be helpful.
 Enter directory containing sample info file
 (see `examples/nonstranded_sample_info.txt` and
 `examples/stranded_sample_info.txt` for sample info file templates.
-Note: the norm_factor column of these files is currently ignored, but
+Note: the norm\_factor column of these files is currently ignored, but
 just has to be present.).
-Run the following,
-substituting the location of the `enricherator` source tree for
-`<srcdir>`. You will also need to adjust several of the arguments
+Run the code below; you will need to adjust several of the arguments
 passed to the scripts below for your own usage. As a rule of thumb,
 set `--ext_subsample_dist` to half the mean extracted data fragment length,
 set `--ext_fragment_length` to the mean extracted data fragment length,
@@ -72,12 +78,10 @@ argument as shown below. To include all contigs, simply omit the
 
 The `--libsize_key` argument should be exactly as shown below in order
 to use a trimmed mean coverage as the size factor for normalization.
-Also, since we don't yet have spike-in normalization working as
-we'd like, keep the `--norm_method` argument set to `libsize`.
 
-Also note that whether your data and analysis are stranded or not,
-you'll use `sig_noise_alloc.stan` as your `--stanfile`
-argument.
+If not using apptainer, substitute your location of the Enricherator
+source code for "/src" in the code examples below and omit the
+line beginning with "apptainer".
 
 ```bash
 cd <top_direc>
@@ -86,24 +90,25 @@ conda activate rstan
 mkdir enricherator_results
 mkdir enricherator_results/draws
 
-SRCDIR="<srcdir>"
+SRCDIR="/src"
+wd=$(pwd)
 
-Rscript $SRCDIR/R/cmdstan_fit_enrichment_model.R \
-    --info stan_sample_info.txt \
-    --stan_file "${SRCDIR}/stan/sig_noise_alloc.stan" \
+apptainer exec -B ${wd} /path/to/enricherator_<version>.sif \
+    Rscript $SRCDIR/R/cmdstan_fit_enrichment_model.R \
+    --info "${wd}/stan_sample_info.txt" \
+    --compiled_model "${SRCDIR}/stan/sig_noise_alloc" \
     --ignore_ctgs P2918_rnadna_spikein,NC_011916.1 \
     --norm_method libsize \
-    --fit_file "enricherator_results/fit.RData" \
-    --data_file "enricherator_results/data.RData" \
+    --fit_file "${wd}/enricherator_results/fit.RData" \
+    --data_file "${wd}/enricherator_results/data.RData" \
     --ext_subsample_dist 30 \
     --ext_fragment_length 60 \
     --input_subsample_dist 60 \
     --input_fragment_length 120 \
     --libsize_key "tm_size_factors" \
-    --draws_direc "enricherator_results/draws" \
-    --cores 32 \
-    > "enricherator_results/fit.log" \
-    2> "enricherator_results/fit.err"
+    --draws_direc "${wd}/enricherator_results/draws" \
+    > "${wd}/enricherator_results/fit.log" \
+    2> "${wd}/enricherator_results/fit.err"
 ```
 
 Once complete, the following files should be present in `enricherator_results`:
@@ -137,15 +142,17 @@ mean of the 500 samples, median of the 500 samples, lower 90% quantile of the
 cd <top_direc>
 conda activate rstan
 mkdir enricherator_results/out_files
-SRCDIR="<srcdir>"
+SRCDIR="/src"
+wd=$(pwd)
 
-Rscript $SRCDIR/R/cmdstan_gather_estimates_from_stanfit.R \
-        --fit_file "enricherator_results/fit.RData" \
-        --data_file "enricherator_results/data.RData" \
-        --out_direc "enricherator_results/out_files" \
-        --params Alpha,Beta \
-        > "enricherator_results/gather.log" \
-        2> "enricherator_results/gather.err"
+apptainer exec -B ${wd} /path/to/enricherator_<version>.sif \
+    Rscript $SRCDIR/R/cmdstan_gather_estimates_from_stanfit.R \
+    --fit_file "${wd}/enricherator_results/fit.RData" \
+    --data_file "${wd}/enricherator_results/data.RData" \
+    --out_direc "${wd}/enricherator_results/out_files" \
+    --params Alpha,Beta \
+    > "${wd}/enricherator_results/gather.log" \
+    2> "${wd}/enricherator_results/gather.err"
 ```
 
 Several new files will be produced by `cmdstan_gather_estimates_from_stanfit.R`.
@@ -166,16 +173,18 @@ To run contrasts using the samples from the approximate posterior, do the follow
 cd <top_direc>
 conda activate rstan
 mkdir enricherator_results/contrasts
-SRCDIR="<srcdir>"
+SRCDIR="/src"
+wd=$(pwd)
 
-Rscript $SRCDIR/R/get_contrasts.R \
+apptainer exec -B ${wd} /path/to/enricherator_<version>.sif \
+    Rscript $SRCDIR/R/get_contrasts.R \
     --type <contrast_type> \
-    --data_file enricherator_results/data.RData \
-    --samples_file enricherator_results/draws/samples.csv \
+    --data_file "${wd}/enricherator_results/data.RData" \
+    --samples_file "${wd}/enricherator_results/draws/samples.csv" \
     --contrasts <contrast_arg> \
-    --out_direc enricherator_results/contrasts \
-    > enricherator_results/contrast.log \
-    2> enricherator_results/contrast.err
+    --out_direc "${wd}/enricherator_results/contrasts" \
+    > "${wd}/enricherator_results/contrast.log" \
+    2> "${wd}/enricherator_results/contrast.err"
 ```
 
 Note that `<contrast_type>` must be replaced with the type of
