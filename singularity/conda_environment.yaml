@@ -10,9 +10,9 @@ dependencies:
   - r-tidyverse
   - r-optparse
   - r-checkmate
-  - r-posterior #>=1.4.1
-  - r-rlang #>=1.0.6
-  - r-vctrs #>=0.5.0
+  - r-posterior >=1.4.1
+  - r-rlang >=1.0.6
+  - r-vctrs >=0.5.0
   - r-testthat
   - r-usethis
   - r-ggnewscale

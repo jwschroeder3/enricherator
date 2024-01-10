@@ -1,2 +1,4 @@
 rust/*/target
 rust/*/Cargo.lock
+singularity/current
+R/.*

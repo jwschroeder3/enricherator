@@ -46,7 +46,11 @@ option_list = list(
     ),
     make_option(
         c("--stan_file"), type="character",
-        help="The name of the file containing the stan model",
+        help="The name of the file containing the stan model. You must include either this argument or the --compiled_model argument.",
+    ),
+    make_option(
+        c("--compiled_model"), type="character",
+        help="The name of the executable file containing the stan model. You must include either this argument or the --stan_file model.",
     ),
     make_option(
         c("--draws_direc"), type="character",
@@ -125,8 +129,21 @@ options(mc.cores = opt$cores)
 debug = opt$debug
 
 model_file = opt$stan_file
-if (is.na(model_file)) {
-    stop("--stan_file argument is required, but was absent. Exiting now.")
+bin_file = opt$compiled_model
+if (is.null(model_file)) {
+    if (is.null(bin_file)) {
+        stop("Either the --stan_file argument or the --compiled_model argument is required, but neither was present. Exiting now.")
+    }
+}
+if (is.null(bin_file)) {
+    if (is.null(model_file)) {
+        stop("Either the --stan_file argument or the --compiled_model argument is required, but neither was present. Exiting now.")
+    }
+}
+if (!is.null(bin_file)) {
+    if (!is.null(model_file)) {
+        stop("You included both the --stan_file and the --compiled_model arguments to enricherator. Re-run, including only one of those arguments. Exiting now.")
+    }
 }
 if (is.na(opt$draws_direc)) {
     stop("--draws_direc argument is required, but was absent. Exiting now.")
@@ -138,8 +155,13 @@ if (is.na(opt$data_file)) {
     stop("--data_file argument is required, but was absent. Exiting now.")
 }
 
-print(paste0("Compiling model in ", model_file))
-sm = cmdstan_model(model_file, cpp_options = list(stan_threads = TRUE))
+if (is.na(bin_file)) {
+    print(paste0("Compiling model in ", model_file))
+    sm = cmdstan_model(model_file, cpp_options = list(stan_threads = TRUE))
+} else {
+    print(paste0("Using precombiled model in ", bin_file))
+    sm = cmdstan_model(exe_file=bin_file)
+}
 
 spikein = opt$spikein
 if (!is.null(opt$ignore_ctgs)) {
