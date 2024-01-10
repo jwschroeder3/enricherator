@@ -14,7 +14,8 @@ which also happens to be the work you should cite if using Enricherator in your 
 
 We provide a containerized version of Enricherator that should simplify its use. The container
 is build using Apptainer, which will allow the container to run on any Linux operating system
-with Apptainer installed. 
+with Apptainer installed. Please reach out to the Enricherator author, Jeremy Schroeder,
+at schroedj@umich.edu, to request the container.
 
 ## Building Enricherator (only recommended if you cannot use the Apptainer container)
 
