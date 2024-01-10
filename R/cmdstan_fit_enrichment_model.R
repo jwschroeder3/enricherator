@@ -88,7 +88,7 @@ option_list = list(
         help="The number of cores to use for parallel chains when doing MCMC."
     ),
     make_option(
-        c("--libsize_key"), type="character", default="tmm_size_factors",
+        c("--libsize_key"), type="character", default="tm_size_factors",
         help="The key in stan_list to use as the libsize for size factor exposure."
     ),
     make_option(
@@ -110,6 +110,10 @@ option_list = list(
     make_option(
         c("--genome_data_file"), type="character", default=NULL,
         help="RData file containing initial genome data"
+    ),
+    make_option(
+        c("--grad_samps"), type="integer", default=1,
+        help="Sets the value to grad_samples for variational inference. Do not adjust from its default of 1 unless you have a good reason to do so."
     )
 )
 print("Reading command line options")
@@ -225,6 +229,8 @@ for (var in include_vars) {
 if (!dir.exists(opt$draws_direc)) {
     dir.create(opt$draws_direc, recursive=TRUE)
 }
+grad_samps = opt$grad_samps
+
 fit = sm$variational(
     data = newlist,
     seed = opt$seed,
@@ -233,7 +239,7 @@ fit = sm$variational(
     output_dir = opt$draws_direc,
     output_basename = "draws",
     algorithm = "meanfield",
-    grad_samples = 1
+    grad_samples = grad_samps
 )
 
 save(fit, file=opt$fit_file)

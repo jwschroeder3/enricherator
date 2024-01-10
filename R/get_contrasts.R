@@ -116,6 +116,7 @@ if (con_type == "genotype") {
 if (con_type == "strand") {
     lut_fname = strand_fname
 }
+param = opt$parameter
 
 args_vec = c(
     samples,

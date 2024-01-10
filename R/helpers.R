@@ -96,6 +96,8 @@ create_feature_polygon = function(name, start, end, strand, top, bottom, plot_wi
         shape_x = c(start, end, end, start)
         shape_y = c(top, top, bottom, bottom)
     }
+    #print(shape_x)
+    #print(shape_y)
     return(tibble(x=shape_x, y=shape_y, name=name))
 }
 
@@ -159,14 +161,13 @@ plot_locus = function(signal_df, plotStart, plotEnd, chr_name,
                      feat_var = "locus_tag",
                      feat_fill_var = "feature",
                      facet = NULL,
-                     ylims="detect", plotFeatures=TRUE, arrowLength=1.5,
+                     ylims=NULL, plotFeatures=TRUE, arrowLength=1.5,
                      plotMotifLocs=FALSE, motifs_df=NULL,
                      strand_colors=c("#4667FC", "#FB4B13"),
                      feat_types = c("CDS", "tRNA", "rRNA"),
                      feat_colors = c("#43BA37", "#619CFF", "#F0766D"),
                      log_y=FALSE, name_angle=0, upper=NULL, lower=NULL, ygrid=FALSE
 ) {
-
 
     yvar = sym(yvar)
     sym_color_var = sym(color_var)
@@ -177,6 +178,10 @@ plot_locus = function(signal_df, plotStart, plotEnd, chr_name,
     plot_sig = signal_df %>%
         dplyr::filter(seqname==chr_name, start<=plotEnd, end>=plotStart) %>%
         mutate(position = (start + end) / 2)
+
+    #print(paste0("Lower Range: ", paste(range(plot_sig[,lower]), collapse=" ")))
+    #print(paste0("Upper Range: ", paste(range(plot_sig[,upper]), collapse=" ")))
+    #print(paste0("Mean Range: ", paste(range(plot_sig[,yvar]), collapse=" ")))
 
     if (plotMotifLocs) {
         plotMotifs = motifs_df %>% 
@@ -210,6 +215,12 @@ plot_locus = function(signal_df, plotStart, plotEnd, chr_name,
     shiftText = shiftBottom - 0.1 * sig_range
     shiftDist = geneBottom - shiftBottom
 
+    #print("---------------------------")
+    #print(sig_range)
+    #print(min_sig)
+    #print(geneTop)
+    #print("---------------------------")
+
     plot = ggplot()
 
     if (plotMotifLocs) {
@@ -223,7 +234,7 @@ plot_locus = function(signal_df, plotStart, plotEnd, chr_name,
                     ymin=geneTop,
                     ymax=Inf
                 ),
-                alpha=0.4
+                alpha=0.3
             )
     }
 
@@ -297,6 +308,13 @@ plot_locus = function(signal_df, plotStart, plotEnd, chr_name,
             )
 
 
+        #print("-------------------------------")
+        #print(geneTop)
+        #print(geneBottom)
+        #print(shiftTop)
+        #print(shiftBottom)
+        #print("-------------------------------")
+
         plot_geoms = plot_feats %>%
             mutate(poly_name = !!feat_var, poly_fill = !!feat_fill_var) %>%
             nest(data=-c(!!feat_var, !!feat_fill_var)) %>%
@@ -358,9 +376,7 @@ plot_locus = function(signal_df, plotStart, plotEnd, chr_name,
         #    )
 
         #print(plot_feats)
-        #stop()
         #print(plot_geoms, n=Inf)
-        #stop()
         #print(unique(plot_feats$feature))
         #feat_colors = c("#43BA37", "#619CFF", "#F0766D")
         #feat_types = c("CDS", "tRNA", "rRNA")
@@ -442,7 +458,7 @@ plot_locus = function(signal_df, plotStart, plotEnd, chr_name,
            scale_color_manual(name=color_var, breaks=distinct_samples, values=color_vals)
     }
 
-    if (!(ylims == "detect")) {
+    if (!is.null(ylims)) {
         plot = plot + coord_cartesian(
             xlim = c(plotStart/1e6, plotEnd/1e6),
             ylim=ylims

@@ -16,13 +16,6 @@ functions {
         vector[K] lambda_tilde = sqrt(c2 * lambda2 ./ (c2 + tau^2 * lambda2));
         return z .* lambda_tilde * tau;
     }
-    
-    /* Mixed normal spike-and-slab shrinkage prior
-    */
-    vector mixnorm(vector slab, vector spike, vector p_slab) {
-        return p_slab .* slab + (1 - p_slab) .* spike;
-    }
-
 }
 
 data {
@@ -82,13 +75,7 @@ parameters {
     array[G,Q] vector[a_sub_L] sub_Alpha; // one intercept for each genotype/sub-position
     vector[B] Gamma; // an intercept to offset hbd samples by
 
-    // parameters for normal mixture prior
-    //array[B,Q] vector<lower=0, upper=1>[b_sub_L] p_slab;
-    //array[B,Q] vector[b_sub_L] slab;
-    //array[B,Q] vector[b_sub_L] spike;
-    //array[B,Q] vector<lower=0>[b_sub_L] tausq;
-
-    //// local parameters for horseshoe prior
+    // local parameters for horseshoe prior
     array[B,Q] vector[b_sub_L] zbeta;
     array[B,Q] vector<lower=0>[b_sub_L] hs_local;
     // horseshoe shrinkage parameters 
@@ -143,10 +130,10 @@ transformed parameters {
         }
     }
 
-    //lprior += student_t_lpdf(hs_global | hs_df_global, 0, hs_scale_global)
-    //    - 1 * log(0.5);
-    //lprior += inv_gamma_lpdf(hs_slab | 0.5 * hs_df_slab, 0.5 * hs_df_slab);
-    //lprior += gamma_lpdf(shape | 0.01, 0.01);
+    lprior += student_t_lpdf(hs_global | hs_df_global, 0, hs_scale_global)
+        - 1 * log(0.5);
+    lprior += inv_gamma_lpdf(hs_slab | 0.5 * hs_df_slab, 0.5 * hs_df_slab);
+    lprior += gamma_lpdf(shape | 0.01, 0.01);
 
     for (b in 1:B) {
         for (q in 1:Q) {

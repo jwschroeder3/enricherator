@@ -131,6 +131,10 @@ option_list = list(
     make_option(
         c("--feature_colors"), type="character", default=NULL,
         help="Optional comma-separated list of hexadecimal values assigning a color to each feature type provided by the --include_feature_types argument. If ommitted, ggplot defaults will be used."
+    ),
+    make_option(
+        c("--motifs_file"), type="character", default=NULL,
+        help="Optional gff file containing annotations that will be plotted as a lightly-shaded rectangle underneath the data."
     )
 )
  
@@ -160,15 +164,9 @@ if (opt$include_feature_types == "CDS,tRNA,rRNA") {
 print("ylab argument")
 print(opt$ylabel)
 ylims = opt$ylims
-print("--ylims arg")
-print(ylims)
-if (is.null(ylims)) {
-    ylims = "detect"
-} else {
+if (!(is.null(ylims))) {
     ylims = eval(parse(text=ylims))
 }
-print("y-axis limits:")
-print(ylims)
 
 if (length(feature_colors) != length(feature_types)) {
     stop("The number of features provided by --feature_types and the number of hexadecimal colors provided by --feature_colors does not match. Edit the command so they are the same length. Exiting now.")
@@ -187,7 +185,10 @@ if (length(infiles) != length(samples)) {
 if (!is.null(opt$colorvalues)) {
     color_vals = str_split(opt$colorvalues, ",", simplify=TRUE)[1,]
     if (length(distinct_samples) != length(color_vals)) {
-        stop("The number of distinct sample names provided by --samplenames argument must match the number of hexadecimal color values supplied by --colorvalues, but the numbers do not match. For instance, if you provided --samplesnames A,A,B,B,C,C then there are three distinct samples, A,B,C, so you should have three values provided to --colorvalues. Exiting now.")
+        print("The number of distinct sample names provided by --samplenames argument must match the number of hexadecimal color values supplied by --colorvalues, but the numbers do not match. For instance, if you provided --samplesnames A,A,B,B,C,C then there are three distinct samples, A,B,C, so you should have three values provided to --colorvalues. ")
+        print(paste0("The color_vals you provided were: ", paste(color_vals, collapse=", ")))
+        print(paste0("The distinct samples you provided were: ", paste(distinct_samples, collapse=", ")))
+        stop("Exiting now.")
     }
 }
 
@@ -254,6 +255,18 @@ for (i in 1:length(infiles)) {
     }
 }
 
+if (!is.null(opt$motifs_file)) {
+    plot_motifs = TRUE
+    motif_df = gffRead(
+        opt$motifs_file
+    ) %>% filter(
+        seqname == opt$contig
+    )
+} else {
+    plot_motifs = FALSE
+    motif_df = NULL
+}
+
 if (!is.null(opt$features)) {
     plot_features = TRUE
     gff = gffRead(
@@ -290,7 +303,11 @@ duped = duplicated(gff$name)
 
 if (any(duped)) {
     dup_names = gff$name[duped]
-    stop(paste0("Duplicated feature names exist in your gff file! You chose ", fields, " as your gff attribute field(s) to use for feature names.\nDuplicated names:\n", dup_names, "\nEither rename the features so the field is unique to each feature, or consider using a different field altogether."))
+    dup_idxs = which(duped)
+    for (i in 1:length(dup_idxs)) {
+        gff$name[dup_idxs[i]] = paste0(gff$name[dup_idxs[i]], "_", i)
+    }
+    #stop(paste0("Duplicated feature names exist in your gff file! You chose ", fields, " as your gff attribute field(s) to use for feature names.\nDuplicated names:\n", dup_names, "\nEither rename the features so the field is unique to each feature, or consider using a different field altogether."))
 }
 
 p = plot_locus(
@@ -317,7 +334,9 @@ p = plot_locus(
     name_angle = opt$name_angle,
     ygrid = opt$ygrid,
     upper = up,
-    lower = low
+    lower = low,
+    plotMotifLocs = plot_motifs,
+    motifs_df = motifs_df
 )
 
 ggsave(plot=p, filename=opt$plot_file, height=opt$plot_height, width=opt$plot_width)

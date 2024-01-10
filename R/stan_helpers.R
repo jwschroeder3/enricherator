@@ -289,15 +289,15 @@ insert_data = function(data, spike_name, spikein_rel_abund) {
     #tmm_deseq_size_factors = get_size_factors(spike_mat, summary_fn=get_trimmed_mean)
     #med_deseq_size_factors = get_size_factors(spike_mat, summary_fn=median)
     #mean_size_factors = apply(spike_mat, FUN=mean, MAR=2)
-    tmm_size_factors = apply(norm_mat, FUN=get_trimmed_mean, MAR=2)
+    tm_size_factors = apply(norm_mat, FUN=get_trimmed_mean, MAR=2)
     #print("size factor shape")
-    #print(dim(tmm_size_factors))
+    #print(dim(tm_size_factors))
     #print("norm factors")
     #print(norm_factors)
     #stop()
     
     #stan_list[["mean_size_factors"]] = mean_size_factors
-    data_list[["tmm_size_factors"]] = tmm_size_factors
+    data_list[["tm_size_factors"]] = tm_size_factors
     data_list[["spikein_norm_factors"]] = norm_factors
     #stan_list[["tmm_deseq_size_factors"]] = tmm_deseq_size_factors
     #stan_list[["med_deseq_size_factors"]] = med_deseq_size_factors

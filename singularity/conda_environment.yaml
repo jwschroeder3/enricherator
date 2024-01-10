@@ -15,4 +15,5 @@ dependencies:
   - r-vctrs #>=0.5.0
   - r-testthat
   - r-usethis
+  - r-ggnewscale
 

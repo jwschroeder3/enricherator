@@ -99,7 +99,7 @@ Rscript $SRCDIR/R/cmdstan_fit_enrichment_model.R \
     --ext_fragment_length 60 \
     --input_subsample_dist 60 \
     --input_fragment_length 120 \
-    --libsize_key "tmm_size_factors" \
+    --libsize_key "tm_size_factors" \
     --draws_direc "enricherator_results/draws" \
     --cores 32 \
     > "enricherator_results/fit.log" \
