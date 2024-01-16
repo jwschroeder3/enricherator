@@ -14,10 +14,32 @@ which also happens to be the work you should cite if using Enricherator in your 
 
 We provide a containerized version of Enricherator that should simplify its use. The container
 is build using Apptainer, which will allow the container to run on any Linux operating system
-with Apptainer installed. Please reach out to the Enricherator author, Jeremy Schroeder,
-at schroedj@umich.edu, to request the container.
+with Apptainer installed. 
+
+To pull the container from its public repository, install Apptainer by following
+its [online instructions](https://apptainer.org/docs/user/main/quick_start.html).
+
+Once Apptainer is installed, add cloud.sylabs.io as a remote endpoint by running the
+following:
+
+```bash
+apptainer remote add SylabsCloud cloud.sycloud.io
+apptainer remote use SylabsCloud
+```
+
+Now you may pull the Enricherator container from the repository by
+running the following, replacing `<container/path>` with the
+location in which you would like the container to reside:
+
+```bash
+cd </container/path>
+apptainer pull enricherator.sif library://schroedj/appliances/enricherator:latest
+```
 
 ## Building Enricherator (only recommended if you cannot use the Apptainer container)
+
+If you are able to use our containerized application, skip to the [Running enrichment inference][#running-enrichment-inference]
+section.
 
 ### Conda env setup
 
@@ -92,24 +114,23 @@ mkdir enricherator_results
 mkdir enricherator_results/draws
 
 SRCDIR="/src"
-wd=$(pwd)
 
-apptainer exec -B ${wd} /path/to/enricherator_<version>.sif \
+apptainer exec -B $(pwd) /path/to/enricherator.sif \
     Rscript $SRCDIR/R/cmdstan_fit_enrichment_model.R \
-    --info "${wd}/stan_sample_info.txt" \
-    --compiled_model "${SRCDIR}/stan/sig_noise_alloc" \
+    --info stan_sample_info.txt \
+    --compiled_model ${SRCDIR}/stan/sig_noise_alloc \
     --ignore_ctgs P2918_rnadna_spikein,NC_011916.1 \
     --norm_method libsize \
-    --fit_file "${wd}/enricherator_results/fit.RData" \
-    --data_file "${wd}/enricherator_results/data.RData" \
+    --fit_file enricherator_results/fit.RData \
+    --data_file enricherator_results/data.RData \
     --ext_subsample_dist 30 \
     --ext_fragment_length 60 \
     --input_subsample_dist 60 \
     --input_fragment_length 120 \
-    --libsize_key "tm_size_factors" \
-    --draws_direc "${wd}/enricherator_results/draws" \
-    > "${wd}/enricherator_results/fit.log" \
-    2> "${wd}/enricherator_results/fit.err"
+    --libsize_key tm_size_factors \
+    --draws_direc enricherator_results/draws \
+    > enricherator_results/fit.log \
+    2> enricherator_results/fit.err
 ```
 
 Once complete, the following files should be present in `enricherator_results`:
@@ -144,16 +165,15 @@ cd <top_direc>
 conda activate rstan
 mkdir enricherator_results/out_files
 SRCDIR="/src"
-wd=$(pwd)
 
-apptainer exec -B ${wd} /path/to/enricherator_<version>.sif \
+apptainer exec -B $(pwd) /path/to/enricherator.sif \
     Rscript $SRCDIR/R/cmdstan_gather_estimates_from_stanfit.R \
-    --fit_file "${wd}/enricherator_results/fit.RData" \
-    --data_file "${wd}/enricherator_results/data.RData" \
-    --out_direc "${wd}/enricherator_results/out_files" \
+    --fit_file enricherator_results/fit.RData \
+    --data_file enricherator_results/data.RData \
+    --out_direc enricherator_results/out_files \
     --params Alpha,Beta \
-    > "${wd}/enricherator_results/gather.log" \
-    2> "${wd}/enricherator_results/gather.err"
+    > enricherator_results/gather.log \
+    2> enricherator_results/gather.err
 ```
 
 Several new files will be produced by `cmdstan_gather_estimates_from_stanfit.R`.
@@ -175,17 +195,16 @@ cd <top_direc>
 conda activate rstan
 mkdir enricherator_results/contrasts
 SRCDIR="/src"
-wd=$(pwd)
 
-apptainer exec -B ${wd} /path/to/enricherator_<version>.sif \
+apptainer exec -B $(pwd) /path/to/enricherator_<version>.sif \
     Rscript $SRCDIR/R/get_contrasts.R \
     --type <contrast_type> \
-    --data_file "${wd}/enricherator_results/data.RData" \
-    --samples_file "${wd}/enricherator_results/draws/samples.csv" \
+    --data_file enricherator_results/data.RData \
+    --samples_file enricherator_results/draws/samples.csv \
     --contrasts <contrast_arg> \
-    --out_direc "${wd}/enricherator_results/contrasts" \
-    > "${wd}/enricherator_results/contrast.log" \
-    2> "${wd}/enricherator_results/contrast.err"
+    --out_direc enricherator_results/contrasts \
+    > enricherator_results/contrast.log \
+    2> enricherator_results/contrast.err
 ```
 
 Note that `<contrast_type>` must be replaced with the type of
