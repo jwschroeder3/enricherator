@@ -38,7 +38,7 @@ apptainer pull enricherator.sif library://schroedj/appliances/enricherator:lates
 
 ## Building Enricherator (only recommended if you cannot use the Apptainer container)
 
-If you are able to use our containerized application, skip to the [Running enrichment inference][#running-enrichment-inference]
+If you are able to use our containerized application, skip to the [Running enrichment inference](#running-enrichment-inference)
 section.
 
 ### Conda env setup
