@@ -339,5 +339,6 @@ p = plot_locus(
     motifs_df = motifs_df
 )
 
+print(paste("Writing plot to ", opt$plot_file))
 ggsave(plot=p, filename=opt$plot_file, height=opt$plot_height, width=opt$plot_width)
 

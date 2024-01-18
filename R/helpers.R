@@ -472,14 +472,14 @@ plot_locus = function(signal_df, plotStart, plotEnd, chr_name,
         if (row_var == "") {
             row_var = NULL
         } else {
-            print(row_var)
+            print(paste("Facetting rows by", row_var))
             row_var = sym(row_var)
             row_var = vars(!!row_var)
         }
         if (col_var == "") {
             col_var = NULL
         } else {
-            print(col_var)
+            print(paste("Facetting columns by", col_var))
             col_var = sym(col_var)
             col_var = vars(!!col_var)
         }
