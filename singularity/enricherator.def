@@ -10,7 +10,7 @@ Stage: build
     chmod -R 755 ${SINGULARITY_ROOTFS}/src
 
 %environment
-    export ENRICHERATOR_VER=0.0.1
+    export ENRICHERATOR_VER=0.3.0
     export PATH="/conda/envs/rstan/bin:${PATH}"
 
 %files

@@ -516,14 +516,19 @@ prep_stan_data = function(data_df, norm_method, spikein, spikein_rel_abund=0.05,
     stan_list[["a_row_non_zero_number"]] = u
 
     if (!is.null(frac_genome_enriched)) {
-        N_per_hs = pos_num * strand_num
-        num_enriched = b_sub_L * frac_genome_enriched
-        par_ratio = num_enriched / (b_sub_L - num_enriched)
-        scale = par_ratio / sqrt(N_per_hs)
-        stan_list[["hs_scale_global"]] = scale
+        p0 = frac_genome_enriched
     } else {
-        stan_list[["hs_scale_global"]] = 1
+        # default value of p0 (frac_genome_enriched) is 0.1
+        p0 = 0.1
     }
+
+    N_per_hs = pos_num * strand_num
+    #num_enriched = b_sub_L * p0
+    #par_ratio = num_enriched / (b_sub_L - num_enriched)
+    #scale = par_ratio / sqrt(N_per_hs)
+    denom = (1-p0) * sqrt(N_per_hs)
+    scale = p0 / denom
+    stan_list[["hs_scale_global"]] = scale
 
     stan_list[["hs_df"]] = 1
     stan_list[["hs_df_global"]] = 1
