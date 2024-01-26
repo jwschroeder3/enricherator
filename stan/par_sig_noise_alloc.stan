@@ -16,6 +16,37 @@ functions {
         vector[K] lambda_tilde = sqrt(c2 * lambda2 ./ (c2 + tau^2 * lambda2));
         return z .* lambda_tilde * tau;
     }
+
+    real loglik_part_sum_lpmf(
+            int[] y_sq_slice,
+            int start,
+            int end,
+            vector alpha_gq,
+            vector beta_gq,
+            real log_signoise_s,
+            real log_comp_signoise_s,
+            real samp_prec,
+            real libsize_s,
+            int sample_type
+    ) {
+
+        vector[end-start+1] y_hat_signal = alpha_gq[start:end]
+            + sample_type * beta_gq[start:end]
+            + libsize_s;
+        real sum = 0;
+        for (i in start:end) {
+            sum += log_sum_exp(
+                log_signoise_s + neg_binomial_2_log_lupmf(y_sq_slice[i-start+1] | y_hat_signal[i], samp_prec),
+                log_comp_signoise_s + poisson_log_lupmf(y_sq_slice[i-start+1] | libsize_s)
+            );
+            //sum += log_sum_exp(
+            //    log_signoise_s + neg_binomial_2_log_lpmf(Y[s,q,l] | Y_hat_signal[l], prec[sample_type+1]),
+            //    log_comp_signoise_s + poisson_log_lpmf(Y[s,q,l] | libsize_s)
+            //);
+        }
+        return sum;
+    }
+
 }
 
 data {
@@ -146,7 +177,7 @@ transformed parameters {
 
     for (g in 1:B) {
         for (q in 1:Q) {
-            lprior += normal_lpdf(sub_Alpha[g,q] | alpha_prior, 2);
+            lprior += normal_lpdf(sub_Alpha[g,q] | alpha_prior, 4);
         }
     }
 
@@ -157,9 +188,13 @@ transformed parameters {
 model {
     int sample_type;
     int genotype;
+    real samp_prec;
     //vector[L] Y_hat_signal_sq;
     //vector[L] Y_hat_noise_sq;
-    vector[L] Y_hat_signal;
+    //vector[L] Y_hat_signal;
+    vector[L] alpha_gq;
+    vector[L] beta_gq;
+    array[L] int y_sq;
     //real Y_hat_noise;
     //real wsh_s;
     real libsize_s;
@@ -167,6 +202,8 @@ model {
     real log_comp_signoise_s;
     vector[S] log_signoise = log(sig_noise);
     vector[S] log_comp_signoise = log1m(sig_noise);
+
+    int grainsize = 1;
 
     target += lprior;
 
@@ -180,21 +217,37 @@ model {
         libsize_s = cent_loglibsize[s];
         log_signoise_s = log_signoise[s];
         log_comp_signoise_s = log_signoise[s];
+        samp_prec = prec[sample_type+1];
         for (q in 1:Q) {
-            Y_hat_signal = Alpha[genotype,q]
-                + sample_type * Beta[genotype,q]
-                + libsize_s;
+            alpha_gq = Alpha[genotype,q];
+            beta_gq = Beta[genotype,q];
+            //Y_hat_signal = Alpha[genotype,q]
+            //    + sample_type * Beta[genotype,q]
+            //    + libsize_s;
+            y_sq = Y[s,q];
             //Y_hat_noise = wsh_s + libsize_s;
  
-            for (l in 1:L) {
-               
-                // allocates counts proportionally to signal/noise,
-                // where noise is just a fraction of libsize
-                target += log_sum_exp(
-                    log_signoise_s + neg_binomial_2_log_lpmf(Y[s,q,l] | Y_hat_signal[l], prec[sample_type+1]),
-                    log_comp_signoise_s + poisson_log_lpmf(Y[s,q,l] | libsize_s)
-                );
-            }
+            target += reduce_sum(
+                loglik_part_sum_lpmf,
+                y_sq,
+                grainsize,
+                alpha_gq,
+                beta_gq,
+                log_signoise_s,
+                log_comp_signoise_s,
+                samp_prec,
+                libsize_s,
+                sample_type
+            );
+            //for (l in 1:L) {
+            //   
+            //    // allocates counts proportionally to signal/noise,
+            //    // where noise is just a fraction of libsize
+            //    target += log_sum_exp(
+            //        log_signoise_s + neg_binomial_2_log_lpmf(Y[s,q,l] | Y_hat_signal[l], prec[sample_type+1]),
+            //        log_comp_signoise_s + poisson_log_lpmf(Y[s,q,l] | libsize_s)
+            //    );
+            //}
         }
     }
 }

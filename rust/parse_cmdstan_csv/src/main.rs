@@ -229,7 +229,7 @@ async fn main() {
     let summary_outfname = &args[2];
     let sample_outfname = &args[3];
     let samp_num: usize = args[4].parse().unwrap();
-    let var_arg = &args[5];
+    let var_arg = &args[5]; // Alpha,Beta
     println!("Reading {:?} from {}", var_arg, infname);
     let vars: Vec<&str> = var_arg.split(",").collect();
     let (cols,samps) = parse_lines(infname, samp_num, vars, sample_outfname).await.unwrap();

@@ -12,6 +12,7 @@ Stage: build
 %environment
     export ENRICHERATOR_VER=0.3.0
     export PATH="/conda/envs/rstan/bin:${PATH}"
+    export CMDSTAN="/conda/envs/rstan/bin/cmdstan"
 
 %files
     conda_environment.yaml
@@ -33,8 +34,10 @@ Stage: build
     && rm miniconda.sh -f \
     && cd \
     && conda activate rstan \
-    && echo -e 'options(repos=c("https://mc-stan.org/r-packages/"))' >> /conda/envs/rstan/lib/R/etc/Rprofile.site \
-    && R -e 'install.packages("cmdstanr");'
+    && echo -e 'options(repos=c("https://mc-stan.org/r-packages/", "http://cran.us.r-project.org"))' >> /conda/envs/rstan/lib/R/etc/Rprofile.site \
+    && R -e 'install.packages("stringi", configure.args="--disable-pkg-config");' \
+    && R -e 'install.packages("cmdstanr");' \
+    && R -e 'library(cmdstanr); cmdstan_model("/src/stan/sig_noise_alloc.stan", cpp_options=list(stan_threads=TRUE));'
 
     CUSTOM_ENV=/.singularity.d/env/99-zz_custom_env.sh
     cat >$CUSTOM_ENV <<EOF
@@ -45,4 +48,5 @@ EOF
 
 %test
     which R
-    R -e 'library(cmdstanr); check_cmdstan_toolchain()'
+    R -e 'library(cmdstanr); check_cmdstan_toolchain();'
+    R -e 'library(stringi)'

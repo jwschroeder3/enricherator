@@ -32,11 +32,11 @@ data {
     array[S] int sample_x; // sample_id for each datum
     array[S,Q,L] int Y; // counts
     array[S] real<lower=0> libsize; // exposure term for each sample
-    real<lower=0> hs_df; // local df
-    real<lower=0> hs_df_global; // global df
-    real<lower=0> hs_df_slab; // slab df
-    real<lower=0> hs_scale_global; // global prior scale
-    real<lower=0> hs_scale_slab; // slab prior scale
+    //real<lower=0> hs_df; // local df
+    //real<lower=0> hs_df_global; // global df
+    //real<lower=0> hs_df_slab; // slab df
+    //real<lower=0> hs_scale_global; // global prior scale
+    //real<lower=0> hs_scale_slab; // slab prior scale
     //int<lower=1> gauss_dist;
     int<lower=1> a_sub_L;
     int<lower=1> b_sub_L;
@@ -73,15 +73,16 @@ parameters {
     //vector[S] wsh; // wsh term for how much wsh for a given sample
     vector<lower=0>[2] prec; // stratify global precision inference by extracted vs input
     array[G,Q] vector[a_sub_L] sub_Alpha; // one intercept for each genotype/sub-position
+    array[B,Q] vector[b_sub_L] sub_Beta; // one intercept for each genotype/sub-position
     vector[B] Gamma; // an intercept to offset hbd samples by
 
-    // local parameters for horseshoe prior
-    array[B,Q] vector[b_sub_L] zbeta;
-    array[B,Q] vector<lower=0>[b_sub_L] hs_local;
-    // horseshoe shrinkage parameters 
-    real<lower=0> hs_global; 
-    real<lower=0> hs_slab; 
-    real<lower=0> shape; 
+    //// local parameters for horseshoe prior
+    //array[B,Q] vector[b_sub_L] zbeta;
+    //array[B,Q] vector<lower=0>[b_sub_L] hs_local;
+    //// horseshoe shrinkage parameters 
+    //real<lower=0> hs_global; 
+    //real<lower=0> hs_slab; 
+    //real<lower=0> shape; 
 }
 
 transformed parameters {
@@ -92,26 +93,30 @@ transformed parameters {
 
     {
         //array[B,Q] vector[b_sub_L] sub_Beta
-        vector[b_sub_L] sub_Beta; // one intercept for each genotype/sub-position
+        //vector[b_sub_L] sub_Beta; // one intercept for each genotype/sub-position
         vector[L] tmp_Beta;
         for (b in 1:B) {
             for (q in 1:Q) {
                 //print(sub_Beta
-                sub_Beta = horseshoe(
-                    zbeta[b,q],
-                    hs_local[b,q],
-                    hs_global,
-                    hs_scale_slab^2 * hs_slab
-                );
+                //profile("beta_horseshoe") {
+                //sub_Beta = horseshoe(
+                //    zbeta[b,q],
+                //    hs_local[b,q],
+                //    hs_global,
+                //    hs_scale_slab^2 * hs_slab
+                //);
+                //}
+                profile("beta_mat_vec_dot") {
                 tmp_Beta = csr_matrix_times_vector(
                     L,
                     b_sub_L,
                     b_weights_vals,
                     b_col_accessor,
                     b_row_non_zero_number,
-                    sub_Beta
-                    //sub_Beta[b,q]
+                    sub_Beta[b,q]
+                    //sub_Beta
                 );
+                }
                 Beta[b,q] = tmp_Beta + Gamma[b];
             }
         }
@@ -119,6 +124,7 @@ transformed parameters {
 
     for (g in 1:G) {
         for (q in 1:Q) {
+            profile("alpha_mat_vec_dot") {
             Alpha[g,q] = csr_matrix_times_vector(
                 L,
                 a_sub_L,
@@ -127,31 +133,35 @@ transformed parameters {
                 a_row_non_zero_number,
                 sub_Alpha[g,q]
             );
+            }
         }
     }
 
-    lprior += student_t_lpdf(hs_global | hs_df_global, 0, hs_scale_global)
-        - 1 * log(0.5);
-    lprior += inv_gamma_lpdf(hs_slab | 0.5 * hs_df_slab, 0.5 * hs_df_slab);
-    lprior += gamma_lpdf(shape | 0.01, 0.01);
+    profile("priors") {
+    //lprior += student_t_lpdf(hs_global | hs_df_global, 0, hs_scale_global)
+    //    - 1 * log(0.5);
+    //lprior += inv_gamma_lpdf(hs_slab | 0.5 * hs_df_slab, 0.5 * hs_df_slab);
+    //lprior += gamma_lpdf(shape | 0.01, 0.01);
 
-    for (b in 1:B) {
-        for (q in 1:Q) {
-            //lprior += normal_lpdf(sub_Beta[b,q] | 0, 1);
-            lprior += std_normal_lpdf(zbeta[b,q]);
-            lprior += student_t_lpdf(hs_local[b,q] | hs_df, 0, 1)
-              - num_hs * log(0.5);
-        }
-    }
+    //for (b in 1:B) {
+    //    for (q in 1:Q) {
+    //        //lprior += normal_lpdf(sub_Beta[b,q] | 0, 1);
+    //        lprior += std_normal_lpdf(zbeta[b,q]);
+    //        lprior += student_t_lpdf(hs_local[b,q] | hs_df, 0, 1)
+    //          - num_hs * log(0.5);
+    //    }
+    //}
 
     for (g in 1:B) {
         for (q in 1:Q) {
-            lprior += normal_lpdf(sub_Alpha[g,q] | alpha_prior, 2);
+            lprior += normal_lpdf(sub_Alpha[g,q] | alpha_prior, 4);
+            lprior += normal_lpdf(sub_Beta[g,q] | 0, 1);
         }
     }
 
     lprior += student_t_lpdf(Gamma | 3, 0, 5);
     lprior += beta_lpdf(sig_noise | 25.0, 1.0);
+    }
 }
 
 model {
@@ -173,6 +183,7 @@ model {
     prec ~ lognormal(0, 1);
     //wsh ~ normal(0, 3);
 
+    profile("likelihood") {
     for (s in 1:S) {
         sample_type = sample_x[s];
         genotype = geno_x[s];
@@ -196,6 +207,7 @@ model {
                 );
             }
         }
+    }
     }
 }
 

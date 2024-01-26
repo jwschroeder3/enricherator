@@ -234,8 +234,6 @@ if (opt$norm_method == "libsize") {
     stan_list[["libsize"]] = stan_list[["spikein_norm_factors"]]
 }
 
-print("Fitting model using variational inference")
-
 newlist = list()
 include_vars = c(
     "L","S","B","A","G","Q","alpha_prior","geno_x","sample_x",
@@ -253,6 +251,7 @@ if (!dir.exists(opt$draws_direc)) {
 }
 grad_samps = opt$grad_samps
 
+print("Fitting model using variational inference")
 
 fit = sm$variational(
     data = newlist,
@@ -261,9 +260,10 @@ fit = sm$variational(
     output_samples = 500,
     output_dir = opt$draws_direc,
     output_basename = "draws",
-    algorithm = "meanfield",
-    grad_samples = grad_samps
+    sig_figs = 5
 )
+    #algorithm = "meanfield",
+    #grad_samples = grad_samps
 
 save(fit, file=opt$fit_file)
 

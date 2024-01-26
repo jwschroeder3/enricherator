@@ -124,7 +124,7 @@ print("Reading command line options")
 opt_parser = OptionParser(option_list=option_list)
 opt = parse_args(opt_parser)
 
-#options(mc.cores = opt$cores)
+options(mc.cores = opt$cores)
 
 debug = opt$debug
 
@@ -234,8 +234,6 @@ if (opt$norm_method == "libsize") {
     stan_list[["libsize"]] = stan_list[["spikein_norm_factors"]]
 }
 
-print("Fitting model using variational inference")
-
 newlist = list()
 include_vars = c(
     "L","S","B","A","G","Q","alpha_prior","geno_x","sample_x",
@@ -253,17 +251,20 @@ if (!dir.exists(opt$draws_direc)) {
 }
 grad_samps = opt$grad_samps
 
+print("Fitting model using variational inference")
 
-fit = sm$variational(
+fit = sm$pathfinder(
     data = newlist,
     seed = opt$seed,
-    threads = opt$cores,
-    output_samples = 500,
+    num_threads = opt$cores,
+    num_paths = 4,
+    draws = 500,
     output_dir = opt$draws_direc,
     output_basename = "draws",
-    algorithm = "meanfield",
-    grad_samples = grad_samps
+    sig_figs = 5
 )
+    #algorithm = "meanfield",
+    #grad_samples = grad_samps
 
 save(fit, file=opt$fit_file)
 

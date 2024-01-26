@@ -5,15 +5,19 @@ channels:
   - conda-forge
   - defaults
 dependencies:
-  - cmdstan
-  - icu = 58
+  - cmdstan >= 2.34.1
+  #- icu = 58
+  #- icu
+  - cudatoolkit
   - r-tidyverse
   - r-optparse
   - r-checkmate
   - r-posterior >=1.4.1
   - r-rlang >=1.0.6
   - r-vctrs >=0.5.0
-  - r-testthat
-  - r-usethis
+  #- r-stringi
+  #- r-stringr
+  #- r-testthat
+  #- r-usethis
   - r-ggnewscale
 

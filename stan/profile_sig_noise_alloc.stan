@@ -69,6 +69,8 @@ transformed data {
 }
 
 parameters {
+    vector<lower=0, upper=1>[S] sig_noise; // signal-to-noise allocation for each sample
+    //vector[S] wsh; // wsh term for how much wsh for a given sample
     vector<lower=0>[2] prec; // stratify global precision inference by extracted vs input
     array[G,Q] vector[a_sub_L] sub_Alpha; // one intercept for each genotype/sub-position
     vector[B] Gamma; // an intercept to offset hbd samples by
@@ -89,17 +91,21 @@ transformed parameters {
     real lprior = 0.0;
 
     {
+        //array[B,Q] vector[b_sub_L] sub_Beta
+        vector[b_sub_L] sub_Beta; // one intercept for each genotype/sub-position
         vector[L] tmp_Beta;
-        vector[b_sub_L] sub_Beta;
         for (b in 1:B) {
             for (q in 1:Q) {
+                //print(sub_Beta
+                profile("beta_horseshoe") {
                 sub_Beta = horseshoe(
                     zbeta[b,q],
                     hs_local[b,q],
                     hs_global,
                     hs_scale_slab^2 * hs_slab
                 );
-                //print(sub_Beta[1:5])
+                }
+                profile("beta_mat_vec_dot") {
                 tmp_Beta = csr_matrix_times_vector(
                     L,
                     b_sub_L,
@@ -107,7 +113,9 @@ transformed parameters {
                     b_col_accessor,
                     b_row_non_zero_number,
                     sub_Beta
+                    //sub_Beta[b,q]
                 );
+                }
                 Beta[b,q] = tmp_Beta + Gamma[b];
             }
         }
@@ -115,6 +123,7 @@ transformed parameters {
 
     for (g in 1:G) {
         for (q in 1:Q) {
+            profile("alpha_mat_vec_dot") {
             Alpha[g,q] = csr_matrix_times_vector(
                 L,
                 a_sub_L,
@@ -123,9 +132,11 @@ transformed parameters {
                 a_row_non_zero_number,
                 sub_Alpha[g,q]
             );
+            }
         }
     }
 
+    profile("priors") {
     lprior += student_t_lpdf(hs_global | hs_df_global, 0, hs_scale_global)
         - 1 * log(0.5);
     lprior += inv_gamma_lpdf(hs_slab | 0.5 * hs_df_slab, 0.5 * hs_df_slab);
@@ -133,6 +144,7 @@ transformed parameters {
 
     for (b in 1:B) {
         for (q in 1:Q) {
+            //lprior += normal_lpdf(sub_Beta[b,q] | 0, 1);
             lprior += std_normal_lpdf(zbeta[b,q]);
             lprior += student_t_lpdf(hs_local[b,q] | hs_df, 0, 1)
               - num_hs * log(0.5);
@@ -145,54 +157,84 @@ transformed parameters {
         }
     }
 
-    lprior += cauchy_lpdf(prec | 0, 1);
     lprior += student_t_lpdf(Gamma | 3, 0, 5);
-}
-
-model {
-    int grainsize = 1;
-    int sample_type;
-    int genotype;
-    vector[L] Y_hat_sq;
-
-    target += lprior;
-
-    for (s in 1:S) {
-        sample_type = sample_x[s];
-        genotype = geno_x[s];
-        for (q in 1:Q) {
-            Y_hat_sq = Alpha[genotype,q]
-                + sample_type * Beta[genotype,q]
-                + cent_loglibsize[s];
-            target += neg_binomial_2_log_lpmf(Y[s,q] | Y_hat_sq, prec[sample_type+1]);
-        }
+    lprior += beta_lpdf(sig_noise | 25.0, 1.0);
     }
 }
 
-//generated quantities {
-//    vector[N] log_lik;
-//    array[S,Q] vector[L] post_pred;
-//    {
-//        vector[L] Y_hat_sq;
-//        int n = 1;
-//        int genotype;
-//        int sample_type;
-//        if (gather_log_lik) {
-//            for (s in 1:S) {
-//                sample_type = sample_x[s];
-//                genotype = geno_x[s];
-//                for (q in 1:Q) {
-//                    Y_hat_sq = Alpha[genotype,q]
-//                        + sample_type * Beta[genotype,q]
-//                        + cent_loglibsize[s];
-//                    for (l in 1:L) {
-//                        post_pred[s,q][l] = neg_binomial_2_rng(exp(Y_hat_sq[l]), prec[sample_type+1]);
-//                        log_lik[n] = neg_binomial_2_log_lpmf(Y[s,q,l] | Y_hat_sq[l], prec[sample_type+1]);
-//                        n += 1;
-//                    }
-//                }
-//            }
-//        }
-//    }
-//}
+model {
+    int sample_type;
+    int genotype;
+    //vector[L] Y_hat_signal_sq;
+    //vector[L] Y_hat_noise_sq;
+    vector[L] Y_hat_signal;
+    //real Y_hat_noise;
+    //real wsh_s;
+    real libsize_s;
+    real log_signoise_s;
+    real log_comp_signoise_s;
+    vector[S] log_signoise = log(sig_noise);
+    vector[S] log_comp_signoise = log1m(sig_noise);
+
+    target += lprior;
+
+    prec ~ lognormal(0, 1);
+    //wsh ~ normal(0, 3);
+
+    profile("likelihood") {
+    for (s in 1:S) {
+        sample_type = sample_x[s];
+        genotype = geno_x[s];
+        //wsh_s = wsh[s];
+        libsize_s = cent_loglibsize[s];
+        log_signoise_s = log_signoise[s];
+        log_comp_signoise_s = log_signoise[s];
+        for (q in 1:Q) {
+            Y_hat_signal = Alpha[genotype,q]
+                + sample_type * Beta[genotype,q]
+                + libsize_s;
+            //Y_hat_noise = wsh_s + libsize_s;
+ 
+            for (l in 1:L) {
+               
+                // allocates counts proportionally to signal/noise,
+                // where noise is just a fraction of libsize
+                target += log_sum_exp(
+                    log_signoise_s + neg_binomial_2_log_lpmf(Y[s,q,l] | Y_hat_signal[l], prec[sample_type+1]),
+                    log_comp_signoise_s + poisson_log_lpmf(Y[s,q,l] | libsize_s)
+                );
+            }
+        }
+    }
+    }
+}
+
+generated quantities {
+    //vector[N] log_lik;
+    //array[S,Q] vector[L] post_pred;
+    //{
+    //    vector[L] Y_hat_signal_sq;
+    //    vector[L] Y_hat_noise_sq;
+    //    int n = 1;
+    //    int genotype;
+    //    int sample_type;
+    //    //if (gather_log_lik) {
+    //        for (s in 1:S) {
+    //            sample_type = sample_x[s];
+    //            genotype = geno_x[s];
+    //            for (q in 1:Q) {
+    //                Y_hat_signal_sq = Alpha[genotype,q]
+    //                    + sample_type * Beta[genotype,q]
+    //                    + cent_loglibsize[s];
+    //                Y_hat_noise_sq = wsh[s] + cent_loglibsize[s];
+    //                for (l in 1:L) {
+    //                    post_pred[s,q][l] = error neg_binomial_2_rng(exp(Y_hat_sq[l]), prec[sample_type+1]);
+    //                    log_lik[n] = error neg_binomial_2_log_lpmf(Y[s,q,l] | Y_hat_sq[l], prec[sample_type+1]);
+    //                    n += 1;
+    //                }
+    //            }
+    //        }
+    //    //}
+    //}
+}
 

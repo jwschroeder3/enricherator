@@ -73,7 +73,7 @@ parameters {
     //vector[S] wsh; // wsh term for how much wsh for a given sample
     vector<lower=0>[2] prec; // stratify global precision inference by extracted vs input
     array[G,Q] vector[a_sub_L] sub_Alpha; // one intercept for each genotype/sub-position
-    vector[B] Gamma; // an intercept to offset hbd samples by
+    //vector[B] Gamma; // an intercept to offset hbd samples by
 
     // local parameters for horseshoe prior
     array[B,Q] vector[b_sub_L] zbeta;
@@ -103,7 +103,7 @@ transformed parameters {
                     hs_global,
                     hs_scale_slab^2 * hs_slab
                 );
-                tmp_Beta = csr_matrix_times_vector(
+                Beta[b,q] = csr_matrix_times_vector(
                     L,
                     b_sub_L,
                     b_weights_vals,
@@ -112,7 +112,7 @@ transformed parameters {
                     sub_Beta
                     //sub_Beta[b,q]
                 );
-                Beta[b,q] = tmp_Beta + Gamma[b];
+                //Beta[b,q] = tmp_Beta + Gamma[b];
             }
         }
     }
@@ -146,11 +146,11 @@ transformed parameters {
 
     for (g in 1:B) {
         for (q in 1:Q) {
-            lprior += normal_lpdf(sub_Alpha[g,q] | alpha_prior, 2);
+            lprior += normal_lpdf(sub_Alpha[g,q] | alpha_prior, 4);
         }
     }
 
-    lprior += student_t_lpdf(Gamma | 3, 0, 5);
+    //lprior += student_t_lpdf(Gamma | 3, 0, 5);
     lprior += beta_lpdf(sig_noise | 25.0, 1.0);
 }
 
@@ -191,8 +191,8 @@ model {
                 // allocates counts proportionally to signal/noise,
                 // where noise is just a fraction of libsize
                 target += log_sum_exp(
-                    log_signoise_s + neg_binomial_2_log_lpmf(Y[s,q,l] | Y_hat_signal[l], prec[sample_type+1]),
-                    log_comp_signoise_s + poisson_log_lpmf(Y[s,q,l] | libsize_s)
+                    log_signoise_s + neg_binomial_2_log_lupmf(Y[s,q,l] | Y_hat_signal[l], prec[sample_type+1]),
+                    log_comp_signoise_s + poisson_log_lupmf(Y[s,q,l] | libsize_s)
                 );
             }
         }

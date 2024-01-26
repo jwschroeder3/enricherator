@@ -298,6 +298,9 @@ insert_data = function(data, spike_name, spikein_rel_abund) {
     
     #stan_list[["mean_size_factors"]] = mean_size_factors
     data_list[["tm_size_factors"]] = tm_size_factors
+    log_libsize = log(tm_size_factors)
+    mean_log_libsize = mean(log_libsize)
+    data_list[["cent_loglibsize"]] = log_libsize - mean_log_libsize
     data_list[["spikein_norm_factors"]] = norm_factors
     #stan_list[["tmm_deseq_size_factors"]] = tmm_deseq_size_factors
     #stan_list[["med_deseq_size_factors"]] = med_deseq_size_factors
@@ -305,8 +308,7 @@ insert_data = function(data, spike_name, spikein_rel_abund) {
     return(list(pos_num, data_list))
 }
 
-
-prep_stan_data = function(data_df, norm_method, spikein, spikein_rel_abund=0.05, input_subsample_dist_bp=50, input_frag_len_bp=125, ext_subsample_dist_bp=50, ext_frag_len_bp=50, log_lik=FALSE, frac_genome_enriched=NULL) {
+prep_par_stan_data = function(data_df, norm_method, spikein, spikein_rel_abund=0.05, input_subsample_dist_bp=50, input_frag_len_bp=125, ext_subsample_dist_bp=50, ext_frag_len_bp=50, log_lik=FALSE, frac_genome_enriched=NULL) {
     # this sort step is VERY USEFUL for arranging data later on to keep size factors
     # associated with correct samples
     data_df = data_df %>% arrange(sample_id)
@@ -332,6 +334,7 @@ prep_stan_data = function(data_df, norm_method, spikein, spikein_rel_abund=0.05,
     stan_list = res[[2]]
     num_geno = length(unique(data_df$genotype))
     levels = unique(data_df$sample_id)
+    stan_list[["level_mapper"]] = levels
     strand_names = NA
     distinct_strand_ids = sort(unique(data_df$strand_x))
     for (q in distinct_strand_ids) {
@@ -344,6 +347,8 @@ prep_stan_data = function(data_df, norm_method, spikein, spikein_rel_abund=0.05,
     strand_num = length(strand_names)
     strand_df = data_df %>% select(-data)
     info_df = strand_df %>% filter(!duplicated(sample_id))
+    N = pos_num * samp_num * strand_num
+    stan_list[["N"]] = N
     stan_list[["L"]] = pos_num
     stan_list[["S"]] = samp_num
     stan_list[["B"]] = num_geno
@@ -357,7 +362,13 @@ prep_stan_data = function(data_df, norm_method, spikein, spikein_rel_abund=0.05,
     #print(stan_list[["Q"]])
     stan_list[["info"]] = data_df %>% select(-data)
     stan_list[["gather_log_lik"]] = log_lik
-    data_arr = base::array(0, dim=c(samp_num,strand_num,pos_num))
+
+    #data_arr = base::array(0, dim=c(samp_num,strand_num,pos_num))
+
+    # data_mat is shape (N,3), where the second axis is (count, sample_id, sample_type)
+    data_mat = base::matrix(0, nrow=N, ncol=3)
+    libsize_mat = base::matrix(0, nrow=N, ncol=1)
+    start_row=1
     for (s in 1:samp_num) {
         level = levels[s]
         #print(paste0("level: ", level))
@@ -373,13 +384,26 @@ prep_stan_data = function(data_df, norm_method, spikein, spikein_rel_abund=0.05,
                 filter(seqname != spikein) %>%
                 select(score)) %>%
                 unlist(use.names=F)
+            end_row = start_row + length(sq_data) - 1
             #print(sq_data %>% head)
             #print(length(sq_data))
             #print(dim(data_arr))
-            data_arr[s,q,] = sq_data
+            #data_arr[s,q,] = sq_data
+            geno_ids = rep(info_df$geno_x[s], length(sq_data))
+            strand_ids = rep(q, length(sq_data))
+            type_ids = rep(info_df$sample_x[s], length(sq_data))
+            sample_ids = rep(s, length(sq_data))
+            print(paste("start_row:", start_row))
+            print(paste("end_row:", end_row))
+            print(paste("length(sq_data):", length(sq_data)))
+            data_mat[start_row:end_row,] = cbind(sq_data, sample_ids, type_ids+1)
+            libsize_mat[start_row:end_row,1] = stan_list[["cent_loglibsize"]][s]
+            start_row = end_row + 1
         }
     }
-    stan_list[["Y"]] = data_arr
+    #stan_list[["Y"]] = data_arr
+    stan_list[["X_i"]] = data_mat
+    stan_list[["X_r"]] = libsize_mat
 
     resolution = median(diff(stan_list[["position_mapper"]]$start))
 
@@ -516,18 +540,269 @@ prep_stan_data = function(data_df, norm_method, spikein, spikein_rel_abund=0.05,
     stan_list[["a_row_non_zero_number"]] = u
 
     if (!is.null(frac_genome_enriched)) {
-        p0 = frac_genome_enriched
+        f = frac_genome_enriched
+        N_per_hs = pos_num * strand_num
+        # default value of sigma is sqrt(1/20). Here I'm just
+        # using Piironen and Vehtari's recommendation for a Poisson model,
+        # where we use 1/mean count as our estimate of sigma.
+        # I think 20 is a reasonable estimate of mean count for most datasets,
+        # so variance is 1/20, and sig is sqrt(1/20)
+        sig = sqrt(1/20)
+        #sig = 1
+        #num_enriched = b_sub_L * p0
+        #par_ratio = num_enriched / (b_sub_L - num_enriched)
+        #scale = par_ratio / sqrt(N_per_hs)
+        numer = f * sig
+        denom = (1-f) * sqrt(N_per_hs)
+        scale = numer / denom
     } else {
-        # default value of p0 (frac_genome_enriched) is 0.1
-        p0 = 0.1
+        # default value of f (frac_genome_enriched) is 0.1
+        #f = 0.1
+        scale = 1.0
     }
 
-    N_per_hs = pos_num * strand_num
-    #num_enriched = b_sub_L * p0
-    #par_ratio = num_enriched / (b_sub_L - num_enriched)
-    #scale = par_ratio / sqrt(N_per_hs)
-    denom = (1-p0) * sqrt(N_per_hs)
-    scale = p0 / denom
+    stan_list[["hs_scale_global"]] = scale
+
+    stan_list[["hs_df"]] = 1
+    stan_list[["hs_df_global"]] = 1
+    stan_list[["hs_scale_slab"]] = 2
+    stan_list[["hs_df_slab"]] = 4
+    return(stan_list)
+}
+
+prep_stan_data = function(data_df, norm_method, spikein, spikein_rel_abund=0.05, input_subsample_dist_bp=50, input_frag_len_bp=125, ext_subsample_dist_bp=50, ext_frag_len_bp=50, log_lik=FALSE, frac_genome_enriched=NULL) {
+    # this sort step is VERY USEFUL for arranging data later on to keep size factors
+    # associated with correct samples
+    data_df = data_df %>% arrange(sample_id)
+
+    if (norm_method == "libsize") {
+        spikein=""
+        res = insert_data(
+            data_df,
+            spike_name=spikein,
+            spikein_rel_abund=1
+        )
+    } else if (norm_method == "spikein") {
+        res = insert_data(
+            data_df,
+            spike_name=spikein,
+            spikein_rel_abund=spikein_rel_abund
+        )
+    } else {
+        stop(paste0("--norm_method must be either 'libsize' or 'spikein', but it is currently set to ", norm_method, ". Exiting now."))
+    }
+
+    pos_num = res[[1]]
+    stan_list = res[[2]]
+    num_geno = length(unique(data_df$genotype))
+    levels = unique(data_df$sample_id)
+    strand_names = NA
+    distinct_strand_ids = sort(unique(data_df$strand_x))
+    for (q in distinct_strand_ids) {
+        strand_names[q] = data_df$strand[data_df$strand_x == q][1]
+    }
+    #strand_names = unique(data_df$strand)
+    #print(strand_names)
+    #stop("Reached stop point")
+    samp_num = length(levels)
+    strand_num = length(strand_names)
+    strand_df = data_df %>% select(-data)
+    info_df = strand_df %>% filter(!duplicated(sample_id))
+    stan_list[["L"]] = pos_num
+    stan_list[["S"]] = samp_num
+    stan_list[["B"]] = num_geno
+    stan_list[["A"]] = num_geno
+    stan_list[["G"]] = num_geno
+    stan_list[["Q"]] = strand_num
+    stan_list[["geno_x"]] = info_df$geno_x
+    stan_list[["sample_x"]] = info_df$sample_x
+    stan_list[["strand_x"]] = strand_df$strand_x
+    #print(stan_list[["strand_x"]])
+    #print(stan_list[["Q"]])
+    stan_list[["info"]] = data_df %>% select(-data)
+    stan_list[["gather_log_lik"]] = log_lik
+
+    data_arr = base::array(0, dim=c(samp_num,strand_num,pos_num))
+    for (s in 1:samp_num) {
+        level = levels[s]
+        #print(paste0("level: ", level))
+        for (q in 1:strand_num) {
+            strand_name = strand_names[q]
+            #print(paste0("strand idx: ", q))
+            #print(paste0("strand: ", strand_name))
+            #stop()
+            which_row = which(data_df$sample_id == level & data_df$strand == strand_name)
+            #print(unique(data_df$strand))
+            #print(unique(data_df$sample_id))
+            sq_data  = unlist(data_df$data[[which_row]] %>%
+                filter(seqname != spikein) %>%
+                select(score)) %>%
+                unlist(use.names=F)
+            #print(sq_data %>% head)
+            #print(length(sq_data))
+            #print(dim(data_arr))
+            data_arr[s,q,] = sq_data
+        }
+    }
+    stan_list[["Y"]] = data_arr
+
+
+    resolution = median(diff(stan_list[["position_mapper"]]$start))
+
+    # round to nearest multiple of "resolution"
+    input_subsample_dist_bp = round(input_subsample_dist_bp/resolution)*resolution
+    input_frag_len_bp = round(input_frag_len_bp/resolution)*resolution
+    ext_subsample_dist_bp = round(ext_subsample_dist_bp/resolution)*resolution
+    ext_frag_len_bp = round(ext_frag_len_bp/resolution)*resolution
+
+    a_C = floor(input_subsample_dist_bp / resolution)
+    b_C = floor(ext_subsample_dist_bp / resolution)
+    b_K = ext_frag_len_bp / resolution
+    a_K = input_frag_len_bp / resolution
+    # enforce that C must be odd
+    if (a_C %% 2 == 0) {
+        a_C = a_C+1
+    }
+    if (b_C %% 2 == 0) {
+        b_C = b_C+1
+    }
+    stan_list[["a_C"]] = a_C
+    a_sub_L = as.integer(pos_num/a_C)
+    stan_list[["a_sub_L"]] = a_sub_L
+    stan_list[["b_C"]] = b_C
+    b_sub_L = as.integer(pos_num/b_C)
+    stan_list[["b_sub_L"]] = b_sub_L
+    #stan_list[["sub_L"]] = pos_num
+
+    by_ctg_df = data_df$data[[1]] %>% filter(seqname != spikein) %>%
+        group_by(seqname) %>%
+        summarize(ctg_posnum = n())
+    ctg_end_vec = by_ctg_df$ctg_posnum
+    #print("ctg_end_vec")
+    #print(ctg_end_vec)
+    # start with zero-indexted end
+    accum_ctg_ends = ctg_end_vec[1] - 1
+    for (i in seq_along(ctg_end_vec)) {
+        if (i == 1) {
+            next
+        }
+        # accumulate lengths for each ctg_end
+        accum_ctg_ends[i] = accum_ctg_ends[i-1] + ctg_end_vec[i]
+    }
+    # make ends into comma-separated list as required by make_sparse_matrix
+    ctg_ends = paste(accum_ctg_ends, collapse=",")
+
+    w_out = paste("w", b_K, b_sub_L, "vals.txt", sep="_")
+    v_out = paste("v", b_K, b_sub_L, "vals.txt", sep="_")
+    u_out = paste("u", b_K, b_sub_L, "vals.txt", sep="_")
+
+    print("Building sparse matrix of weights for beta smoothing")
+    print(paste0("Using beta subsampling distance of ", ext_subsample_dist_bp, " to perform smoothing."))
+    print(paste0("Using ", ctg_ends, " as list of 0-indexed contig end positions, at resolution ", resolution))
+
+    exec_f_path = get_exec_file()
+    exec_direc = dirname(exec_f_path)
+    bin_path = file.path(exec_direc, "../bin/make_sparse_matrix")
+    
+    #if (!file.exists(w_out)) {
+    print("Running command:")
+    print(paste("make_sparse_matrix", pos_num, b_sub_L, b_C, b_K, ctg_ends, w_out, v_out, u_out, sep=" "))
+    res = system2(
+        bin_path,
+        c(
+            as.character(pos_num),
+            as.character(b_sub_L),
+            as.character(b_C),
+            as.character(b_K),
+            ctg_ends,
+            w_out,
+            v_out,
+            u_out
+        ),
+        env="RUST_BACKTRACE=1",
+        stderr="",
+        stdout=""
+    )
+    if (res != 0) stop("Error in sparse matrix creation. Check err and log files.")
+    #} else {
+    #    print(paste("File", w_out, "already exists. Reading it.", sep=" "))
+    #}
+    w = unlist(read_table(w_out, col_names=F), use.names=F)
+    v = unlist(read_table(v_out, col_names=F), use.names=F)
+    u = unlist(read_table(u_out, col_names=F), use.names=F)
+    #stan_list[["gauss_dist"]] = C*2+1
+    #sparse_weights_info = make_weights_array(pos_num, C, stan_list[["gauss_dist"]])
+    #save(sparse_weights_info, file="debug_weights.RData")
+    stan_list[["b_weights_vals"]] = w
+    stan_list[["b_num_non_zero"]] = length(stan_list[["b_weights_vals"]])
+    stan_list[["b_col_accessor"]] = v
+    stan_list[["b_row_non_zero_number"]] = u
+
+    w_out = paste("w", a_K, a_sub_L, "vals.txt", sep="_")
+    v_out = paste("v", a_K, a_sub_L, "vals.txt", sep="_")
+    u_out = paste("u", a_K, a_sub_L, "vals.txt", sep="_")
+
+    print("Building sparse matrix of weights for alpha smoothing")
+    print(paste0("Using alpha subsampling distance of ", input_subsample_dist_bp, " to perform smoothing."))
+    print(paste0("Using ", ctg_ends, " as list of 0-indexed contig end positions, at resolution ", resolution))
+    #if (!file.exists(w_out)) {
+
+    print("Running command:")
+    print(paste("make_sparse_matrix ", pos_num, " ", a_sub_L, " ", a_C, " ", a_K, " ", ctg_ends, w_out, v_out, u_out, sep=" "))
+
+    res = system2(
+        bin_path,
+        c(
+            as.character(pos_num),
+            as.character(a_sub_L),
+            as.character(a_C),
+            as.character(a_K),
+            ctg_ends,
+            w_out,
+            v_out,
+            u_out
+        ),
+        env="RUST_BACKTRACE=1",
+        stderr="",
+        stdout=""
+    )
+    if (res != 0) {
+        stop("Error in sparse matrix creation. Check err and log files.")
+    }
+    #} else {
+    #    print(paste("File", w_out, "already exists. Reading it.", sep=" "))
+    #}
+    w = unlist(read_table(w_out, col_names=F), use.names=F)
+    v = unlist(read_table(v_out, col_names=F), use.names=F)
+    u = unlist(read_table(u_out, col_names=F), use.names=F)
+
+    stan_list[["a_weights_vals"]] = w
+    stan_list[["a_num_non_zero"]] = length(stan_list[["a_weights_vals"]])
+    stan_list[["a_col_accessor"]] = v
+    stan_list[["a_row_non_zero_number"]] = u
+
+    if (!is.null(frac_genome_enriched)) {
+        f = frac_genome_enriched
+        N_per_hs = pos_num * strand_num
+        # default value of sigma is sqrt(1/20). Here I'm just
+        # using Piironen and Vehtari's recommendation for a Poisson model,
+        # where we use 1/mean count as our estimate of sigma.
+        # I think 20 is a reasonable estimate of mean count for most datasets,
+        # so variance is 1/20, and sig is sqrt(1/20)
+        sig = sqrt(1/20)
+        #sig = 1
+        #num_enriched = b_sub_L * p0
+        #par_ratio = num_enriched / (b_sub_L - num_enriched)
+        #scale = par_ratio / sqrt(N_per_hs)
+        numer = f * sig
+        denom = (1-f) * sqrt(N_per_hs)
+        scale = numer / denom
+    } else {
+        # default value of f (frac_genome_enriched) is 0.1
+        #f = 0.1
+        scale = 1.0
+    }
+
     stan_list[["hs_scale_global"]] = scale
 
     stan_list[["hs_df"]] = 1
