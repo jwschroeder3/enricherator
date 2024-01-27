@@ -490,7 +490,7 @@ async fn write_summaries(
     let mut writer = BufWriter::new(file);
 
     println!("Summarizing contrasts and writing results to {}.", fname);
-    writer.write(b"var_name\tgenotype\tstrand\tposition\tlower\tmedian\tupper\tmean\n").await?;
+    writer.write(b"var_name\tgenotype\tstrand\tposition\tlower\tmedian\tupper\tmean\tK_gt\tK_lt\n").await?;
 
     let lower_idx = 24;
     //let lower_idx = 1;
@@ -516,9 +516,14 @@ async fn write_summaries(
                     let upper = f32::from(samples[upper_idx]);
                     let mean = f32::from(samples.iter().sum::<OrderedFloat<f32>>()
                         / samples.len() as f32);
+
+                    let positive_numbers: f32 = samples.iter().filter(|&&x| x > OrderedFloat(0.0)).count() as f32;
+                    let negative_numbers: f32 = samples.len() as f32 - positive_numbers;
+                    let K_gt = positive_numbers / negative_numbers;
+                    let K_lt = negative_numbers / positive_numbers;
                     writer.write(format!(
-                        "{}\t{}\t{}\t{}\n",
-                        lower,median,upper,mean
+                        "{}\t{}\t{}\t{}\t{}\t{}\n",
+                        lower,median,upper,mean,K_gt,K_lt
                     ).as_bytes()).await?;
                 }
             }
@@ -540,9 +545,14 @@ async fn write_summaries(
                     let upper = f32::from(samples[upper_idx]);
                     let mean = f32::from(samples.iter().sum::<OrderedFloat<f32>>()
                         / samples.len() as f32);
+                    let positive_numbers: f32 = samples.iter().filter(|&&x| x > OrderedFloat(0.0)).count() as f32;
+                    let negative_numbers: f32 = samples.len() as f32 - positive_numbers;
+                    let K_gt = positive_numbers / negative_numbers;
+                    let K_lt = negative_numbers / positive_numbers;
+ 
                     writer.write(format!(
-                        "{}\t{}\t{}\t{}\n",
-                        lower,median,upper,mean
+                        "{}\t{}\t{}\t{}\t{}\t{}\n",
+                        lower,median,upper,mean,K_gt,K_lt
                     ).as_bytes()).await?;
                 }
             }

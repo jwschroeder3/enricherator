@@ -971,7 +971,7 @@ write_cmdstan_summaries = function(summary_df, stan_data, out_direc, params, con
                             ifelse(.strand == "minus", "-",
                             ifelse(.strand=="both", "*", .strand)))
                     )
-                for (quant in c("lower", "median", "mean", "upper")) {
+                for (quant in c("lower", "median", "mean", "upper", "K_gt", "K_lt")) {
                     out_fname = paste0(out_direc, "/", genotype, "_",
                         .strand, "_strand_", param, "_", quant, ".bedgraph")
                     print(paste0("Writing ", quant,

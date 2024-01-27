@@ -194,6 +194,12 @@ fn fetch_summaries(data: &Vec<Vec<OrderedFloat<f32>>>) -> Vec<Vec<f32>> {
             f32::from(samples.iter().sum::<OrderedFloat<f32>>()
                 / samples.len() as f32)
         );
+        let positive_numbers: f32 = samples.iter().filter(|&&x| x > OrderedFloat(0.0)).count() as f32;
+        let negative_numbers: f32 = samples.len() as f32 - positive_numbers;
+        let K_gt = positive_numbers / negative_numbers;
+        let K_lt = negative_numbers / positive_numbers;
+        summary.push(K_gt);
+        summary.push(K_lt);
         summaries.push(summary);
     }
     summaries
@@ -208,12 +214,12 @@ async fn write_summaries(
     let mut writer = BufWriter::new(file);
 
     println!("Writing summary statistics to file {}", fname);
-    writer.write(b"var_name\tgenotype\tstrand\tposition\tlower\tmedian\tupper\tmean\n").await?;
+    writer.write(b"var_name\tgenotype\tstrand\tposition\tlower\tmedian\tupper\tmean\tK_gt\tK_lt\n").await?;
     let iterator = zip(summaries, info);
     for dat in iterator {
         let line = format!(
-            "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n",
-            dat.1.1.3, dat.1.1.0+1, dat.1.1.1+1, dat.1.1.2+1, dat.0[0], dat.0[1], dat.0[2], dat.0[3]
+            "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n",
+            dat.1.1.3, dat.1.1.0+1, dat.1.1.1+1, dat.1.1.2+1, dat.0[0], dat.0[1], dat.0[2], dat.0[3], dat.0[4], dat.0[5]
         );
 
         writer.write(line.as_bytes()).await?;
