@@ -8,6 +8,19 @@ use tokio::prelude::*;
 use bytes::{BytesMut, BufMut};
 use std::str;
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use assert_approx_eq::*;
+
+    #[test]
+    fn test_exp_kern() {
+        assert_eq!(kern.len(), targets.len());
+        assert_approx_eq!(&val, target, 0.0000000001);
+    }
+}
+
+
 async fn parse_lines<'a>(
         name: &str,
         nsamps: usize,

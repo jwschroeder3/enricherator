@@ -1,0 +1,41 @@
+# stan_version_major = 2
+# stan_version_minor = 34
+# stan_version_patch = 1
+# model = sig_noise_alloc_model
+# start_datetime = 2024-01-26 20:16:47 UTC
+# method = variational
+#   variational
+#     algorithm = meanfield (Default)
+#       meanfield
+#     iter = 10000 (Default)
+#     grad_samples = 1 (Default)
+#     elbo_samples = 100 (Default)
+#     eta = 1 (Default)
+#     adapt
+#       engaged = 1 (Default)
+#       iter = 50 (Default)
+#     tol_rel_obj = 0.01 (Default)
+#     eval_elbo = 100 (Default)
+#     output_samples = 500
+# id = 1 (Default)
+# data
+#   file = /tmp/RtmpIkYIrB/standata-4dabd65391c0c.json
+# init = 2 (Default)
+# random
+#   seed = 651419868
+# output
+#   file = /expanse/lustre/projects/mia174/jwschroeder/enricherator/CTCF/paper_regions_full_enricherator_results/draws/draws-1.csv
+#   diagnostic_file =  (Default)
+#   refresh = 100 (Default)
+#   sig_figs = -1 (Default)
+#   profile_file = /expanse/lustre/projects/mia174/jwschroeder/enricherator/CTCF/paper_regions_full_enricherator_results/draws/sig_noise_alloc-profile-1.csv
+#   save_cmdstan_config = 0 (Default)
+# num_threads = 1 (Default)
+# stanc_version = stanc3 v2.34.0
+# stancflags = --name=sig_noise_alloc_model
+lp__,log_p__,log_g__,sig_noise.1,Alpha.1.1.1,Alpha.1.1.2,Alpha.1.2.1,Alpha.1.2.2,Alpha.2.1.1,Alpha.2.1.2,Alpha.2.2.1,Alpha2.2.2,Beta.1.1.1,Beta.1.1.2,Beta.1.2.1,Beta.1.2.2,Beta.2.1.1,Beta.2.1.2,Beta.2.2.1,Beta2.2.2
+# Stepsize adaptation complete
+# eta = 1
+0,-217338,-8628,0.99999,0.6702703,-0.41557693,0.6702703,-0.41557693,0.6702703,-0.41557693,0.6969905,-0.38592237,0.6969905,-0.38592237,0.6969905,-0.38592237,0.5603456,-0.3549982,0.41676286,-0.32250437
+0,-217338,-8628,0.99999,0.65572506,-0.67273736,0.65572506,-0.67273736,0.65572506,-0.67273736,0.68164307,-0.63527924,0.68164307,-0.63527924,0.68164307,-0.63527924,0.60927176,-0.540888,0.5332244,-0.44170275
+
