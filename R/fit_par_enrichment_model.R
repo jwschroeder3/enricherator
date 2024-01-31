@@ -240,8 +240,8 @@ newlist = list()
 include_vars = c(
     "X_i", "X_r", "N", "L","S","B","A","G","Q",
     "alpha_prior","geno_x","sample_x", "cent_loglibsize",
-    #"hs_df", "hs_df_global", "hs_df_slab",
-    #"hs_scale_global", "hs_scale_slab",
+    "hs_df", "hs_df_global", "hs_df_slab",
+    "hs_scale_global", "hs_scale_slab",
     "a_sub_L", "b_sub_L",
     "b_num_non_zero", "b_weights_vals", "b_col_accessor",
     "b_row_non_zero_number", "a_num_non_zero", "a_weights_vals",

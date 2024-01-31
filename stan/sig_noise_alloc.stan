@@ -146,7 +146,7 @@ transformed parameters {
 
     for (g in 1:B) {
         for (q in 1:Q) {
-            lprior += normal_lpdf(sub_Alpha[g,q] | alpha_prior, 2);
+            lprior += normal_lpdf(sub_Alpha[g,q] | alpha_prior, 4);
         }
     }
 

@@ -56,6 +56,8 @@ fn parse_args(args: &Vec<String>) -> Result<(i64,i64,i64,f64,VecDeque<i64>), Box
     let L: i64 = args[1].parse::<i64>()?;
     let sub_L: i64 = args[2].parse::<i64>()?;
     let C: i64 = args[3].parse::<i64>()?;
+    // K is the kernel width in at the resolution of the original analysis. That's set in the R
+    // code.
     let K: f64 = args[4].parse::<f64>()?;
     let ctg_ends: VecDeque<i64> = args[5]
         .split(',')

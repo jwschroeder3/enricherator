@@ -103,11 +103,11 @@ data {
 
     array[S] real cent_loglibsize;
 
-    //real<lower=0> hs_df; // local df
-    //real<lower=0> hs_df_global; // global df
-    //real<lower=0> hs_df_slab; // slab df
-    //real<lower=0> hs_scale_global; // global prior scale
-    //real<lower=0> hs_scale_slab; // slab prior scale
+    real<lower=0> hs_df; // local df
+    real<lower=0> hs_df_global; // global df
+    real<lower=0> hs_df_slab; // slab df
+    real<lower=0> hs_scale_global; // global prior scale
+    real<lower=0> hs_scale_slab; // slab prior scale
 
     int<lower=1> a_sub_L;
     int<lower=1> b_sub_L;
@@ -147,13 +147,13 @@ parameters {
     array[B,Q] vector[b_sub_L] sub_Beta; // one beta for each genotype/sub-position
     vector[B] Gamma; // an intercept to offset hbd samples by
 
-    //// local parameters for horseshoe prior
-    //array[B,Q] vector[b_sub_L] zbeta;
-    //array[B,Q] vector<lower=0>[b_sub_L] hs_local;
-    //// horseshoe shrinkage parameters 
-    //real<lower=0> hs_global; 
-    //real<lower=0> hs_slab; 
-    //real<lower=0> shape; 
+    // local parameters for horseshoe prior
+    array[B,Q] vector[b_sub_L] zbeta;
+    array[B,Q] vector<lower=0>[b_sub_L] hs_local;
+    // horseshoe shrinkage parameters 
+    real<lower=0> hs_global; 
+    real<lower=0> hs_slab; 
+    real<lower=0> shape; 
 }
 
 transformed parameters {
@@ -169,24 +169,24 @@ transformed parameters {
 
     {
         //array[B,Q] vector[b_sub_L] sub_Beta
-        //vector[b_sub_L] sub_Beta; // one intercept for each genotype/sub-position
+        vector[b_sub_L] sub_Beta; // one intercept for each genotype/sub-position
         vector[L] tmp_Beta;
         for (b in 1:B) {
             for (q in 1:Q) {
-                //print(sub_Beta
-                //sub_Beta = horseshoe(
-                //    zbeta[b,q],
-                //    hs_local[b,q],
-                //    hs_global,
-                //    hs_scale_slab^2 * hs_slab
-                //);
+                print(sub_Beta
+                sub_Beta = horseshoe(
+                    zbeta[b,q],
+                    hs_local[b,q],
+                    hs_global,
+                    hs_scale_slab^2 * hs_slab
+                );
                 tmp_Beta = csr_matrix_times_vector(
                     L,
                     b_sub_L,
                     b_weights_vals,
                     b_col_accessor,
                     b_row_non_zero_number,
-                    sub_Beta[b,q]
+                    sub_Beta
                 );
                 Beta[b,q] = tmp_Beta + Gamma[b];
             }
@@ -206,30 +206,22 @@ transformed parameters {
         }
     }
 
-//////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////////////////////
-// get brms to implement hs prior when par_ratio is set //////////////////////////////////
-//////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////////////////////
+    lprior += student_t_lpdf(hs_global | hs_df_global, 0, hs_scale_global)
+        - 1 * log(0.5);
+    lprior += inv_gamma_lpdf(hs_slab | 0.5 * hs_df_slab, 0.5 * hs_df_slab);
+    lprior += gamma_lpdf(shape | 0.01, 0.01);
 
-    //lprior += student_t_lpdf(hs_global | hs_df_global, 0, hs_scale_global)
-    //    - 1 * log(0.5);
-    //lprior += inv_gamma_lpdf(hs_slab | 0.5 * hs_df_slab, 0.5 * hs_df_slab);
-    //lprior += gamma_lpdf(shape | 0.01, 0.01);
-
-    //for (b in 1:B) {
-    //    for (q in 1:Q) {
-    //        //lprior += normal_lpdf(sub_Beta[b,q] | 0, 1);
-    //        lprior += std_normal_lpdf(zbeta[b,q]);
-    //        lprior += student_t_lpdf(hs_local[b,q] | hs_df, 0, 1)
-    //          - num_hs * log(0.5);
-    //    }
-    //}
+    for (b in 1:B) {
+        for (q in 1:Q) {
+            lprior += std_normal_lpdf(zbeta[b,q]);
+            lprior += student_t_lpdf(hs_local[b,q] | hs_df, 0, 1)
+              - num_hs * log(0.5);
+        }
+    }
 
     for (g in 1:B) {
         for (q in 1:Q) {
             lprior += normal_lpdf(sub_Alpha[g,q] | alpha_prior, 4);
-            lprior += normal_lpdf(sub_Beta[g,q] | 0, 1);
         }
     }
 
@@ -259,7 +251,6 @@ model {
     prec_signoise[1] = prec[1];
     prec_signoise[2] = prec[2];
 
-    profile("Y_hat_calculation") {
     int row_idx = 1;
     for (s in 1:S) {
         log_signoise_s = log_signoise[s];
@@ -285,7 +276,6 @@ model {
             //start_n = end_n + 1;
         }
     }
-    }
 
     /* Needs:
     1. ys - 2D array, N-by-something, each row will be passed to map_rect
@@ -300,9 +290,7 @@ model {
     // xs should contain libsize_s and sample_type so we can calculate Y_hat for each Q/L
     //
     // arrange globals to be 
-    profile("likelihood_calculation") {
     target += sum(map_rect(map_loglik, prec_signoise, Y_hat_signal, X_r, X_i));
-    }
 
     //for (s in 1:S) {
     //    sample_type = sample_x[s];

@@ -415,8 +415,8 @@ prep_par_stan_data = function(data_df, norm_method, spikein, spikein_rel_abund=0
 
     a_C = floor(input_subsample_dist_bp / resolution)
     b_C = floor(ext_subsample_dist_bp / resolution)
-    b_K = ext_frag_len_bp / resolution
     a_K = input_frag_len_bp / resolution
+    b_K = ext_frag_len_bp / resolution
     # enforce that C must be odd
     if (a_C %% 2 == 0) {
         a_C = a_C+1
@@ -541,7 +541,7 @@ prep_par_stan_data = function(data_df, norm_method, spikein, spikein_rel_abund=0
 
     if (!is.null(frac_genome_enriched)) {
         f = frac_genome_enriched
-        N_per_hs = pos_num * strand_num
+        #N_per_hs = pos_num * strand_num
         # default value of sigma is sqrt(1/20). Here I'm just
         # using Piironen and Vehtari's recommendation for a Poisson model,
         # where we use 1/mean count as our estimate of sigma.
@@ -553,7 +553,9 @@ prep_par_stan_data = function(data_df, norm_method, spikein, spikein_rel_abund=0
         #par_ratio = num_enriched / (b_sub_L - num_enriched)
         #scale = par_ratio / sqrt(N_per_hs)
         numer = f * sig
-        denom = (1-f) * sqrt(N_per_hs)
+        # use b_K as n, since that's the average number of genome positions influencing each
+        # fitted parameter influenced by the horseshoe prior
+        denom = (1-f) * sqrt(b_K)
         scale = numer / denom
     } else {
         # default value of f (frac_genome_enriched) is 0.1
@@ -783,7 +785,7 @@ prep_stan_data = function(data_df, norm_method, spikein, spikein_rel_abund=0.05,
 
     if (!is.null(frac_genome_enriched)) {
         f = frac_genome_enriched
-        N_per_hs = pos_num * strand_num
+        #N_per_hs = pos_num * strand_num
         # default value of sigma is sqrt(1/20). Here I'm just
         # using Piironen and Vehtari's recommendation for a Poisson model,
         # where we use 1/mean count as our estimate of sigma.
@@ -795,7 +797,9 @@ prep_stan_data = function(data_df, norm_method, spikein, spikein_rel_abund=0.05,
         #par_ratio = num_enriched / (b_sub_L - num_enriched)
         #scale = par_ratio / sqrt(N_per_hs)
         numer = f * sig
-        denom = (1-f) * sqrt(N_per_hs)
+        # use b_K as n, since that's the average number of genome positions influencing each
+        # fitted parameter influenced by the horseshoe prior
+        denom = (1-f) * sqrt(b_K)
         scale = numer / denom
     } else {
         # default value of f (frac_genome_enriched) is 0.1
