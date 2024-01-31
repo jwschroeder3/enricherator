@@ -108,10 +108,8 @@ line beginning with "apptainer".
 
 ```bash
 cd <top_direc>
-conda activate rstan
 
-mkdir enricherator_results
-mkdir enricherator_results/draws
+mkdir -p enricherator_results/draws
 
 SRCDIR="/src"
 
@@ -162,7 +160,6 @@ mean of the 500 samples, median of the 500 samples, lower 90% quantile of the
 
 ```bash
 cd <top_direc>
-conda activate rstan
 mkdir enricherator_results/out_files
 SRCDIR="/src"
 
@@ -192,7 +189,6 @@ To run contrasts using the samples from the approximate posterior, do the follow
 
 ```bash
 cd <top_direc>
-conda activate rstan
 mkdir enricherator_results/contrasts
 SRCDIR="/src"
 
@@ -222,3 +218,76 @@ Similarly, to perform a contrast of minus strand over plus strand,
 you would set the `--type` argument to "strand" and the `--contrasts`
 argument to `minus-plus`, assuming your original sample info file
 assigned the minus strand as "minus" and the plus strand as "plus".
+
+## Running on provided example data
+
+To run Enricherator on our provided example simulated datasets, assuming your
+current working directory is your local clone of this repository, do the following
+for a non-stranded analysis:
+
+```bash
+cd examples/nonstranded
+
+SRCDIR="/src"
+OUTDIR="example_results"
+
+apptainer exec -B $(pwd) /path/to/enricherator.sif \
+    Rscript $SRCDIR/R/cmdstan_fit_enrichment_model.R \
+    --info example_info.csv \
+    --compiled_model ${SRCDIR}/stan/sig_noise_alloc \
+    --norm_method libsize \
+    --fit_file ${OUTDIR}/fit.RData \
+    --data_file ${OUTDIR}/data.RData \
+    --ext_subsample_dist 30 \
+    --ext_fragment_length 60 \
+    --input_subsample_dist 60 \
+    --input_fragment_length 120 \
+    --libsize_key tm_size_factors \
+    --draws_direc ${OUTDIR}/draws \
+    > ${OUTDIR}/fit.log \
+    2> ${OUTDIR}/fit.err
+
+apptainer exec -B $(pwd) /path/to/enricherator.sif \
+    Rscript $SRCDIR/R/cmdstan_gather_estimates_from_stanfit.R \
+    --fit_file ${OUTDIR}/fit.RData \
+    --data_file ${OUTDIR}/data.RData \
+    --out_direc ${OUTDIR}/out_files \
+    --params Alpha,Beta \
+    > ${OUTDIR}/gather.log \
+    2> ${OUTDIR}/gather.err
+```
+
+or the following for a stranded analysis:
+
+```bash
+cd examples/stranded
+
+SRCDIR="/src"
+OUTDIR="example_results"
+
+apptainer exec -B $(pwd) /path/to/enricherator.sif \
+    Rscript $SRCDIR/R/cmdstan_fit_enrichment_model.R \
+    --info example_info.csv \
+    --compiled_model ${SRCDIR}/stan/sig_noise_alloc \
+    --norm_method libsize \
+    --fit_file ${OUTDIR}/fit.RData \
+    --data_file ${OUTDIR}/data.RData \
+    --ext_subsample_dist 30 \
+    --ext_fragment_length 60 \
+    --input_subsample_dist 60 \
+    --input_fragment_length 120 \
+    --libsize_key tm_size_factors \
+    --draws_direc ${OUTDIR}/draws \
+    > ${OUTDIR}/fit.log \
+    2> ${OUTDIR}/fit.err
+
+apptainer exec -B $(pwd) /path/to/enricherator.sif \
+    Rscript $SRCDIR/R/cmdstan_gather_estimates_from_stanfit.R \
+    --fit_file ${OUTDIR}/fit.RData \
+    --data_file ${OUTDIR}/data.RData \
+    --out_direc ${OUTDIR}/out_files \
+    --params Alpha,Beta \
+    > ${OUTDIR}/gather.log \
+    2> ${OUTDIR}/gather.err
+```
+
