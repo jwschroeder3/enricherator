@@ -15,34 +15,49 @@ get_exec_file = function() {
     }
 }
 
-read_file = function(fname, ignores, debug=FALSE) {
-    print(paste0("Reading data from ", fname))
+extract_file_extension <- function(filename) {
+  # Split the filename by '.'
+  parts <- strsplit(filename, split="\\.")[[1]]
+  
+  # Return the last part, i.e., the file extension
+  file_extension <- parts[length(parts)]
+  
+  return(file_extension)
+}
+
+read_file = function(fname, strand, ignores, debug=FALSE) {
+    print(paste0("Reading data from ", fname, " strand ", strand))
+
+    ext = extract_file_extension(fname)
+
+    #if (ext == "bedgraph") {
+    #    tmp_tib = read_delim(
+    #        file=fname,
+    #        col_names=c("seqname","start","end","score","strand"),
+    #        col_types="ciidc",
+    #        delim="\t"
+    #    )
+    #} else {
+    #    if (ext == "bw") {
+    #        tmp_tib = rtracklayer::import(fname) %>% as_tibble(.)
+    #    }
+    #}
     tmp_tib = read_delim(
         file=fname,
         col_names=c("seqname","start","end","score","strand"),
         col_types="ciidc",
         delim="\t"
-    ) %>% filter(
-        !(seqname %in% ignores)
-    ) %>% mutate(
-        score = as.integer(score)
     )
-
-    if (debug) {
-        tmp_tib = tmp_tib %>%
-            #filter(
-            #    ((seqname == "CP006881.1" & start > 1180500 & end < 1185500)
-            #    | seqname == "NC_011916.1")
-            #)
-            filter(
-                (seqname == "gi|545778205|gb|U00096.3|" & start > 655000 & end < 660000)
-            )
-    }
-
     print(tmp_tib %>% head)
-    if (all(is.na(tmp_tib$strand))) {
-        tmp_tib$strand = "*"
-    }
+    tmp_tib = tmp_tib %>% filter(
+            !(seqname %in% ignores)
+        ) %>% mutate(
+            score = as.integer(score)
+        )
+
+    tmp_tib$strand = ifelse(strand=="both", "*", ifelse(strand=="plus", "+", "-"))
+    print(tmp_tib %>% head)
+
     return(tmp_tib)
 }
 
@@ -365,10 +380,11 @@ prep_par_stan_data = function(data_df, norm_method, spikein, spikein_rel_abund=0
 
     #data_arr = base::array(0, dim=c(samp_num,strand_num,pos_num))
 
-    # data_mat is shape (N,3), where the second axis is (count, sample_id, sample_type)
-    data_mat = base::matrix(0, nrow=N, ncol=3)
-    libsize_mat = base::matrix(0, nrow=N, ncol=1)
-    start_row=1
+    # data_mat is shape (L,S)
+    data_mat = base::matrix(0, nrow=pos_num, ncol=2+samp_num)
+    data_mat[,1] = samp_num
+    data_mat[,2] = num_geno * strand_num * 2;
+
     for (s in 1:samp_num) {
         level = levels[s]
         #print(paste0("level: ", level))
@@ -384,26 +400,11 @@ prep_par_stan_data = function(data_df, norm_method, spikein, spikein_rel_abund=0
                 filter(seqname != spikein) %>%
                 select(score)) %>%
                 unlist(use.names=F)
-            end_row = start_row + length(sq_data) - 1
-            #print(sq_data %>% head)
-            #print(length(sq_data))
-            #print(dim(data_arr))
-            #data_arr[s,q,] = sq_data
-            geno_ids = rep(info_df$geno_x[s], length(sq_data))
-            strand_ids = rep(q, length(sq_data))
-            type_ids = rep(info_df$sample_x[s], length(sq_data))
-            sample_ids = rep(s, length(sq_data))
-            print(paste("start_row:", start_row))
-            print(paste("end_row:", end_row))
-            print(paste("length(sq_data):", length(sq_data)))
-            data_mat[start_row:end_row,] = cbind(sq_data, sample_ids, type_ids+1)
-            libsize_mat[start_row:end_row,1] = stan_list[["cent_loglibsize"]][s]
-            start_row = end_row + 1
+            data_mat[,s+2] = sq_data
         }
     }
-    #stan_list[["Y"]] = data_arr
     stan_list[["X_i"]] = data_mat
-    stan_list[["X_r"]] = libsize_mat
+    stan_list[["X_r"]] = matrix(0, nrow=pos_num, ncol=1)
 
     resolution = median(diff(stan_list[["position_mapper"]]$start))
 
@@ -860,12 +861,15 @@ summarize_rstan_inference = function(param_mat, stan_data, quant_vec, out_direc)
                     strand = ifelse(strand == "plus", "+", ifelse(strand == "minus", "-", ifelse(strand=="both", "*", strand)))
                 )
                 out_fname = paste0(out_direc, "/", genotype, "_", strand, "_strand_beta_", quant, ".bedgraph")
+                #out_fname = paste0(out_direc, "/", genotype, "_", strand, "_strand_beta_", quant, ".bw")
                 print(paste0("Writing ", quant, " beta estimates to ", out_fname))
+                #rtracklayer::export(out_fname)
                 readr::write_tsv(
                     this_df,
                     path=out_fname,
                     col_names=FALSE
                 )
+                
             }
         }
     }
