@@ -14,12 +14,29 @@ mod tests {
     use assert_approx_eq::*;
 
     #[test]
-    fn test_exp_kern() {
-        assert_eq!(kern.len(), targets.len());
-        assert_approx_eq!(&val, target, 0.0000000001);
+    fn test_colname_line() {
+        let mut file = File::open(name).await?;
+        let mut buffer = BytesMut::with_capacity(1000);
+
+        target = vec![(4, (0, 0, 0, String::from("Alpha"))),(5, (0, 0, 1, String::from("Alpha"))),(6, (0, 1, 0, String::from("Alpha"))),(7, (0,1,1, String::from("Alpha"))),(8, (1,0,0,String::from("Alpha"))),(9, (1,0,1,String::from("Alpha"))),(10, (1,1,0,String::from("Alpha"))),(11, (1,1,1,String::from("Alpha"))),(12, (0,0,0,String::from("Beta"))),(13, (0,0,1,String::from("Beta"))),(14, (0,1,0,String::from("Beta"))),(15, (0,1,1,String::from("Beta"))),(16, (1,0,0,String::from("Beta"))),(17, (1,0,1, String::from("Beta"))),(18, (1,1,0,String::from("Beta"))),(19, (1,1,1,String::from("Beta")))];
+
+        parse_col_names(buffer);
     }
 }
 
+/// Used for parsing buffered column line
+///
+/// info: contains the information for each retained column
+/// hanging: when a buffer is exhausted prior to completing an element in info,
+///    hanging will store what was read from the buffer prior to next buffer of bytes coming in
+struct ColNames {
+    info: Vec<(usize, (usize,usize,usize,String))>,
+    hanging: String,
+}
+
+async fn parse_col_names(buff: BytesMut) -> (bool, ColNames) {
+
+}
 
 async fn parse_lines<'a>(
         name: &str,
@@ -62,6 +79,10 @@ async fn parse_lines<'a>(
                 b',' if !in_header => {
                     if !in_samples {
                         // check if line matches target word
+                        //
+                        //
+                        //
+                        //
                         if line == target_word {
                             column_indices.push(column_index);
                         }

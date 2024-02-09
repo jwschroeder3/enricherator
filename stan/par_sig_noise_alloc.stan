@@ -13,62 +13,97 @@ functions {
     vector horseshoe(vector z, vector lambda, real tau, real c2) {
         int K = rows(z);
         vector[K] lambda2 = square(lambda);
+        // eq 2.8 in piironen and vehtari
         vector[K] lambda_tilde = sqrt(c2 * lambda2 ./ (c2 + tau^2 * lambda2));
         return z .* lambda_tilde * tau;
     }
 
-    real loglik_part_sum_lpmf(
-            int[] y_sq_slice,
-            int start,
-            int end,
-            vector alpha_gq,
-            vector beta_gq,
-            real log_signoise_s,
-            real log_comp_signoise_s,
-            real samp_prec,
-            real libsize_s,
-            int sample_type
+    /* For parallel mapping of likelihood calculation
+        * Args:
+        *   phi: parameters common across all jobs, should be shape (2 + 4*S + G*Q*2*S)
+        *   theta: parameters local to each job, y_hat
+        *   x_r: will not be used
+        *   x_i: the counts, sample_type array of length 2
+    */
+    vector map_loglik(
+            vector phi,
+            vector theta,
+            array[] real x_r,
+            array[] int x_i
     ) {
 
-        vector[end-start+1] y_hat_signal = alpha_gq[start:end]
-            + sample_type * beta_gq[start:end]
-            + libsize_s;
-        real sum = 0;
-        for (i in start:end) {
-            sum += log_sum_exp(
-                log_signoise_s + neg_binomial_2_log_lupmf(y_sq_slice[i-start+1] | y_hat_signal[i], samp_prec),
-                log_comp_signoise_s + poisson_log_lupmf(y_sq_slice[i-start+1] | libsize_s)
-            );
-            //sum += log_sum_exp(
-            //    log_signoise_s + neg_binomial_2_log_lpmf(Y[s,q,l] | Y_hat_signal[l], prec[sample_type+1]),
-            //    log_comp_signoise_s + poisson_log_lpmf(Y[s,q,l] | libsize_s)
-            //);
-        }
-        return sum;
-    }
+        real y_hat;
+        real ll = 0.0;
 
+        // first element of phi is S
+        int S = x_i[1];
+        // second element of phi is covar_num
+        int covar_num = x_i[2];
+
+        int start = 1;
+        int end = start + S - 1;
+        // grab precisions
+        vector[S] precision = phi[start:end];
+        start += S;
+        end += S;
+        // grab signoise
+        vector[S] log_signoise = phi[start:end];
+        start += S;
+        end += S;
+        // grab complement of signoise
+        vector[S] log_comp_signoise = phi[start:end];
+        start += S;
+        end += S;
+
+        // grab libsize
+        vector[S] libsize = phi[start:end];
+        start += S;
+        end = start + covar_num - 1;
+
+        for (s in 1:S) {
+            // phi[start:end] is a vector of indicators for this sample
+            // theta is a vector of alphas and betas
+            // x_r[s] is the log-libsize for this sample
+            y_hat = dot_product(phi[start:end], theta) + libsize[s];
+            ll += log_sum_exp(
+                log_signoise[s] + neg_binomial_2_log_lpmf(x_i[2 + s] | y_hat, precision[s]),
+                log_comp_signoise[s] + poisson_log_lpmf(x_i[2 + s] | libsize[s])
+            );
+            start += covar_num;
+            end += covar_num;
+        }
+
+        return [ll]';
+    }
 }
 
 data {
+    int<lower=1> N; // number of observations: L*Q*S;
     int<lower=1> L; // number of positions
-    //int<lower=1> a_C; // correlation distance (in positions, not basepairs)
-    //int<lower=1> b_C; // correlation distance (in positions, not basepairs)
     int<lower=1> S; // number of samples
     int<lower=1> B; // number of betas
     int<lower=1> A; // number of alphas
     int<lower=1> G; // number of genotypes
     int<lower=1, upper=2> Q; // number of strands
+
     real alpha_prior;
+
     array[S] int geno_x; // genotype for each sample
-    array[S] int sample_x; // sample_id for each datum
-    array[S,Q,L] int Y; // counts
-    array[S] real<lower=0> libsize; // exposure term for each sample
+    array[S] int sample_x; // sample_id for each sample
+    array[S] int strand_x; // sample_id for each sample
+    //array[S] real<lower=0> libsize; // exposure term for each sample
+
+    array[L,2+S] int X_i; // for each genome position, the count for each sample
+    array[L,1] real X_r; // ends up being ignored but has to exist for map_rect to work
+
+    vector[S] cent_loglibsize;
+
     real<lower=0> hs_df; // local df
     real<lower=0> hs_df_global; // global df
     real<lower=0> hs_df_slab; // slab df
     real<lower=0> hs_scale_global; // global prior scale
     real<lower=0> hs_scale_slab; // slab prior scale
-    //int<lower=1> gauss_dist;
+
     int<lower=1> a_sub_L;
     int<lower=1> b_sub_L;
     int<lower=1> b_num_non_zero;
@@ -79,24 +114,47 @@ data {
     vector<lower=0,upper=1>[a_num_non_zero] a_weights_vals;
     array[a_num_non_zero] int a_col_accessor;
     array[L+1] int a_row_non_zero_number;
-    int<lower=0, upper=1> gather_log_lik;
+
+    //int<lower=0, upper=1> gather_log_lik;
 }
 
 transformed data {
-    array[S] real cent_loglibsize;
-    int N = L*Q*S;
+    //array[S] real cent_loglibsize;
     int num_hs = b_sub_L*B*Q;
+    array[S] vector[G*Q*2] indicators;
+
     {
-        array[S] real log_libsize;
-        real mean_loglib;
+        int strand;
+        int geno;
+        int samp_type;
+        int beta_idx;
+        int alpha_idx;
+        int q_offset;
+        int g_offset;
+        int covar_num = G*Q*2;
+
         for (s in 1:S) {
-            log_libsize[s] = log(libsize[s]);
-        }
-        mean_loglib = mean(log_libsize);
-        for (s in 1:S) {
-            cent_loglibsize[s] = log_libsize[s] - mean_loglib;
+
+            vector[covar_num] samp_covars = rep_vector(0, covar_num);
+
+            strand = strand_x[s];
+            q_offset = (strand - 1) * 2;
+            geno = geno_x[s];
+            g_offset = (geno - 1) * 2 * Q;
+            samp_type = sample_x[s];
+
+            alpha_idx = g_offset + q_offset + 1;
+            beta_idx = alpha_idx + 1;
+
+            if (samp_type == 1) {
+                samp_covars[beta_idx] = 1;
+            }
+            samp_covars[alpha_idx] = 1;
+
+            indicators[s] = samp_covars;
         }
     }
+
 }
 
 parameters {
@@ -104,6 +162,7 @@ parameters {
     //vector[S] wsh; // wsh term for how much wsh for a given sample
     vector<lower=0>[2] prec; // stratify global precision inference by extracted vs input
     array[G,Q] vector[a_sub_L] sub_Alpha; // one intercept for each genotype/sub-position
+    //array[B,Q] vector[b_sub_L] sub_Beta; // one beta for each genotype/sub-position
     vector[B] Gamma; // an intercept to offset hbd samples by
 
     // local parameters for horseshoe prior
@@ -116,21 +175,40 @@ parameters {
 }
 
 transformed parameters {
-    array[B,Q] vector[L] Beta;
-    array[G,Q] vector[L] Alpha; // one intercept for each genotype/position combination
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+// how might these be rearranged, or not, to get map_rect working?
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+    //array[B,Q] vector[L] Beta;
+    //array[G,Q] vector[L] Alpha; // one intercept for each genotype/position combination
+    array[L] vector[G*Q*2] Alpha_Beta;
 
     real lprior = 0.0;
 
     {
+        int g_offset;
+        int q_offset;
+        int alpha_idx;
+        int beta_idx;
         //array[B,Q] vector[b_sub_L] sub_Beta
         vector[b_sub_L] sub_Beta; // one intercept for each genotype/sub-position
         vector[L] tmp_Beta;
-        for (b in 1:B) {
+        vector[L] tmp_Alpha;
+        for (g in 1:G) {
+            g_offset = (g - 1) * 2 * Q;
             for (q in 1:Q) {
-                //print(sub_Beta
+                tmp_Alpha = csr_matrix_times_vector(
+                    L,
+                    a_sub_L,
+                    a_weights_vals,
+                    a_col_accessor,
+                    a_row_non_zero_number,
+                    sub_Alpha[g,q]
+                );
                 sub_Beta = horseshoe(
-                    zbeta[b,q],
-                    hs_local[b,q],
+                    zbeta[g,q],
+                    hs_local[g,q],
                     hs_global,
                     hs_scale_slab^2 * hs_slab
                 );
@@ -141,23 +219,19 @@ transformed parameters {
                     b_col_accessor,
                     b_row_non_zero_number,
                     sub_Beta
-                    //sub_Beta[b,q]
                 );
-                Beta[b,q] = tmp_Beta + Gamma[b];
+                //Beta[g,q] = tmp_Beta + Gamma[g];
+                tmp_Beta += Gamma[g];
+                
+                q_offset = (q - 1) * 2;
+                // plus two for betas (see below for plus 1 for alphas)
+                alpha_idx = g_offset + q_offset + 1;
+                beta_idx = alpha_idx + 1;
+                for (l in 1:L) {
+                    Alpha_Beta[l][alpha_idx] = tmp_Alpha[l];
+                    Alpha_Beta[l][beta_idx] = tmp_Beta[l];
+                }
             }
-        }
-    }
-
-    for (g in 1:G) {
-        for (q in 1:Q) {
-            Alpha[g,q] = csr_matrix_times_vector(
-                L,
-                a_sub_L,
-                a_weights_vals,
-                a_col_accessor,
-                a_row_non_zero_number,
-                sub_Alpha[g,q]
-            );
         }
     }
 
@@ -168,7 +242,6 @@ transformed parameters {
 
     for (b in 1:B) {
         for (q in 1:Q) {
-            //lprior += normal_lpdf(sub_Beta[b,q] | 0, 1);
             lprior += std_normal_lpdf(zbeta[b,q]);
             lprior += student_t_lpdf(hs_local[b,q] | hs_df, 0, 1)
               - num_hs * log(0.5);
@@ -188,96 +261,68 @@ transformed parameters {
 model {
     int sample_type;
     int genotype;
-    real samp_prec;
-    //vector[L] Y_hat_signal_sq;
-    //vector[L] Y_hat_noise_sq;
-    //vector[L] Y_hat_signal;
-    vector[L] alpha_gq;
-    vector[L] beta_gq;
-    array[L] int y_sq;
+    // 4S for precision for each S, signoise for each S, comp_signoise for each S, libsize for each S
+    // 2GQ * S because 2GQ is the number of parameters at each locus, for each S
+    vector[4*S + G*Q*2*S] phi;
+    array[N] vector[1] Y_hat_signal;
     //real Y_hat_noise;
     //real wsh_s;
     real libsize_s;
     real log_signoise_s;
     real log_comp_signoise_s;
+    //int end_n;
+    //int start_n = 1;
     vector[S] log_signoise = log(sig_noise);
     vector[S] log_comp_signoise = log1m(sig_noise);
 
-    int grainsize = 1;
+    int covar_num = G*Q*2;
+
+    int start = 1;
+    int end = start + S - 1;
 
     target += lprior;
 
     prec ~ lognormal(0, 1);
-    //wsh ~ normal(0, 3);
 
+    // fill phi with correct precisions
     for (s in 1:S) {
-        sample_type = sample_x[s];
-        genotype = geno_x[s];
-        //wsh_s = wsh[s];
-        libsize_s = cent_loglibsize[s];
-        log_signoise_s = log_signoise[s];
-        log_comp_signoise_s = log_signoise[s];
-        samp_prec = prec[sample_type+1];
-        for (q in 1:Q) {
-            alpha_gq = Alpha[genotype,q];
-            beta_gq = Beta[genotype,q];
-            //Y_hat_signal = Alpha[genotype,q]
-            //    + sample_type * Beta[genotype,q]
-            //    + libsize_s;
-            y_sq = Y[s,q];
-            //Y_hat_noise = wsh_s + libsize_s;
- 
-            target += reduce_sum(
-                loglik_part_sum_lpmf,
-                y_sq,
-                grainsize,
-                alpha_gq,
-                beta_gq,
-                log_signoise_s,
-                log_comp_signoise_s,
-                samp_prec,
-                libsize_s,
-                sample_type
-            );
-            //for (l in 1:L) {
-            //   
-            //    // allocates counts proportionally to signal/noise,
-            //    // where noise is just a fraction of libsize
-            //    target += log_sum_exp(
-            //        log_signoise_s + neg_binomial_2_log_lpmf(Y[s,q,l] | Y_hat_signal[l], prec[sample_type+1]),
-            //        log_comp_signoise_s + poisson_log_lpmf(Y[s,q,l] | libsize_s)
-            //    );
-            //}
-        }
+        phi[start + s - 1] = prec[sample_x[s] + 1];
     }
-}
 
-generated quantities {
-    //vector[N] log_lik;
-    //array[S,Q] vector[L] post_pred;
-    //{
-    //    vector[L] Y_hat_signal_sq;
-    //    vector[L] Y_hat_noise_sq;
-    //    int n = 1;
-    //    int genotype;
-    //    int sample_type;
-    //    //if (gather_log_lik) {
-    //        for (s in 1:S) {
-    //            sample_type = sample_x[s];
-    //            genotype = geno_x[s];
-    //            for (q in 1:Q) {
-    //                Y_hat_signal_sq = Alpha[genotype,q]
-    //                    + sample_type * Beta[genotype,q]
-    //                    + cent_loglibsize[s];
-    //                Y_hat_noise_sq = wsh[s] + cent_loglibsize[s];
-    //                for (l in 1:L) {
-    //                    post_pred[s,q][l] = error neg_binomial_2_rng(exp(Y_hat_sq[l]), prec[sample_type+1]);
-    //                    log_lik[n] = error neg_binomial_2_log_lpmf(Y[s,q,l] | Y_hat_sq[l], prec[sample_type+1]);
-    //                    n += 1;
-    //                }
-    //            }
-    //        }
-    //    //}
-    //}
+    start += S;
+    end += S;
+
+    // fill phi with log_signoise
+    phi[start:end] = log_signoise;
+
+    start += S;
+    end += S;
+
+    // fill phi with complement of signoise
+    phi[start:end] = log_comp_signoise;
+
+    start += S;
+    end += S;
+
+    // fill phi with libsize
+    phi[start:end] = cent_loglibsize;
+
+    start += S;
+    end = start + covar_num - 1;
+
+    // fill phi with indicator variables
+    for (s in 1:S) {
+        phi[start:end] = indicators[s];
+        start += covar_num;
+        end += covar_num;
+    }
+
+    /* Needs:
+    1. ys - 2D array, N-by-something, each row will be passed to map_rect
+    2. xs - 2D array, N-by-something, each row will be passed to map_rect
+    3. global_params - 
+    4. local_params - Y_hat_signal, array of real
+    */
+    target += sum(map_rect(map_loglik, phi, Alpha_Beta, X_r, X_i));
 }
 

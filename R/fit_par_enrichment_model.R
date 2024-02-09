@@ -124,7 +124,11 @@ print("Reading command line options")
 opt_parser = OptionParser(option_list=option_list)
 opt = parse_args(opt_parser)
 
-#options(mc.cores = opt$cores)
+options(mc.cores = opt$cores)
+Sys.setenv(STAN_NUM_THREADS = opt$cores)
+current_flags = Sys.getenv("CXXFLAGS")
+new_flags = paste(current_flags, "-DSTAN_THREADS")
+Sys.setenv(CXXFLAGS = new_flags)
 
 debug = opt$debug
 
@@ -204,7 +208,7 @@ if (load) {
         experiment_info = experiment_info %>%
             mutate(
                 sample_id = as.character(interaction(genotype,sample,rep)),
-                data = purrr::map(file, read_file, ignores=ignores, debug=debug)
+                data = purrr::map2(file, strand, read_file, ignores=ignores, debug=debug)
             )
         save(experiment_info, file="intermediate.RData")
     } else {
@@ -238,7 +242,7 @@ print("Fitting model using variational inference")
 
 newlist = list()
 include_vars = c(
-    "X_i", "X_r", "N", "L","S","B","A","G","Q",
+    "X_i", "X_r", "N", "L","S","B","A","G","Q", "strand_x",
     "alpha_prior","geno_x","sample_x", "cent_loglibsize",
     "hs_df", "hs_df_global", "hs_df_slab",
     "hs_scale_global", "hs_scale_slab",

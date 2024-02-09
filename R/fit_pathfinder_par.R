@@ -124,7 +124,11 @@ print("Reading command line options")
 opt_parser = OptionParser(option_list=option_list)
 opt = parse_args(opt_parser)
 
-#options(mc.cores = opt$cores)
+options(mc.cores = opt$cores)
+Sys.setenv(STAN_NUM_THREADS = opt$cores)
+current_flags = Sys.getenv("CXXFLAGS")
+new_flags = paste(current_flags, "-DSTAN_THREADS")
+Sys.setenv(CXXFLAGS = new_flags)
 
 debug = opt$debug
 
@@ -213,7 +217,7 @@ if (load) {
 
     #save(experiment_info, file="debug_stan.RData")
     #load("debug_stan.RData")
-    stan_list = prep_stan_data(
+    stan_list = prep_par_stan_data(
         experiment_info,
         opt$norm_method,
         spikein,
@@ -229,7 +233,7 @@ if (load) {
 }
 
 if (opt$norm_method == "libsize") {
-    stan_list[["libsize"]] = stan_list[[opt$libsize_key]] 
+    stan_list[["libsize"]] = stan_list[[opt$libsize_key]]
 } else if (opt$norm_method == "spikein") {
     stan_list[["libsize"]] = stan_list[["spikein_norm_factors"]]
 }
@@ -238,9 +242,11 @@ print("Fitting model using variational inference")
 
 newlist = list()
 include_vars = c(
-    "L","S","B","A","G","Q","alpha_prior","geno_x","sample_x",
-    "Y", "libsize", "hs_df", "hs_df_global", "hs_df_slab",
-    "hs_scale_global", "hs_scale_slab", "a_sub_L", "b_sub_L",
+    "X_i", "X_r", "N", "L","S","B","A","G","Q", "strand_x",
+    "alpha_prior","geno_x","sample_x", "cent_loglibsize",
+    "hs_df", "hs_df_global", "hs_df_slab",
+    "hs_scale_global", "hs_scale_slab",
+    "a_sub_L", "b_sub_L",
     "b_num_non_zero", "b_weights_vals", "b_col_accessor",
     "b_row_non_zero_number", "a_num_non_zero", "a_weights_vals",
     "a_col_accessor", "a_row_non_zero_number", "gather_log_lik"
@@ -253,16 +259,15 @@ if (!dir.exists(opt$draws_direc)) {
 }
 grad_samps = opt$grad_samps
 
-
-fit = sm$variational(
+fit = sm$pathfinder(
     data = newlist,
     seed = opt$seed,
-    threads = opt$cores,
-    output_samples = 500,
+    num_threads = opt$cores,
+    num_paths = 4,
+    draws = 500,
     output_dir = opt$draws_direc,
     output_basename = "draws",
-    algorithm = "meanfield",
-    grad_samples = grad_samps
+    sig_figs = 5
 )
 
 save(fit, file=opt$fit_file)

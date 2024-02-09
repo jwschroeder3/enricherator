@@ -33,7 +33,7 @@
 # num_threads = 1 (Default)
 # stanc_version = stanc3 v2.34.0
 # stancflags = --name=sig_noise_alloc_model
-lp__,log_p__,log_g__,sig_noise.1,Alpha.1.1.1,Alpha.1.1.2,Alpha.1.2.1,Alpha.1.2.2,Alpha.2.1.1,Alpha.2.1.2,Alpha.2.2.1,Alpha2.2.2,Beta.1.1.1,Beta.1.1.2,Beta.1.2.1,Beta.1.2.2,Beta.2.1.1,Beta.2.1.2,Beta.2.2.1,Beta2.2.2
+lp__,log_p__,log_g__,sig_noise.1,Alpha.1.1.1,Alpha.1.1.2,Alpha.1.2.1,Alpha.1.2.2,Alpha.2.1.1,Alpha.2.1.2,Alpha.2.2.1,Alpha.2.2.2,Beta.1.1.1,Beta.1.1.2,Beta.1.2.1,Beta.1.2.2,Beta.2.1.1,Beta.2.1.2,Beta.2.2.1,Beta.2.2.2
 # Stepsize adaptation complete
 # eta = 1
 0,-217338,-8628,0.99999,0.6702703,-0.41557693,0.6702703,-0.41557693,0.6702703,-0.41557693,0.6969905,-0.38592237,0.6969905,-0.38592237,0.6969905,-0.38592237,0.5603456,-0.3549982,0.41676286,-0.32250437
