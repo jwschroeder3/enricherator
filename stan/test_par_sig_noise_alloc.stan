@@ -181,7 +181,7 @@ transformed parameters {
 
     real lprior = 0.0;
 
-    //profile("alpha_beta") {
+    profile("alpha_beta") {
     {
         int g_offset;
         int q_offset;
@@ -189,12 +189,13 @@ transformed parameters {
         int beta_idx;
         //array[B,Q] vector[b_sub_L] sub_Beta
         vector[b_sub_L] sub_Beta; // one intercept for each genotype/sub-position
-        vector[L] tmp_Beta;
-        vector[L] tmp_Alpha;
+        matrix[L,2] tmp_Alpha_Beta;
+        array[L,G*Q*2] real arr_Alpha_Beta;
+        //vector[L] tmp_Alpha;
         for (g in 1:G) {
             g_offset = (g - 1) * 2 * Q;
             for (q in 1:Q) {
-                tmp_Alpha = csr_matrix_times_vector(
+                tmp_Alpha_Beta[:,1] = csr_matrix_times_vector(
                     L,
                     a_sub_L,
                     a_weights_vals,
@@ -208,7 +209,7 @@ transformed parameters {
                     hs_global,
                     hs_scale_slab^2 * hs_slab
                 );
-                tmp_Beta = csr_matrix_times_vector(
+                tmp_Alpha_Beta[:,2] = csr_matrix_times_vector(
                     L,
                     b_sub_L,
                     b_weights_vals,
@@ -217,20 +218,20 @@ transformed parameters {
                     sub_Beta
                 );
                 //Beta[g,q] = tmp_Beta + Gamma[g];
-                tmp_Beta += Gamma[g];
+                tmp_Alpha_Beta[:,2] += Gamma[g];
                 
                 q_offset = (q - 1) * 2;
                 // plus two for betas (see below for plus 1 for alphas)
                 alpha_idx = g_offset + q_offset + 1;
                 beta_idx = alpha_idx + 1;
-                for (l in 1:L) {
-                    Alpha_Beta[l][alpha_idx] = tmp_Alpha[l];
-                    Alpha_Beta[l][beta_idx] = tmp_Beta[l];
-                }
+                arr_Alpha_Beta[:,alpha_idx:beta_idx] = to_array_2d(tmp_Alpha_Beta);
             }
         }
+        for (l in 1:L) {
+            Alpha_Beta[l] = to_vector(arr_Alpha_Beta[l]);
+        }
     }
-    //}
+    }
 
     lprior += student_t_lpdf(hs_global | hs_df_global, 0, hs_scale_global)
         - 1 * log(0.5);
@@ -314,7 +315,7 @@ model {
         end += covar_num;
     }
 
-    //profile("likelihood") {
+    profile("likelihood") {
     /* Needs:
     1. ys - 2D array, N-by-something, each row will be passed to map_rect
     2. xs - 2D array, N-by-something, each row will be passed to map_rect
@@ -322,6 +323,6 @@ model {
     4. local_params - Y_hat_signal, array of real
     */
     target += sum(map_rect(map_loglik, phi, Alpha_Beta, X_r, X_i));
-    //}
+    }
 }
 

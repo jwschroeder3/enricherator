@@ -10,7 +10,7 @@ Stage: build
     chmod -R 755 ${SINGULARITY_ROOTFS}/src
 
 %environment
-    export ENRICHERATOR_VER=0.3.0
+    export ENRICHERATOR_VER=0.3.1
     export PATH="/conda/envs/rstan/bin:${PATH}"
     export CMDSTAN="/conda/envs/rstan/bin/cmdstan"
 
@@ -37,12 +37,12 @@ Stage: build
     && echo -e 'options(repos=c("https://mc-stan.org/r-packages/", "http://cran.us.r-project.org"))' >> /conda/envs/rstan/lib/R/etc/Rprofile.site \
     && R -e 'install.packages("stringi", configure.args="--disable-pkg-config");' \
     && R -e 'install.packages("cmdstanr");' \
-    && R -e 'library(cmdstanr); cmdstan_model("/src/stan/sig_noise_alloc.stan", cpp_options=list(stan_threads=TRUE));'
+    && R -e 'library(cmdstanr); current_flags=Sys.getenv("CXXFLAGS"); new_flags=paste(current_flags, "-DSTAN_THREADS"); Sys.setenv(CXXFLAGS=new_flags); mod=cmdstan_model("/src/stan/par_sig_noise_alloc.stan", cpp_options=list(stan_threads=TRUE)); mod=cmdstan_model("/src/stan/sig_noise_alloc.stan", cpp_options=list(stan_threads=TRUE));'
 
     CUSTOM_ENV=/.singularity.d/env/99-zz_custom_env.sh
     cat >$CUSTOM_ENV <<EOF
 #!/bin/bash
-PS1="[enricherator_0.3.0]\w \$"
+PS1="[enricherator_0.3.1]\w \$"
 EOF
     chmod 755 $CUSTOM_ENV
 

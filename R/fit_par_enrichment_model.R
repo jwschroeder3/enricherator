@@ -118,6 +118,10 @@ option_list = list(
     make_option(
         c("--grad_samps"), type="integer", default=1,
         help="Sets the value to grad_samples for variational inference. Do not adjust from its default of 1 unless you have a good reason to do so."
+    ),
+    make_option(
+        c("--eta"), type="double", default=NULL,
+        help="Sets the value of eta (step size weighting parameter for adaptive step size sequence) for variational inference. If omitted, will be identified thorugh warmup adaptation."
     )
 )
 print("Reading command line options")
@@ -259,15 +263,30 @@ if (!dir.exists(opt$draws_direc)) {
 }
 grad_samps = opt$grad_samps
 
-fit = sm$variational(
-    data = newlist,
-    seed = opt$seed,
-    threads = opt$cores,
-    output_samples = 500,
-    output_dir = opt$draws_direc,
-    output_basename = "draws",
-    sig_figs = 5
-)
+
+if (is.null(opt$eta)) {
+    fit = sm$variational(
+        data = newlist,
+        seed = opt$seed,
+        threads = opt$cores,
+        output_samples = 500,
+        output_dir = opt$draws_direc,
+        output_basename = "draws",
+        sig_figs = 5
+    )
+} else {
+    fit = sm$variational(
+        data = newlist,
+        seed = opt$seed,
+        threads = opt$cores,
+        output_samples = 500,
+        output_dir = opt$draws_direc,
+        eta = opt$eta,
+        adapt_engaged = FALSE,
+        output_basename = "draws",
+        sig_figs = 5
+    )
+}
     #algorithm = "meanfield",
     #grad_samples = grad_samps
 
