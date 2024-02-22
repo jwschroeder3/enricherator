@@ -88,11 +88,11 @@ Enter directory containing sample info file
 Note: the norm\_factor column of these files is currently ignored, but
 just has to be present.).
 Run the code below; you will need to adjust several of the arguments
-passed to the scripts below for your own usage. As a rule of thumb,
-set `--ext_subsample_dist` to half the mean extracted data fragment length,
-set `--ext_fragment_length` to the mean extracted data fragment length,
-set `--input_subsample_dist` to half the mean input data fragment length,
-and set `--input_fragment_length` to the mean input data fragment length.
+passed to the scripts below for your own usage. First,
+set `--ext_subsample_dist` to half the mean extracted data fragment length (`<ext_frag_len/2>` below),
+set `--ext_fragment_length` to the mean extracted data fragment length (`<ext_frag_len>` below),
+set `--input_subsample_dist` to half the mean input data fragment length (`<inp_frag_len/2>` below),
+and set `--input_fragment_length` to the mean input data fragment length (`<inp_frag_len>` below).
 
 If you want to ignore any contigs in your reference fasta file, you
 can set those contigs as a comma-separated lest using the `--ignore_ctgs`
@@ -121,10 +121,10 @@ apptainer exec -B $(pwd) /path/to/enricherator.sif \
     --norm_method libsize \
     --fit_file enricherator_results/fit.RData \
     --data_file enricherator_results/data.RData \
-    --ext_subsample_dist 30 \
-    --ext_fragment_length 60 \
-    --input_subsample_dist 60 \
-    --input_fragment_length 120 \
+    --ext_subsample_dist <ext_frag_len/2> \
+    --ext_fragment_length <ext_frag_len> \
+    --input_subsample_dist <inp_frag_len/2> \
+    --input_fragment_length <inp_frag_len> \
     --libsize_key tm_size_factors \
     --draws_direc enricherator_results/draws \
     > enricherator_results/fit.log \
