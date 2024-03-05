@@ -234,8 +234,6 @@ if (opt$norm_method == "libsize") {
     stan_list[["libsize"]] = stan_list[["spikein_norm_factors"]]
 }
 
-print("Fitting model using variational inference")
-
 newlist = list()
 include_vars = c(
     "L","S","B","A","G","Q","alpha_prior","geno_x","sample_x",
@@ -253,9 +251,15 @@ if (!dir.exists(opt$draws_direc)) {
 }
 grad_samps = opt$grad_samps
 
+data_file = tempfile(tmpdir=Sys.getenv("TMPDIR"), fileext=".json")
+print(paste0("Writing data to ", data_file))
+options(scipen=999)
+write_stan_json_stream(newlist, data_file)
+
+print("Fitting model using variational inference")
 
 fit = sm$variational(
-    data = newlist,
+    data = data_file,
     seed = opt$seed,
     threads = opt$cores,
     output_samples = 500,

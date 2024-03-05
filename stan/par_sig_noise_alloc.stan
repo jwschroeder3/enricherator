@@ -175,17 +175,21 @@ parameters {
 }
 
 transformed parameters {
-/////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////
-// how might these be rearranged, or not, to get map_rect working?
-/////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////
     //array[B,Q] vector[L] Beta;
     //array[G,Q] vector[L] Alpha; // one intercept for each genotype/position combination
     array[L] vector[G*Q*2] Alpha_Beta;
 
     real lprior = 0.0;
 
+///////////////////////////////////////////////
+///////////////////////////////////////////////
+// reorg so that Alpha_Beta and data are array[L*S], we'll just duplicate gq alphas and betas across replicate S's
+// 1. calculate alpha and beta for each gq
+// 2. for each s, choose correct alpha + lls or alpha + beta + lls
+//     to place into expectation L*S-length exp array
+///////////////////////////////////////////////
+///////////////////////////////////////////////
+    //profile("alpha_beta") {
     {
         int g_offset;
         int q_offset;
@@ -234,6 +238,7 @@ transformed parameters {
             }
         }
     }
+    //}
 
     lprior += student_t_lpdf(hs_global | hs_df_global, 0, hs_scale_global)
         - 1 * log(0.5);
@@ -317,6 +322,7 @@ model {
         end += covar_num;
     }
 
+    //profile("likelihood") {
     /* Needs:
     1. ys - 2D array, N-by-something, each row will be passed to map_rect
     2. xs - 2D array, N-by-something, each row will be passed to map_rect
@@ -324,5 +330,6 @@ model {
     4. local_params - Y_hat_signal, array of real
     */
     target += sum(map_rect(map_loglik, phi, Alpha_Beta, X_r, X_i));
+    //}
 }
 

@@ -229,6 +229,13 @@ if (load) {
         opt$log_lik,
         opt$frac_genome_enriched
     )
+    stan_list[["covar_key_file"]] = paste0(opt$draws_direc, "/covar_key.json")
+    print(paste0("Writing covariate key to ", stan_list[["covar_key_file"]]))
+
+    jsonlite::toJSON(stan_list[["covar_key"]], auto_unbox=TRUE) %>%
+        jsonlite::prettify() %>%
+        write(stan_list[["covar_key_file"]])
+
     save(stan_list, file=opt$data_file)
 }
 
@@ -238,7 +245,6 @@ if (opt$norm_method == "libsize") {
     stan_list[["libsize"]] = stan_list[["spikein_norm_factors"]]
 }
 
-print("Fitting model using variational inference")
 
 newlist = list()
 include_vars = c(
@@ -254,13 +260,21 @@ include_vars = c(
 for (var in include_vars) {
     newlist[[var]] = stan_list[[var]]
 }
+
 if (!dir.exists(opt$draws_direc)) {
     dir.create(opt$draws_direc, recursive=TRUE)
 }
+
 grad_samps = opt$grad_samps
 
+data_file = tempfile(tmpdir=Sys.getenv("TMPDIR"), fileext=".json")
+print(paste0("Writing data to ", data_file))
+options(scipen=999)
+write_stan_json_stream(newlist, data_file)
+
+print("Fitting model using variational inference")
 fit = sm$variational(
-    data = newlist,
+    data = data_file,
     seed = opt$seed,
     threads = opt$cores,
     output_samples = 500,

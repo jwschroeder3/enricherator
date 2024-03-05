@@ -175,7 +175,7 @@ async fn parse_lines<'a>(
 }
 
 
-fn fetch_summaries(data: &Vec<Vec<OrderedFloat<f32>>>) -> Vec<Vec<f32>> {
+fn fetch_summaries(data: &Vec<Vec<OrderedFloat<f32>>>, threshold: f32) -> Vec<Vec<f32>> {
 
     let lower_idx = 24;
     //let lower_idx = 1;
@@ -194,7 +194,7 @@ fn fetch_summaries(data: &Vec<Vec<OrderedFloat<f32>>>) -> Vec<Vec<f32>> {
             f32::from(samples.iter().sum::<OrderedFloat<f32>>()
                 / samples.len() as f32)
         );
-        let positive_numbers: f32 = samples.iter().filter(|&&x| x > OrderedFloat(0.0)).count() as f32;
+        let positive_numbers: f32 = samples.iter().filter(|&&x| x > OrderedFloat(threshold)).count() as f32;
         let negative_numbers: f32 = samples.len() as f32 - positive_numbers;
         let mut K_gt = positive_numbers / negative_numbers;
         let mut K_lt = negative_numbers / positive_numbers;
@@ -242,11 +242,12 @@ async fn main() {
     let sample_outfname = &args[3];
     let samp_num: usize = args[4].parse().unwrap();
     let var_arg = &args[5]; // Alpha,Beta
+    let threshold: f32 = args[6].parse().unwrap();
     println!("Reading {:?} from {}", var_arg, infname);
     let vars: Vec<&str> = var_arg.split(",").collect();
     let (cols,samps) = parse_lines(infname, samp_num, vars, sample_outfname).await.unwrap();
     //println!("{:?}", &samps[0]);
-    let summaries = fetch_summaries(&samps);
+    let summaries = fetch_summaries(&samps, threshold);
     //println!("{:?}", &summaries[0..2]);
     write_summaries(summary_outfname, summaries, cols).await.unwrap();
 }

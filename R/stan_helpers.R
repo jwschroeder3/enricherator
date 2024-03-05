@@ -1,5 +1,178 @@
 library(tidyverse)
+library(jsonlite)
 #library(rstan)
+
+write_items_to_con = function(items, item_type, con) {
+
+
+    # For just a single item, write it with no brackets
+    if (length(items) == 1) {
+        if (class(items) == "logical") {
+            items = as.integer(items)
+        }
+        writeChar(as.character(items), con, eos=NULL)
+    } else {
+        # for multiple items, start with box
+        writeChar("[", con, eos=NULL)
+        if (is.null(dim(items))) {
+            first_item = TRUE
+            for (item in items) {
+                if (!first_item) {
+                    writeChar(",", con, eos=NULL)
+                }
+                writeChar(as.character(item), con, eos=NULL)
+                first_item = FALSE
+            }
+        } else {
+            dims = dim(items)
+            if (length(dims) == 2) {
+                first_i = TRUE
+                for (i in 1:dims[1]) {
+                    # if this is not our first i iter, write a comma
+                    if (!first_i) {
+                        writeChar(",", con, eos=NULL)
+                    }
+                    first_j = TRUE
+                    for (j in 1:dims[2]) {
+                        # if this is not our first j iter, write a comma
+                        if (!first_j) {
+                            writeChar(",", con, eos=NULL)
+                        } else {
+                            writeChar("[", con, eos=NULL)
+                        }
+                        writeChar(as.character(items[i,j]), con, eos=NULL)
+                        first_j = FALSE
+                    }
+                    # close the opening box for this i
+                    writeChar("]", con, eos=NULL)
+                    first_i = FALSE
+                }
+            } else if (length(dims) == 3) {
+                first_i = TRUE
+                for (i in 1:dims[1]) {
+                    # if this is not our first i iter, write a comma
+                    if (!first_i) {
+                        writeChar(",", con, eos=NULL)
+                    }
+                    first_j = TRUE
+                    for (j in 1:dims[2]) {
+                        # if this is not our first j iter, write a comma
+                        if (!first_j) {
+                            writeChar(",", con, eos=NULL)
+                        } else {
+                            writeChar("[", con, eos=NULL)
+                        }
+                        first_k = TRUE
+                        for (k in 1:dims[3]) {
+                            # if this is not our first k iter, write a comma
+                            if (!first_k) {
+                                writeChar(",", con, eos=NULL)
+                            } else {
+                                writeChar("[", con, eos=NULL)
+                            }
+                            writeChar(as.character(items[i,j,k]), con, eos=NULL)
+                            first_k = FALSE
+                        }
+                        # close the opening box for this j
+                        writeChar("]", con, eos=NULL)
+                        first_j = FALSE
+                    }
+                    # close the opening box for this i
+                    writeChar("]", con, eos=NULL)
+                    first_i = FALSE
+                }
+            } else if (length(dims) == 4) {
+                first_i = TRUE
+                for (i in 1:dims[1]) {
+                    # if this is not our first i iter, write a comma
+                    if (!first_i) {
+                        writeChar(",", con, eos=NULL)
+                    }
+                    first_j = TRUE
+                    for (j in 1:dims[2]) {
+                        # if this is not our first j iter, write a comma
+                        if (!first_j) {
+                            writeChar(",", con, eos=NULL)
+                        } else {
+                            writeChar("[", con, eos=NULL)
+                        }
+                        first_k = TRUE
+                        for (k in 1:dims[3]) {
+                            # if this is not our first k iter, write a comma
+                            if (!first_k) {
+                                writeChar(",", con, eos=NULL)
+                            } else {
+                                writeChar("[", con, eos=NULL)
+                            }
+                            first_l = TRUE
+                            for (l in 1:dims[4]) {
+                                if (!first_l) {
+                                    writeChar(",", con, eos=NULL)
+                                } else {
+                                    writeChar("[", con, eos=NULL)
+                                }
+                                writeChar(as.character(items[i,j,k,l]), con, eos=NULL)
+                                first_l = FALSE
+                            }
+                            # close opening box for this k
+                            writeChar("]", con, eos=NULL)
+                            first_k = FALSE
+                        }
+                        # close the opening box for this j
+                        writeChar("]", con, eos=NULL)
+                        first_j = FALSE
+                    }
+                    # close the opening box for this i
+                    writeChar("]", con, eos=NULL)
+                    first_i = FALSE
+                }
+            }
+        }
+        # close the starting box
+        writeChar("]", con, eos=NULL)
+    }
+}
+
+
+write_stan_json_stream = function(data_list, file_path) {
+    # Open a connection to the file
+    con <- file(file_path, "wb")
+
+    item_names = names(data_list)
+    classes = unlist(lapply(data_list, class), use.names=F)
+    sizes = unlist(lapply(data_list, object.size), use.names=F)
+  
+    # Start the JSON array
+    writeChar("{", con, eos = NULL)
+  
+    first = TRUE
+    item_first = TRUE
+    for (i in 1:length(item_names)) {
+        item_name = item_names[i]
+        item_type = classes[i]
+        item_size = sizes[i]
+        item = data_list[[item_name]]
+
+        # if not the first item, wirte a comma before writing this item
+        if (!first) {
+            writeChar(",", con, eos=NULL)
+        }
+
+        # write item name to json file with double-quotes and followed by a colon
+        writeChar(paste0("\"", item_name, "\":"), con, eos=NULL)
+        
+        write_items_to_con(item, item_type, con)
+        first = FALSE
+    }
+
+    # End the JSON array
+    writeChar("}", con, eos = NULL)
+
+    # Close the connection
+    close(con)
+}
+
+
 
 get_exec_file = function() {
     # copied from https://stackoverflow.com/questions/1815606/determine-path-of-the-executing-script
@@ -347,7 +520,8 @@ prep_par_stan_data = function(data_df, norm_method, spikein, spikein_rel_abund=0
 
     pos_num = res[[1]]
     stan_list = res[[2]]
-    num_geno = length(unique(data_df$genotype))
+    genotype_names = unique(data_df$genotype)
+    num_geno = length(genotype_names)
     levels = unique(data_df$sample_id)
     stan_list[["level_mapper"]] = levels
     strand_names = NA
@@ -377,7 +551,41 @@ prep_par_stan_data = function(data_df, norm_method, spikein, spikein_rel_abund=0
     #print(stan_list[["Q"]])
     stan_list[["info"]] = data_df %>% select(-data)
     stan_list[["gather_log_lik"]] = log_lik
+    stan_list[["covar_key"]] = list()
+    stan_list[["covar_key"]][["map"]] = list()
+    #stan_list[["covar_key"]] = list(
+    #    Alpha=list(indices=NA,genotypes=NA,strands=NA),
+    #    Beta=list(indices=NA,genotypes=NA,strands=NA)
+    #)
 
+    #idx = 1
+    for (q in 1:strand_num) {
+        q_offset = (q - 1) * 2
+            for (g in 1:num_geno) {
+                g_offset = (g - 1) * 2 * strand_num
+                alpha_idx = g_offset + q_offset + 1
+                beta_idx = alpha_idx + 1
+                stan_list[["covar_key"]][["map"]][[alpha_idx]] = list(
+                    var_name="Alpha",
+                    strand_name=strand_names[q],
+                    genotype_name=genotype_names[g]
+                )
+                stan_list[["covar_key"]][["map"]][[beta_idx]] = list(
+                    var_name="Beta",
+                    strand_name=strand_names[q],
+                    genotype_name=genotype_names[g]
+                )
+
+                #stan_list[["covar_key"]][["Alpha"]][["indices"]][idx] = alpha_idx
+                #stan_list[["covar_key"]][["Beta"]][["indices"]][idx] = beta_idx
+                #stan_list[["covar_key"]][["Alpha"]][["strands"]][idx] = strand_names[q]
+                #stan_list[["covar_key"]][["Beta"]][["strands"]][idx] = strand_names[q]
+                #stan_list[["covar_key"]][["Alpha"]][["genotypes"]][idx] = genotype_names[g]
+                #stan_list[["covar_key"]][["Beta"]][["genotypes"]][idx] = genotype_names[g]
+                #idx = idx + 1
+        }
+    }
+ 
     #data_arr = base::array(0, dim=c(samp_num,strand_num,pos_num))
 
     # data_mat is shape (L,S)
@@ -407,6 +615,10 @@ prep_par_stan_data = function(data_df, norm_method, spikein, spikein_rel_abund=0
     stan_list[["X_r"]] = matrix(0, nrow=pos_num, ncol=1)
 
     resolution = median(diff(stan_list[["position_mapper"]]$start))
+    stan_list[["covar_key"]][["resolution"]] = resolution
+    stan_list[["covar_key"]][["pos_num"]] = pos_num
+    stan_list[["covar_key"]][["geno_num"]] = num_geno
+    stan_list[["covar_key"]][["strand_num"]] = strand_num
 
     # round to nearest multiple of "resolution"
     input_subsample_dist_bp = round(input_subsample_dist_bp/resolution)*resolution
@@ -451,9 +663,9 @@ prep_par_stan_data = function(data_df, norm_method, spikein, spikein_rel_abund=0
     # make ends into comma-separated list as required by make_sparse_matrix
     ctg_ends = paste(accum_ctg_ends, collapse=",")
 
-    w_out = paste("w", b_K, b_sub_L, "vals.txt", sep="_")
-    v_out = paste("v", b_K, b_sub_L, "vals.txt", sep="_")
-    u_out = paste("u", b_K, b_sub_L, "vals.txt", sep="_")
+    w_out = tempfile(tmpdir=Sys.getenv("TMPDIR"), fileext=paste("b_w", b_K, b_sub_L, "vals.txt", sep="_"))
+    v_out = tempfile(tmpdir=Sys.getenv("TMPDIR"), fileext=paste("b_v", b_K, b_sub_L, "vals.txt", sep="_"))
+    u_out = tempfile(tmpdir=Sys.getenv("TMPDIR"), fileext=paste("b_u", b_K, b_sub_L, "vals.txt", sep="_"))
 
     print("Building sparse matrix of weights for beta smoothing")
     print(paste0("Using beta subsampling distance of ", ext_subsample_dist_bp, " to perform smoothing."))
@@ -483,9 +695,6 @@ prep_par_stan_data = function(data_df, norm_method, spikein, spikein_rel_abund=0
         stdout=""
     )
     if (res != 0) stop("Error in sparse matrix creation. Check err and log files.")
-    #} else {
-    #    print(paste("File", w_out, "already exists. Reading it.", sep=" "))
-    #}
     w = unlist(read_table(w_out, col_names=F), use.names=F)
     v = unlist(read_table(v_out, col_names=F), use.names=F)
     u = unlist(read_table(u_out, col_names=F), use.names=F)
@@ -497,9 +706,9 @@ prep_par_stan_data = function(data_df, norm_method, spikein, spikein_rel_abund=0
     stan_list[["b_col_accessor"]] = v
     stan_list[["b_row_non_zero_number"]] = u
 
-    w_out = paste("w", a_K, a_sub_L, "vals.txt", sep="_")
-    v_out = paste("v", a_K, a_sub_L, "vals.txt", sep="_")
-    u_out = paste("u", a_K, a_sub_L, "vals.txt", sep="_")
+    w_out = tempfile(tmpdir=Sys.getenv("TMPDIR"), fileext=paste("a_w", b_K, b_sub_L, "vals.txt", sep="_"))
+    v_out = tempfile(tmpdir=Sys.getenv("TMPDIR"), fileext=paste("a_v", b_K, b_sub_L, "vals.txt", sep="_"))
+    u_out = tempfile(tmpdir=Sys.getenv("TMPDIR"), fileext=paste("a_u", b_K, b_sub_L, "vals.txt", sep="_"))
 
     print("Building sparse matrix of weights for alpha smoothing")
     print(paste0("Using alpha subsampling distance of ", input_subsample_dist_bp, " to perform smoothing."))
@@ -528,9 +737,6 @@ prep_par_stan_data = function(data_df, norm_method, spikein, spikein_rel_abund=0
     if (res != 0) {
         stop("Error in sparse matrix creation. Check err and log files.")
     }
-    #} else {
-    #    print(paste("File", w_out, "already exists. Reading it.", sep=" "))
-    #}
     w = unlist(read_table(w_out, col_names=F), use.names=F)
     v = unlist(read_table(v_out, col_names=F), use.names=F)
     u = unlist(read_table(u_out, col_names=F), use.names=F)
@@ -578,6 +784,7 @@ prep_stan_data = function(data_df, norm_method, spikein, spikein_rel_abund=0.05,
     # associated with correct samples
     data_df = data_df %>% arrange(sample_id)
 
+    print("Getting library sizes and sample information")
     if (norm_method == "libsize") {
         spikein=""
         res = insert_data(
@@ -625,8 +832,10 @@ prep_stan_data = function(data_df, norm_method, spikein, spikein_rel_abund=0.05,
     stan_list[["info"]] = data_df %>% select(-data)
     stan_list[["gather_log_lik"]] = log_lik
 
+    print("Building data array")
     data_arr = base::array(0, dim=c(samp_num,strand_num,pos_num))
     for (s in 1:samp_num) {
+        print(paste0("Placing data from sample ", s, " into data array."))
         level = levels[s]
         #print(paste0("level: ", level))
         for (q in 1:strand_num) {
@@ -695,9 +904,9 @@ prep_stan_data = function(data_df, norm_method, spikein, spikein_rel_abund=0.05,
     # make ends into comma-separated list as required by make_sparse_matrix
     ctg_ends = paste(accum_ctg_ends, collapse=",")
 
-    w_out = paste("w", b_K, b_sub_L, "vals.txt", sep="_")
-    v_out = paste("v", b_K, b_sub_L, "vals.txt", sep="_")
-    u_out = paste("u", b_K, b_sub_L, "vals.txt", sep="_")
+    w_out = tempfile(tmpdir=Sys.getenv("TMPDIR"), fileext=paste("b_w", b_K, b_sub_L, "vals.txt", sep="_"))
+    v_out = tempfile(tmpdir=Sys.getenv("TMPDIR"), fileext=paste("b_v", b_K, b_sub_L, "vals.txt", sep="_"))
+    u_out = tempfile(tmpdir=Sys.getenv("TMPDIR"), fileext=paste("b_u", b_K, b_sub_L, "vals.txt", sep="_"))
 
     print("Building sparse matrix of weights for beta smoothing")
     print(paste0("Using beta subsampling distance of ", ext_subsample_dist_bp, " to perform smoothing."))
@@ -727,9 +936,6 @@ prep_stan_data = function(data_df, norm_method, spikein, spikein_rel_abund=0.05,
         stdout=""
     )
     if (res != 0) stop("Error in sparse matrix creation. Check err and log files.")
-    #} else {
-    #    print(paste("File", w_out, "already exists. Reading it.", sep=" "))
-    #}
     w = unlist(read_table(w_out, col_names=F), use.names=F)
     v = unlist(read_table(v_out, col_names=F), use.names=F)
     u = unlist(read_table(u_out, col_names=F), use.names=F)
@@ -741,9 +947,9 @@ prep_stan_data = function(data_df, norm_method, spikein, spikein_rel_abund=0.05,
     stan_list[["b_col_accessor"]] = v
     stan_list[["b_row_non_zero_number"]] = u
 
-    w_out = paste("w", a_K, a_sub_L, "vals.txt", sep="_")
-    v_out = paste("v", a_K, a_sub_L, "vals.txt", sep="_")
-    u_out = paste("u", a_K, a_sub_L, "vals.txt", sep="_")
+    w_out = tempfile(tmpdir=Sys.getenv("TMPDIR"), fileext=paste("a_w", b_K, b_sub_L, "vals.txt", sep="_"))
+    v_out = tempfile(tmpdir=Sys.getenv("TMPDIR"), fileext=paste("a_v", b_K, b_sub_L, "vals.txt", sep="_"))
+    u_out = tempfile(tmpdir=Sys.getenv("TMPDIR"), fileext=paste("a_u", b_K, b_sub_L, "vals.txt", sep="_"))
 
     print("Building sparse matrix of weights for alpha smoothing")
     print(paste0("Using alpha subsampling distance of ", input_subsample_dist_bp, " to perform smoothing."))
@@ -772,9 +978,6 @@ prep_stan_data = function(data_df, norm_method, spikein, spikein_rel_abund=0.05,
     if (res != 0) {
         stop("Error in sparse matrix creation. Check err and log files.")
     }
-    #} else {
-    #    print(paste("File", w_out, "already exists. Reading it.", sep=" "))
-    #}
     w = unlist(read_table(w_out, col_names=F), use.names=F)
     v = unlist(read_table(v_out, col_names=F), use.names=F)
     u = unlist(read_table(u_out, col_names=F), use.names=F)
@@ -995,7 +1198,7 @@ write_cmdstan_summaries = function(summary_df, stan_data, out_direc, params, con
     }
 }
 
-gather_vb_estimates = function(fit, stan_data, direc, interval=90, cmdstan=FALSE, params=NULL) {
+gather_vb_estimates = function(fit, stan_data, direc, interval=90, cmdstan=FALSE, params=NULL, threshold=1.0) {
     tail = (100-interval)/2
     quant_vec = c(tail/100, 0.5, (100-tail)/100)
 
@@ -1009,13 +1212,13 @@ gather_vb_estimates = function(fit, stan_data, direc, interval=90, cmdstan=FALSE
         summary_out_file = file.path(dirname(in_file), "summaries.txt")
         sample_out_file = file.path(dirname(in_file), "samples.csv")
         parse_cmd = paste(
-            bin_path, in_file, summary_out_file, sample_out_file, "500", paste(params, collapse=","),
+            bin_path, in_file, summary_out_file, sample_out_file, "500", paste(params, collapse=",", as.character(threshold)),
             sep=" "
         )
         print(parse_cmd)
         res = system2(
             bin_path,
-            c(in_file, summary_out_file, sample_out_file, "500", paste(params, collapse=",")),
+            c(in_file, summary_out_file, sample_out_file, "500", paste(params, collapse=","), as.character(threshold)),
             env="RUST_BACKTRACE=1",
             stderr="",
             stdout=""

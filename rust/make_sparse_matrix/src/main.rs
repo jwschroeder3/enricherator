@@ -89,7 +89,6 @@ fn set_up_gaussian_kernel(kern_width: f64) -> Vec<f64> {
     kern
 }
 
-
 fn set_up_exponential_kernel(kern_width: f64) -> Vec<f64> {
     let rate: f64 = 1.0 / (kern_width / 2.0);
     let mut kern: Vec<f64> = (0..5000).filter_map(|x| {

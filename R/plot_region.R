@@ -267,6 +267,9 @@ if (!is.null(opt$motifs_file)) {
     motif_df = NULL
 }
 
+print("================ features arg ===============")
+print(opt$features)
+
 if (!is.null(opt$features)) {
     plot_features = TRUE
     gff = gffRead(
@@ -275,6 +278,10 @@ if (!is.null(opt$features)) {
         seqname == opt$contig,
         feature %in% feature_types
     )
+    print("========= read gff ============")
+    print(head(gff))
+    print("========= feature_name_field ============")
+    print(opt$feature_name_field)
     if (is.null(opt$feature_name_field)) {
         gff$name = getAttributeField(gff$attributes, "gene")
         gff$alt_name = getAttributeField(gff$attributes, "Name")
@@ -299,6 +306,9 @@ if (!is.null(opt$features)) {
     gff = NULL
 }
 
+print("========= named gff ============")
+print(head(gff))
+
 duped = duplicated(gff$name)
 
 if (any(duped)) {
@@ -309,6 +319,9 @@ if (any(duped)) {
     }
     #stop(paste0("Duplicated feature names exist in your gff file! You chose ", fields, " as your gff attribute field(s) to use for feature names.\nDuplicated names:\n", dup_names, "\nEither rename the features so the field is unique to each feature, or consider using a different field altogether."))
 }
+
+print("========= dedup gff ============")
+print(head(gff))
 
 p = plot_locus(
     data_tib,
