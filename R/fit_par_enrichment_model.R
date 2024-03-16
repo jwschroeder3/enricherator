@@ -230,14 +230,17 @@ if (load) {
         opt$frac_genome_enriched
     )
     stan_list[["covar_key_file"]] = paste0(opt$draws_direc, "/covar_key.json")
-    print(paste0("Writing covariate key to ", stan_list[["covar_key_file"]]))
-
-    jsonlite::toJSON(stan_list[["covar_key"]], auto_unbox=TRUE) %>%
-        jsonlite::prettify() %>%
-        write(stan_list[["covar_key_file"]])
-
+    stan_list[["pos_map_file"]] = paste0(opt$draws_direc, "/position_map.tsv")
     save(stan_list, file=opt$data_file)
 }
+
+print(paste0("Writing covariate key to ", stan_list[["covar_key_file"]]))
+jsonlite::toJSON(stan_list[["covar_key"]], auto_unbox=TRUE) %>%
+    jsonlite::prettify() %>%
+    write(stan_list[["covar_key_file"]])
+
+print(paste0("Writing position map to ", stan_list[["pos_map_file"]]))
+stan_list[["position_mapper"]] %>% write_tsv(file=stan_list[["pos_map_file"]], col_names=FALSE)
 
 if (opt$norm_method == "libsize") {
     stan_list[["libsize"]] = stan_list[[opt$libsize_key]]

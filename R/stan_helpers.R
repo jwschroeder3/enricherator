@@ -2,6 +2,8 @@ library(tidyverse)
 library(jsonlite)
 #library(rstan)
 
+options(scipen=999)
+
 write_items_to_con = function(items, item_type, con) {
 
 

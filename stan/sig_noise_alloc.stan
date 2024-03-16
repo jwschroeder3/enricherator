@@ -87,13 +87,14 @@ parameters {
 transformed parameters {
     array[B,Q] vector[L] Beta;
     array[G,Q] vector[L] Alpha; // one intercept for each genotype/position combination
+    array[B,Q] vector[L] rebased_Beta;
 
     real lprior = 0.0;
 
     {
         //array[B,Q] vector[b_sub_L] sub_Beta
         vector[b_sub_L] sub_Beta; // one intercept for each genotype/sub-position
-        vector[L] tmp_Beta;
+        //vector[L] tmp_Beta;
         for (b in 1:B) {
             for (q in 1:Q) {
                 //print(sub_Beta
@@ -103,7 +104,8 @@ transformed parameters {
                     hs_global,
                     hs_scale_slab^2 * hs_slab
                 );
-                tmp_Beta = csr_matrix_times_vector(
+                //tmp_Beta = csr_matrix_times_vector(
+                rebased_Beta[b,q] = csr_matrix_times_vector(
                     L,
                     b_sub_L,
                     b_weights_vals,
@@ -112,7 +114,8 @@ transformed parameters {
                     sub_Beta
                     //sub_Beta[b,q]
                 );
-                Beta[b,q] = tmp_Beta + Gamma[b];
+                //Beta[b,q] = tmp_Beta + Gamma[b];
+                Beta[b,q] = rebased_Beta[b,q] + Gamma[b];
             }
         }
     }

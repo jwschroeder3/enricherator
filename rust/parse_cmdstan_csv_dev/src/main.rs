@@ -1,24 +1,30 @@
-use std::{env, fmt, thread};
+use clap::Parser;
+use std::{fmt, thread, time};
 use std::sync::mpsc;
 use std::fs::File;
 use std::collections::HashMap;
 //use tokio::io::{AsyncReadExt};
-use std::io::{self, BufRead, BufReader, Read};
+use std::io::{self, Write, BufRead, BufReader, Read};
 //use bytes::{BytesMut, BufMut};
 use std::error::Error;
-use std::iter::zip;
 use std::str;
 
-use ndarray::{Array5, ArrayViewMut, Axis};
-use ordered_float::OrderedFloat;
-use serde::{Serialize, Deserialize};
+use ndarray::{Array5, Axis};
+use ndarray::prelude::*;
+//use ordered_float::OrderedFloat;
+use serde::{Deserialize};
 use serde_json;
 
+//use bio_anno_rs::BEDGraphData;
+//use bio_anno_rs::BEDGraphRecord;
+
 const BUF_SIZE: usize = 1064;
-const SAMP_NUM: usize = 500;
+const SAMP_NUM: usize = 501;
 
 type BoxedResult<T> = std::result::Result<T, Box<dyn Error>>;
 
+
+#[allow(dead_code)]
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -33,6 +39,9 @@ mod tests {
         let colname_text = "lp__,log_p__,log_g__,sig_noise.1,sub_Alpha.1.1.1,sub_Beta.1.1.1,Alpha_Beta.1.1,Alpha_Beta.2.1,Alpha_Beta.3.1,Alpha_Beta.1.2,Alpha_Beta.2.2,Alpha_Beta.3.2\n";
         let fname = "test_data/test_parse.csv";
         let covar_fname = "test_data/covar_key.json";
+        let contrast_covar_fname = "test_data/contrast_covar_key.json";
+
+        let contrast_text = "#header text \nlp__,log_p__,log_g__,sig_noise.1,sub_Alpha.1.1.1,sub_Beta.1.1.1,Alpha_Beta.1.1,Alpha_Beta.2.1,Alpha_Beta.3.1,Alpha_Beta.1.2,Alpha_Beta.2.2,Alpha_Beta.3.2,Alpha_Beta.1.3,Alpha_Beta.2.3,Alpha_Beta.3.3,Alpha_Beta.1.4,Alpha_Beta.2.4,Alpha_Beta.3.4\n#next header \n0.0,0.00,0.0,0.99999,1.0,1.2,1.0,2.0,3.0,4.0,5.0,6.0,7.0,8.0,9.0,10.0,11.0,12.0\n";
 
         let mut hash = HashMap::new();
         hash.insert(String::from("into_colname"), into_colname_text);
@@ -43,6 +52,8 @@ mod tests {
         hash.insert(String::from("colname_text"), colname_text);
         hash.insert(String::from("fname"), fname);
         hash.insert(String::from("covar_fname"), covar_fname);
+        hash.insert(String::from("contrast_txt"), contrast_text);
+        hash.insert(String::from("contrast_covar_fname"), contrast_covar_fname);
         hash
     }
 
@@ -60,10 +71,57 @@ mod tests {
     }
 
     #[test]
+    fn test_get_geno_contrast_keys() {
+        let covar_key = CovarKey::read_covar_key("test_data/contrast_covar_key.json").unwrap();
+        let vars = vec![String::from("Alpha"), String::from("Beta")];
+        let geno_contrasts = Some(vec![String::from("mut-wt")]);
+        let (
+            idx_key,
+            fname_key,
+            geno_contrast_key_opt,
+            geno_contrast_file_map_opt,
+            _,
+            _,
+        ) = get_index_key(
+            &covar_key,
+            &vars,
+            "test_data/test_outs",
+            geno_contrasts,
+            None,
+        ).unwrap();
+        let target_contrasts = vec![1,3];
+        let result_contrasts_key = geno_contrast_key_opt.unwrap();
+        assert_eq!(
+            &target_contrasts[0],
+            result_contrasts_key[1].get("numerator").unwrap()
+        );
+        assert_eq!(
+            &target_contrasts[1],
+            result_contrasts_key[1].get("denominator").unwrap()
+        );
+        let target_contrasts = vec![0,2];
+        assert_eq!(
+            &target_contrasts[0],
+            result_contrasts_key[0].get("numerator").unwrap()
+        );
+        assert_eq!(
+            &target_contrasts[1],
+            result_contrasts_key[0].get("denominator").unwrap()
+        );
+
+    }
+
+    #[test]
     fn test_get_index_key() {
         let covar_key = CovarKey::read_covar_key("test_data/covar_key.json").unwrap();
         let vars = vec![String::from("Alpha"),String::from("Beta")];
-        let idx_key = get_index_key(&covar_key, &vars);
+        let (idx_key,fname_key,contrast_key_opt,contrast_file_map_opt,_,_) = get_index_key(
+            &covar_key,
+            &vars,
+            "test_data/test_outs",
+            None,
+            None,
+        ).unwrap();
         assert_eq!(idx_key.get(&0).unwrap().0, 0);
         assert_eq!(idx_key.get(&0).unwrap().1, 0);
         assert_eq!(idx_key.get(&0).unwrap().2, 0);
@@ -124,15 +182,16 @@ mod tests {
         let target_leftover = hash.get("leftover").unwrap();
         let bytes = text.as_bytes();
         let mut byter = BytesIterator::new(bytes.to_vec());
+        let mut col_idx = 0;
         //println!("{:?}", byter);
         assert_eq!(byter.bytes[0], b'#');
-        let fields = byter.field_scan().unwrap();
+        let fields = byter.field_scan(&mut col_idx).unwrap();
         assert_eq!(target_leftover.as_bytes(), byter.leftover);
         //println!("{:?}", fields);
         assert_eq!("lp__", fields.fields[0].string);
         let text = hash.get("the_rest").unwrap();
         byter.update(text.as_bytes().to_vec());
-        let fields = byter.field_scan().unwrap();
+        let fields = byter.field_scan(&mut col_idx).unwrap();
         //println!("{:?}", fields);
         assert_eq!("sub_Beta.1.1.1", fields.fields[0].string);
     }
@@ -140,9 +199,10 @@ mod tests {
     #[test]
     fn enter_colnames() {
         let hash = set_up_tests();
+        let mut col_idx = 0;
         let bytes = hash.get("into_colname").unwrap().as_bytes();
         let mut byter = BytesIterator::new(bytes.to_vec());
-        let fields = byter.field_scan().unwrap();
+        let fields = byter.field_scan(&mut col_idx).unwrap();
         assert_eq!("lp__", fields.fields[0].string);
         assert_eq!("Alpha_Beta.3.2", fields.fields[fields.len()-1].string);
     }
@@ -150,14 +210,16 @@ mod tests {
     #[test]
     fn filter_fields() {
         let hash = set_up_tests();
+        let mut col_idx = 0;
         let bytes = hash.get("into_colname").unwrap().as_bytes();
         let mut byter = BytesIterator::new(bytes.to_vec());
-        let mut fields = byter.field_scan().unwrap();
+        let mut fields = byter.field_scan(&mut col_idx).unwrap();
         let mut retained_fields: Vec<(usize, (usize, usize, usize, usize))> = Vec::new();
+        let mut retained_idx: usize = 0;
 
         let covar_key = CovarKey::read_covar_key("test_data/covar_key.json").unwrap();
         let vars = vec![String::from("Alpha"),String::from("Beta")];
-        let idx_key = get_index_key(&covar_key, &vars);
+        let (idx_key,fname_key,_,_,_,_) = get_index_key(&covar_key, &vars, "test_data/test_outs", None, None).unwrap();
 
     // samples array is shape (geno, strand, params, position, samples)
         let mut samples_arr = SamplesArray::zeros_by_shape(
@@ -166,6 +228,7 @@ mod tests {
 
         fields.parse_fields(
             &mut retained_fields,
+            &mut retained_idx,
             &vars,
             &covar_key,
             &idx_key,
@@ -193,9 +256,10 @@ mod tests {
     #[test]
     fn test_fields_into_samples() {
         let hash = set_up_tests();
+        let mut col_idx = 0;
         let bytes = hash.get("into_sample").unwrap().as_bytes();
         let mut byter = BytesIterator::new(bytes.to_vec());
-        let mut fields = byter.field_scan().unwrap();
+        let mut fields = byter.field_scan(&mut col_idx).unwrap();
         assert_eq!(fields.fields[fields.fields.len()-1].col_idx, 11);
         assert_eq!(fields.fields[fields.fields.len()-1].linetype, PriorByteIn::Samples(0));
     }
@@ -204,15 +268,17 @@ mod tests {
     fn test_into_samples() {
         let hash = set_up_tests();
         let bytes = hash.get("into_sample").unwrap().as_bytes();
+        let mut col_idx = 0;
         let mut byter = BytesIterator::new(bytes.to_vec());
 
-        let mut fields = byter.field_scan().unwrap();
+        let mut fields = byter.field_scan(&mut col_idx).unwrap();
 
         let mut retained_fields: Vec<(usize, (usize, usize, usize, usize))> = Vec::new();
+        let mut retained_idx: usize = 0;
 
         let covar_key = CovarKey::read_covar_key("test_data/covar_key.json").unwrap();
         let vars = vec![String::from("Alpha"),String::from("Beta")];
-        let idx_key = get_index_key(&covar_key, &vars);
+        let (idx_key,fname_key,_,_,_,_) = get_index_key(&covar_key, &vars, "test_data/test_outs", None, None).unwrap();
 
         let mut samples_arr = SamplesArray::zeros_by_shape(
             (covar_key.geno_num, covar_key.strand_num, vars.len(), covar_key.pos_num, 2)
@@ -220,6 +286,7 @@ mod tests {
 
         fields.parse_fields(
             &mut retained_fields,
+            &mut retained_idx,
             &vars,
             &covar_key,
             &idx_key,
@@ -312,6 +379,7 @@ impl Error for HandleFieldsError {}
 #[derive(Debug)]
 enum ByteIterError {
     HashAfterSampleError,
+    ReceiverError,
 }
 
 impl fmt::Display for ByteIterError {
@@ -319,6 +387,7 @@ impl fmt::Display for ByteIterError {
         match *self {
             ByteIterError::HashAfterSampleError =>
                 write!(f, "Reached a '#' symbol after samples. This should not occur in cmdstan output files. Check your draws file."),
+            ByteIterError::ReceiverError => write!(f, "Receiver error"),
         }
     }
 }
@@ -338,7 +407,7 @@ struct ByteField {
     bytes: Vec<u8>,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 struct StringField {
     string: String,
     linetype: PriorByteIn,
@@ -370,19 +439,13 @@ impl ByteField {
     }
 }
 
-impl SummaryArray {
-    fn from_samples_array(samps_arr: &SamplesArray) -> SummaryArray {
-        arr
-    }
-}
-
 #[derive(Debug)]
 struct SamplesArray {
     // samples array is shape (geno, strand, params, position, samples)
     // so that for each genotype, strand, parameter combination, there is a 2D sub-array
     // of shape (positions, samples). I think that placing samples last will promote
     // faster sorting if I'm not mistaken
-    samples: Array5<f32>,
+    pub samples: Array5<f32>,
 }
 
 impl SamplesArray {
@@ -393,136 +456,277 @@ impl SamplesArray {
     }
 
     fn assign_at(&mut self, val: f32, idx: (usize,usize,usize,usize,usize)) {
+        //println!("self.samples[idx]: {:?}", &self.samples[idx]);
+        //println!("val: {}", &val);
         self.samples[idx] = val;
+        //println!("self.samples[idx]: {:?}", &self.samples[idx]);
     }
 
-    fn get_subarray_view(&self, idx: (usize,usize,usize)) -> Result<ArrayViewMut> {
-        subarr_view = self.slice_mut(s[idx.0, idx.1, idx.2, .., ..]);
+    fn get_subarray_view(&self, idx: (usize,usize,usize)) -> BoxedResult<ArrayView<f32, Ix2>> {
+        let subarr_view = self.samples.slice(s![idx.0, idx.1, idx.2, .., ..]);
         Ok(subarr_view)
     }
 
+    /// Method to summarize samples for each genotype/strand/parameter/position.
+    ///
+    /// Args:
+    /// -----
+    /// subarr_map: just maps covariate indices to the first three indices of
+    ///     self.samples
+    /// writer_map: maps a covariate to its writers for easy grabbing of
+    ///     correct writers for each genotype/strand/parameter
+    /// position_map: for each index in the second-to-last axis of self.samples,
+    ///     has "ctg\tstart\tend" ready and waiting to be written to files
+    ///     in file_map
+    /// threshold: defines value for gathering evidence ratios
     fn fetch_summaries(
             &mut self,
             subarr_map: &HashMap<usize, (usize, usize, usize)>,
+            mut file_map: HashMap<usize, Vec<File>>,
+            position_map: &Vec<String>,
             threshold: f32,
-    ) -> Result<()> {
+    ) -> BoxedResult<()> {
 
         let lower_idx = 24;
-        //let lower_idx = 1;
         let upper_idx = 474;
-        //let upper_idx = 8;
-
-///////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////
-// rewrite the following to iterate over first three axis in samplesarray, get summaries, and write
-// them to bedgraph files
-///////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////
-        let (geno_num, strand_num, param_num, pos_num, samp_num) = self.dim();
-        let mut summaries = Array5::zeros((geno_num, strand_num, param_num, pos_num, 6));
 
         // allocate the appropriate-size vec for reuse
-        let samp_num = self.dim().4;
-        let mut vals: Vec<&f32> = vec![0.0, samp_num];
+        let mut vals: Vec<f32> = vec![0.0; SAMP_NUM];
 
         for (covar_idx, subarr_idx) in subarr_map.iter() {
 
-            let mut covar_subarr_view = self.get_subarray_view(subarr_idx);
-            let mut summary_subarr_view = summaries.slice_mut(s![subarr_idx.0, subarr_idx.1, subarr_idx.2]);
+            let covar_subarr_view = self.get_subarray_view(*subarr_idx)?;
+            let files: &mut Vec<File> = file_map.get_mut(&covar_idx).unwrap();
 
-            for mut (r_idx, row) in covar_subarr_view.axis.iter_mut(Axis(0)).enumerate() {
-                for i in 0..samp_num {
+            for (r_idx,row) in covar_subarr_view.axis_iter(Axis(0)).enumerate() {
+                for i in 0..SAMP_NUM {
                     unsafe {
-                        vals[i] = row.uget(i);
+                        vals[i] = *row.uget(i);
                     }
                 }
-                vals.sort_unstable();
-                let lower = f32::from(vals[lower_idx]);
-                let upper = f32::from(vals[upper_idx]);
-                let median = f32::from(vals[249]+vals[250]) / 2.0;
-                let mean = f32::from(vals.iter().sum() / 500.0);
+                vals.sort_unstable_by(|a,b| a.total_cmp(b));
+                let lower = vals[lower_idx];
+                let upper = vals[upper_idx];
+                let median = (vals[249]+vals[250]) / 2.0;
+                let mean = vals.iter().map(|x| *x).sum::<f32>() / 501.0;
 
                 let mut negative_numbers: f32 = 0.0;
-                for val in vals {
-                    if val < 0.0 {
+                for val in &vals {
+                    if *val < 0.0 {
                         negative_numbers += 1.0;
                     } else {
                         break
                     }
                 }
+                let positive_numbers = 501.0 - negative_numbers;
                 let mut K_gt = positive_numbers / negative_numbers;
                 let mut K_lt = negative_numbers / positive_numbers;
-                if K_gt > 500.0 {
-                    K_gt = 500.0;
+                if K_gt > 501.0 {
+                    K_gt = 501.0;
                 }
-                if K_lt > 500.0 {
-                    K_lt = 500.0
+                if K_lt > 501.0 {
+                    K_lt = 501.0
                 }
-                ////////////////////////////////////////////////////////////
-                // Instead of what's below, I should just write to the appropriate file.
-                // In theory I could do that in parallel over genotype, strand, param combinations
-                //
-                // One thing I've neglected to to build my position mapper to assign position
-                // indices their correct actual genome positions
-                ////////////////////////////////////////////////////////////
-                let mut low = summary_subarr_view.uget_mut((r_idx, 0));
-                low = lower;
-                let mut med = summary_subarr_view.uget_mut((r_idx, 1));
-                med = median;
-                let mut up = summary_subarr_view.uget_mut((r_idx, 2));
-                up = upper;
-                let mut avg = summary_subarr_view.uget_mut((r_idx, 3));
-                avg = mean;
-                let mut gt = summary_subarr_view.uget_mut((r_idx, 4));
-                gt = K_gt;
-                let mut lt = summary_subarr_view.uget_mut((r_idx, 5));
-                lt = K_lt;
+                let three_cols = &position_map[r_idx];
+                files[0].write_all(
+                    format!("{}\t{}\n", three_cols, lower).as_bytes()
+                )?;
+                files[1].write_all(
+                    format!("{}\t{}\n", three_cols, upper).as_bytes()
+                )?;
+                files[2].write_all(
+                    format!("{}\t{}\n", three_cols, median).as_bytes()
+                )?;
+                files[3].write_all(
+                    format!("{}\t{}\n", three_cols, mean).as_bytes()
+                )?;
+                files[4].write_all(
+                    format!("{}\t{}\n", three_cols, K_gt).as_bytes()
+                )?;
+                files[5].write_all(
+                    format!("{}\t{}\n", three_cols, K_lt).as_bytes()
+                )?;
             }
         }
         Ok(())
-
-        //println!("Getting summary statistics for each parameter");
-        //let mut summaries: Vec<Vec<f32>> = Vec::with_capacity(data.len());
-        //for samples in data.iter() {
-        //    let mut summary: Vec<f32> = Vec::with_capacity(6);
-        //    summary.push(f32::from(samples[lower_idx]));
-        //    summary.push(f32::from(samples[249]+samples[250])/2.0);
-        //    //summary.push(f32::from((samples[4]+samples[5])/2.0));
-        //    summary.push(f32::from(samples[upper_idx]));
-        //    summary.push(
-        //        f32::from(samples.iter().sum::<OrderedFloat<f32>>()
-        //            / samples.len() as f32)
-        //    );
-        //    let positive_numbers: f32 = samples.iter().filter(|&&x| x > OrderedFloat(threshold)).count() as f32;
-        //    let negative_numbers: f32 = samples.len() as f32 - positive_numbers;
-        //    let mut K_gt = positive_numbers / negative_numbers;
-        //    let mut K_lt = negative_numbers / positive_numbers;
-        //    if K_gt > samples.len() as f32 {
-        //        K_gt = samples.len() as f32;
-        //    }
-        //    if K_lt > samples.len() as f32 {
-        //        K_lt = samples.len() as f32;
-        //    }
-        //    summary.push(K_gt);
-        //    summary.push(K_lt);
-        //    summaries.push(summary);
-        //}
-        //summaries
     }
-}
 
-#[derive(Debug)]
-struct RetainedCols {
-    // inds is a vec of tuples (i, (g,q,v,p)),
-    // where i is the column index in the csv file,
-    // g is the index for data in genotype axis,
-    // q is the index for data in strand axis,
-    // v is the index for the covariate axis,
-    // p is the index for the position axis.
-    inds: Vec<(usize, (usize, usize, usize, usize))>,
+    /// Method to summarize contrasts for each contrasts provided at cli.
+    ///
+    /// Args:
+    /// -----
+    /// subarr_map: just maps covariate indices to the first three indices of
+    ///     self.samples
+    /// contrast_map: A vec of 2-tuples, (numerator,denominator) pairings
+    ///     that will be used to look up subarrays using subarr_map
+    /// file_map: maps a covariate to its writers for easy grabbing of
+    ///     correct writers for each contrast/strand/parameter
+    /// position_map: for each index in the second-to-last axis of self.samples,
+    ///     has "ctg\tstart\tend" ready and waiting to be written to files
+    ///     in file_map
+    /// threshold: defines value for gathering evidence ratios
+    fn fetch_contrasts(
+            &mut self,
+            subarr_map: &HashMap<usize, (usize, usize, usize)>,
+            genotype_contrast_map: Option<Vec<HashMap<String,usize>>>,
+            mut genotype_file_map: Option<Vec<Vec<File>>>,
+            strand_contrast_map: Option<Vec<HashMap<String,usize>>>,
+            mut strand_file_map: Option<Vec<Vec<File>>>,
+            position_map: &Vec<String>,
+            genotype_threshold: f32,
+            strand_threshold: f32,
+    ) -> BoxedResult<()> {
+
+        let lower_idx = 24;
+        let upper_idx = 474;
+
+        // allocate the appropriate-size vec for reuse
+        let mut vals: Vec<f32> = vec![0.0; SAMP_NUM];
+
+//////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////
+// The below regions really should be wrapped into functions;
+// they are nearly identical to each other
+//////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////
+        if let Some(contrast_map) = strand_contrast_map {
+            let mut file_map = strand_file_map.unwrap();
+            for (cont_idx, cont_idx_map) in contrast_map.iter().enumerate() {
+
+                let numer_key = cont_idx_map.get("numerator").unwrap();
+                let denom_key = cont_idx_map.get("denominator").unwrap();
+
+                let numer_idx = subarr_map.get(numer_key).unwrap();
+                let denom_idx = subarr_map.get(denom_key).unwrap();
+
+                let numer_subarr_view = self.get_subarray_view(*numer_idx)?;
+                let denom_subarr_view = self.get_subarray_view(*denom_idx)?;
+                //let contrast = numer_subarr_view - denom_subarr_view;
+                let files: &mut Vec<File> = &mut file_map[cont_idx];
+
+                for (r_idx,numer_row) in numer_subarr_view.axis_iter(Axis(0)).enumerate() {
+                    let denom_row = denom_subarr_view.slice(s![r_idx,..]);
+                    for i in 0..SAMP_NUM {
+                        unsafe {
+                            vals[i] = *numer_row.uget(i) - *denom_row.uget(i);
+                        }
+                    }
+                    vals.sort_unstable_by(|a,b| a.total_cmp(b));
+                    let lower = vals[lower_idx];
+                    let upper = vals[upper_idx];
+                    let median = (vals[249]+vals[250]) / 2.0;
+                    let mean = vals.iter().map(|x| *x).sum::<f32>() / 501.0;
+
+                    let mut negative_numbers: f32 = 0.0;
+                    for val in &vals {
+                        if *val < 0.0 {
+                            negative_numbers += 1.0;
+                        } else {
+                            break
+                        }
+                    }
+                    let positive_numbers = 501.0 - negative_numbers;
+                    let mut K_gt = positive_numbers / negative_numbers;
+                    let mut K_lt = negative_numbers / positive_numbers;
+                    if K_gt > 501.0 {
+                        K_gt = 501.0;
+                    }
+                    if K_lt > 501.0 {
+                        K_lt = 501.0
+                    }
+                    let three_cols = &position_map[r_idx];
+                    files[0].write_all(
+                        format!("{}\t{}\n", three_cols, lower).as_bytes()
+                    )?;
+                    files[1].write_all(
+                        format!("{}\t{}\n", three_cols, upper).as_bytes()
+                    )?;
+                    files[2].write_all(
+                        format!("{}\t{}\n", three_cols, median).as_bytes()
+                    )?;
+                    files[3].write_all(
+                        format!("{}\t{}\n", three_cols, mean).as_bytes()
+                    )?;
+                    files[4].write_all(
+                        format!("{}\t{}\n", three_cols, K_gt).as_bytes()
+                    )?;
+                    files[5].write_all(
+                        format!("{}\t{}\n", three_cols, K_lt).as_bytes()
+                    )?;
+                }
+            }
+        }
+
+        if let Some(contrast_map) = genotype_contrast_map {
+            let mut file_map = genotype_file_map.unwrap();
+            for (cont_idx, cont_idx_map) in contrast_map.iter().enumerate() {
+
+                let numer_key = cont_idx_map.get("numerator").unwrap();
+                let denom_key = cont_idx_map.get("denominator").unwrap();
+
+                let numer_idx = subarr_map.get(numer_key).unwrap();
+                let denom_idx = subarr_map.get(denom_key).unwrap();
+
+                let numer_subarr_view = self.get_subarray_view(*numer_idx)?;
+                let denom_subarr_view = self.get_subarray_view(*denom_idx)?;
+                //let contrast = numer_subarr_view - denom_subarr_view;
+                let files: &mut Vec<File> = &mut file_map[cont_idx];
+
+                for (r_idx,numer_row) in numer_subarr_view.axis_iter(Axis(0)).enumerate() {
+                    let denom_row = denom_subarr_view.slice(s![r_idx,..]);
+                    for i in 0..SAMP_NUM {
+                        unsafe {
+                            vals[i] = *numer_row.uget(i) - *denom_row.uget(i);
+                        }
+                    }
+                    vals.sort_unstable_by(|a,b| a.total_cmp(b));
+                    let lower = vals[lower_idx];
+                    let upper = vals[upper_idx];
+                    let median = (vals[249]+vals[250]) / 2.0;
+                    let mean = vals.iter().map(|x| *x).sum::<f32>() / 501.0;
+
+                    let mut negative_numbers: f32 = 0.0;
+                    for val in &vals {
+                        if *val < 0.0 {
+                            negative_numbers += 1.0;
+                        } else {
+                            break
+                        }
+                    }
+                    let positive_numbers = 501.0 - negative_numbers;
+                    let mut K_gt = positive_numbers / negative_numbers;
+                    let mut K_lt = negative_numbers / positive_numbers;
+                    if K_gt > 501.0 {
+                        K_gt = 501.0;
+                    }
+                    if K_lt > 501.0 {
+                        K_lt = 501.0
+                    }
+                    let three_cols = &position_map[r_idx];
+                    files[0].write_all(
+                        format!("{}\t{}\n", three_cols, lower).as_bytes()
+                    )?;
+                    files[1].write_all(
+                        format!("{}\t{}\n", three_cols, upper).as_bytes()
+                    )?;
+                    files[2].write_all(
+                        format!("{}\t{}\n", three_cols, median).as_bytes()
+                    )?;
+                    files[3].write_all(
+                        format!("{}\t{}\n", three_cols, mean).as_bytes()
+                    )?;
+                    files[4].write_all(
+                        format!("{}\t{}\n", three_cols, K_gt).as_bytes()
+                    )?;
+                    files[5].write_all(
+                        format!("{}\t{}\n", three_cols, K_lt).as_bytes()
+                    )?;
+                }
+            }
+        }
+        Ok(())
+    }
+
 }
 
 #[derive(Debug)]
@@ -558,12 +762,13 @@ impl FieldVec {
     fn parse_fields(
             &mut self,
             retained_fields: &mut Vec<(usize, (usize, usize, usize, usize))>,
+            retained_idx: &mut usize,
             vars: &Vec<String>,
             covar_key: &CovarKey,
             idx_key: &HashMap<usize, (usize, usize, usize)>,
             samples_arr: &mut SamplesArray,
     ) -> Result<(), HandleFieldsError> {
-        let mut retained_idx = 0;
+        //println!("Parsing fields passed from thread");
         for field in &self.fields {
             //println!("{:?}", field.linetype);
             match field.linetype {
@@ -594,25 +799,31 @@ impl FieldVec {
                     }
                 },
                 PriorByteIn::Samples(_) => {
-                    // if this col_idx is in our retained indices, do the following
-                    if field.col_idx == retained_fields[retained_idx].0 {
-                        let info = retained_fields[retained_idx].1;
+                    // set retained_idx to zero if required
+                    if retained_idx == &retained_fields.len() {
+                        *retained_idx = 0;
+                    }
+                    // now, if the column index == retained_fields[retained_idx.0, assign idx in
+                    // samples_arr to val.
+                    if field.col_idx == retained_fields[*retained_idx].0 {
+                        let info = retained_fields[*retained_idx].1;
 
                         let val_result = field.string.parse();
                         let val: f32 = match val_result {
                             Ok(val) => val,
-                            Err(error) => return Err(HandleFieldsError::ParseFloatError)
+                            Err(_error) => return Err(HandleFieldsError::ParseFloatError)
                         };
                         
-                        if let PriorByteIn::Samples(samp_num) = field.linetype {
-                            let idx = (info.0, info.1, info.2, info.3, samp_num);
+                        if let PriorByteIn::Samples(samp_idx) = field.linetype {
+                            let idx = (info.0, info.1, info.2, info.3, samp_idx);
+                            //println!("val: {}", &val);
+                            //println!("idx: {:?}", &idx);
                             samples_arr.assign_at(
                                 val,
                                 idx,
                             )
                         }
-                        
-                        retained_idx += 1;
+                        *retained_idx += 1;
                     }
                 },
                 _ => continue
@@ -644,11 +855,10 @@ impl BytesIterator {
         self.leftover.clear();
     }
 
-    fn field_scan(&mut self) -> Result<FieldVec, ByteIterError> {
+    fn field_scan(&mut self, col_idx: &mut usize) -> Result<FieldVec, ByteIterError> {
 
         let mut fields = FieldVec::new();
         let mut field = ByteField::new();
-        let mut col_idx = 0;
         // look at every byte to scan for fields of interest
         for byte in &self.bytes {
             match *byte {
@@ -664,7 +874,8 @@ impl BytesIterator {
                             self.linetype = PriorByteIn::HeaderAfterColnames;
                         },
                         PriorByteIn::ColNames => {
-                            self.linetype = PriorByteIn::HeaderAfterColnames
+                            self.linetype = PriorByteIn::HeaderAfterColnames;
+                            println!("Finished parsing column header line");
                         },
                         PriorByteIn::Samples(_) => {
                             return Err(ByteIterError::HashAfterSampleError)
@@ -682,21 +893,23 @@ impl BytesIterator {
                         PriorByteIn::EndOfHeader => {continue},
                         PriorByteIn::HeaderAfterColnames => {
                             self.linetype = PriorByteIn::EndOfHeaderAfterColnames;
-                            col_idx = 0;
+                            *col_idx = 0;
                         },
                         PriorByteIn::EndOfHeaderAfterColnames => {continue},
                         // if the current byte is EOL and we're coming from colnames,
                         // gather the final field in the row
                         // and set linetype to headeraftercolnames
                         PriorByteIn::ColNames => {
-                            unsafe { fields.push_bytes(&mut field, &self.linetype, col_idx) };
-                            col_idx = 0;
+                            unsafe { fields.push_bytes(&mut field, &self.linetype, *col_idx) };
+                            *col_idx = 0;
                         },
                         PriorByteIn::Samples(samp_idx) => {
-                            unsafe { fields.push_bytes(&mut field, &self.linetype, col_idx) };
+                            unsafe { fields.push_bytes(&mut field, &self.linetype, *col_idx) };
+                            let this_samp_num = samp_idx + 1;
+                            println!("Finished with sample {}", &this_samp_num);
                             // increment sample index by one and re-set col index to 0
-                            self.linetype = PriorByteIn::Samples(samp_idx + 1);
-                            col_idx = 0;
+                            self.linetype = PriorByteIn::Samples(this_samp_num);
+                            *col_idx = 0;
                         },
                     };
                 },
@@ -712,27 +925,28 @@ impl BytesIterator {
                         // push field to fieldvec
                         PriorByteIn::ColNames => {
                             unsafe {
-                                fields.push_bytes(&mut field, &self.linetype, col_idx)
+                                fields.push_bytes(&mut field, &self.linetype, *col_idx)
                             };
                             // increment col idx by one
-                            col_idx += 1;
+                            *col_idx += 1;
                         },
                         // if current byte is ',' and we're in samples,
                         // push field to fieldvec
                         PriorByteIn::Samples(_) => {
                             unsafe {
-                                fields.push_bytes(&mut field, &self.linetype, col_idx)
+                                fields.push_bytes(&mut field, &self.linetype, *col_idx)
                             };
                             // increment col idx by one
-                            col_idx += 1;
+                            *col_idx += 1;
                         },
                     };
                 },
-                other => {
+                _ => {
                     match self.linetype {
                         PriorByteIn::Header => {continue},
                         PriorByteIn::EndOfHeader => {
                             self.linetype = PriorByteIn::ColNames;
+                            println!("Beginning parsing column header line");
                             field.push(*byte);
                         },
                         PriorByteIn::HeaderAfterColnames => {continue},
@@ -758,66 +972,313 @@ impl BytesIterator {
     }
 }
 
-/// returns the hashmap that will be used to map a covariate index to a position in the first
-/// three axes of the final samples array.
-fn get_index_key(covar_key: &CovarKey, vars: &Vec<String>) -> HashMap<usize, (usize, usize, usize)> {
+/// returns the hashmap that will be used to map a covariate index to a position
+/// in the first three axes of the final samples array and to files to be written
+fn get_index_key(
+        covar_key: &CovarKey,
+        vars: &Vec<String>,
+        out_direc: &str,
+        genotype_contrasts: Option<Vec<String>>,
+        strand_contrasts: Option<Vec<String>>,
+) -> BoxedResult<(
+        HashMap<usize, (usize, usize, usize)>,
+        HashMap<usize, Vec<File>>,
+        Option<Vec<HashMap<String, usize>>>,
+        Option<Vec<Vec<File>>>,
+        Option<Vec<HashMap<String, usize>>>,
+        Option<Vec<Vec<File>>>,
+)> {
     // samples array is shape (geno, strand, params, position, samples)
     let mut geno_vec: Vec<&str> = Vec::new();
     let mut strand_vec: Vec<&str> = Vec::new();
 
     let mut arr_map: HashMap<usize, (usize, usize, usize)> = HashMap::new();
+    let mut file_map: HashMap<usize, Vec<File>> = HashMap::new();
+    let summaries: Vec<&str> = vec![
+        "lower", "upper", "median", "mean", "K_gt", "K_lt"
+    ];
 
     for (i,covar_info) in covar_key.map.iter().enumerate() {
+        let mut file_vec: Vec<File> = Vec::new();
         // if the genotype name isn't currently in geno_vec, append it
         if !geno_vec.iter().any(|x| x == &covar_info.genotype_name) {
             geno_vec.push(&covar_info.genotype_name);
         }
+        // if the strand name isn't currently in strand_vec, append it
         if !strand_vec.iter().any(|x| x == &covar_info.strand_name) {
             strand_vec.push(&covar_info.strand_name);
         }
+        // get the genotype index and strand index from the position of their name match in the
+        // vecs
         let geno_idx = geno_vec.iter().position(|x| x == &covar_info.genotype_name).unwrap();
         let strand_idx = strand_vec.iter().position(|x| x == &covar_info.strand_name).unwrap();
-        let var_idx = vars.iter().position(|x| x == &covar_info.var_name).unwrap();
-        arr_map.insert(i, (geno_idx, strand_idx, var_idx));
+        
+        if vars.iter().any(|x| x == &covar_info.var_name) {
+            // get the var index in the samples array that corresponds to this var_name
+            let var_idx = vars.iter().position(|x| x == &covar_info.var_name).unwrap();
+            arr_map.insert(i, (geno_idx, strand_idx, var_idx));
+            for summary in &summaries {
+                let fname = format!(
+                    "{}/{}_{}_{}_{}.bedgraph",
+                    out_direc,
+                    &covar_info.genotype_name,
+                    &covar_info.strand_name,
+                    &covar_info.var_name,
+                    summary,
+                );
+                let mut file = File::create(&fname)?;
+                file_vec.push(file);
+            }
+            file_map.insert(i, file_vec);
+        }
     }
-    arr_map
+    println!("geno_vec: {:?}", &geno_vec);
+
+    let (geno_contrast_key,geno_contrast_file_map) = if let Some(contrasts) = genotype_contrasts {
+
+        let mut geno_contrast_file_map: Vec<Vec<File>> = Vec::new();
+        let mut geno_contrast_key: Vec<HashMap<String, usize>> = Vec::new();
+
+        // for each contrast at cli, collect the two genotypes being
+        // contrasted, get their indices in geno_vec
+        // then iterate over values in arr_map above to store the keys
+        // in arr_map that must be stored in geno_contrast_key to map
+        // numerator and denominator to sub-arrays in final samples array
+        for (i,contrast) in contrasts.iter().enumerate() {
+            
+            // get numerator and denominator genotype names
+            let cont_vec: Vec<&str> = contrast.split("-").collect::<Vec<&str>>()
+                .iter().map(|x| x.trim()).collect();
+            let numer_geno = cont_vec[0];
+            let denom_geno = cont_vec[1];
+
+            // get indices for each of numerator and denominator
+            let numer_geno_idx = geno_vec.iter()
+                .position(|x| x == &numer_geno).unwrap();
+            let denom_geno_idx = geno_vec.iter()
+                .position(|x| x == &denom_geno).unwrap();
+
+            for (j,strand_name) in strand_vec.iter().enumerate() {
+                for (k,var_name) in vars.iter().enumerate() {
+
+                    let mut this_contrast_key: HashMap<String, usize> = HashMap::new();
+                    let mut file_vec: Vec<File> = Vec::new();
+
+                    for summary in &summaries {
+                        let fname = format!(
+                            "{}/{}_{}_{}_{}.bedgraph",
+                            out_direc,
+                            contrast,
+                            strand_name,
+                            var_name,
+                            summary,
+                        );
+                        let mut file = File::create(&fname)?;
+                        file_vec.push(file);
+                    }
+                    geno_contrast_file_map.push(file_vec);
+
+                    // now loop over the var key above to grab keys that match the strand, var,
+                    // geno icx here
+                    for (l, (query_geno_idx, query_strand_idx, query_var_idx)) in arr_map.iter() {
+                        // if both strand and var indices match j and k, check if this is numerator
+                        // or denominator and insert into the map
+                        if query_strand_idx == &j && query_var_idx == &k {
+                            if query_geno_idx == &numer_geno_idx {
+                                this_contrast_key.insert(String::from("numerator"), *l);
+                            } else if query_geno_idx == &denom_geno_idx {
+                                this_contrast_key.insert(String::from("denominator"), *l);
+                            }
+                        }
+                    }
+                    geno_contrast_key.push(this_contrast_key);
+                }
+            }
+        }
+        (Some(geno_contrast_key),Some(geno_contrast_file_map))
+    } else {
+        (None,None)
+    };
+
+    let (strand_contrast_key,strand_contrast_file_map) = if let Some(contrasts) = strand_contrasts {
+
+        let mut strand_contrast_file_map: Vec<Vec<File>> = Vec::new();
+        let mut strand_contrast_key: Vec<HashMap<String, usize>> = Vec::new();
+
+        for (i,contrast) in contrasts.iter().enumerate() {
+            
+            // get numerator and denominator strand names
+            let cont_vec: Vec<&str> = contrast.split("-").collect::<Vec<&str>>()
+                .iter().map(|x| x.trim()).collect();
+            let numer_strand = cont_vec[0];
+            let denom_strand = cont_vec[1];
+
+            // get indices for each of numerator and denominator
+            let numer_strand_idx = strand_vec.iter()
+                .position(|x| x == &numer_strand).unwrap();
+            let denom_strand_idx = strand_vec.iter()
+                .position(|x| x == &denom_strand).unwrap();
+
+            for (j,geno_name) in geno_vec.iter().enumerate() {
+                for (k,var_name) in vars.iter().enumerate() {
+
+                    let mut this_contrast_key: HashMap<String, usize> = HashMap::new();
+                    let mut file_vec: Vec<File> = Vec::new();
+
+                    for summary in &summaries {
+                        let fname = format!(
+                            "{}/{}_{}_{}_{}.bedgraph",
+                            out_direc,
+                            geno_name,
+                            contrast,
+                            var_name,
+                            summary,
+                        );
+                        let mut file = File::create(&fname)?;
+                        file_vec.push(file);
+                    }
+                    strand_contrast_file_map.push(file_vec);
+
+                    // now loop over the var key above to grab keys that match the strand, var,
+                    // geno idx here
+                    for (l, (query_geno_idx, query_strand_idx, query_var_idx)) in arr_map.iter() {
+                        // if both strand and var indices match j and k, check if this is numerator
+                        // or denominator and insert into the map
+                        if query_geno_idx == &j && query_var_idx == &k {
+                            if query_strand_idx == &numer_strand_idx {
+                                this_contrast_key.insert(String::from("numerator"), *l);
+                            } else if query_strand_idx == &denom_strand_idx {
+                                this_contrast_key.insert(String::from("denominator"), *l);
+                            }
+                        }
+                    }
+                    strand_contrast_key.push(this_contrast_key);
+                }
+            }
+        }
+        (Some(strand_contrast_key),Some(strand_contrast_file_map))
+    } else {
+        (None,None)
+    };
+
+    Ok((arr_map, file_map, geno_contrast_key, geno_contrast_file_map, strand_contrast_key, strand_contrast_file_map))
+}
+
+fn make_position_map(pos_file_name: &str) -> BoxedResult<Vec<String>> {
+    let file = File::open(pos_file_name)?;
+    let reader = BufReader::new(file);
+    let mut line_map: Vec<String> = Vec::new();
+    // Iterate over each line in the file.
+    for line_result in reader.lines() {
+        let line = line_result?;
+        let stripped = line.trim_end();
+        let split = stripped.rsplit_once('\t').unwrap();
+        line_map.push(split.0.into());
+    }
+    Ok(line_map)
+}
+
+#[derive(Parser, Debug)]
+#[command(version, about, long_about = None)]
+struct Args {
+    /// Name of the person to greet
+    #[arg(long)]
+    draws_file: String,
+    /// Comma-separated list of variables to keep
+    #[arg(long, value_parser, use_value_delimiter=true, value_delimiter=',')]
+    vars: Vec<String>,
+    /// Comma-separated list of genotype-level contrasts to perform
+    #[arg(long, value_parser, use_value_delimiter=true, value_delimiter=',')]
+    genotype_contrasts: Option<String>,
+    /// Comma-separated list of strand-level contrasts to perform
+    #[arg(long, value_parser, use_value_delimiter=true, value_delimiter=',')]
+    strand_contrasts: Option<String>,
+    /// File containing covariate key
+    #[arg(long)]
+    covar_key_file: String,
+    /// File containing positions to be mapped back to fit positions
+    #[arg(long)]
+    pos_file_name: String,
+    /// Threshold for gathering evidence ratios for enrichment inferences
+    #[arg(long, default_value_t = 1.0)]
+    threshold: f32,
+    /// Threshold for gathering evidence ratios for genotype contrasts
+    #[arg(long, default_value_t = 0.0)]
+    genotype_contrast_threshold: f32,
+    /// Threshold for gathering evidence ratios for strand contrasts
+    #[arg(long, default_value_t = 0.0)]
+    strand_contrast_threshold: f32,
+    /// Directory into which to write output files
+    #[arg(long)]
+    out_direc: String,
 }
 
 fn main() -> BoxedResult<()> {
 
-    let args: Vec<String> = env::args().collect();
-    //let infname = &args[1];
-    let summary_outfname = &args[2];
-    let sample_outfname = &args[3];
-    let samp_num: usize = args[4].parse()?;
-    let var_arg = &args[5]; // Alpha,Beta
-    let covar_key_file = &args[6];
+    let args = Args::parse();
+    let infname = &args.draws_file;
+    let vars = args.vars;
+    let covar_key_file = &args.covar_key_file;
+    let pos_file_name = &args.pos_file_name;
+    let threshold: f32 = args.threshold;
+    let genotype_threshold: f32 = args.genotype_contrast_threshold;
+    let strand_threshold: f32 = args.genotype_contrast_threshold;
+    let out_direc: &str = &args.out_direc;
+    let genotype_contrasts: Option<String> = args.genotype_contrasts;
+    let strand_contrasts: Option<String> = args.strand_contrasts;
 
+    let position_map = make_position_map(pos_file_name)?;
     let covar_key = CovarKey::read_covar_key(covar_key_file)?;
 
-    println!("Reading {:?} from {}", var_arg, &args[1]);
-    let mut vars: Vec<String> = Vec::new();
-    for var in var_arg.split(",") {
-        vars.push(String::from(var))
-    }
+    let mut genotype_contrast_vec: Option<Vec<String>>  = Some(Vec::new());
+    if let Some(cont) = genotype_contrasts {
+        let split: Vec<String> = cont.split(',').map(|x| x.to_string()).collect();
+        genotype_contrast_vec = Some(split);
+    } else {
+        genotype_contrast_vec = None;
+    };
 
-    let idx_key = get_index_key(&covar_key, &vars);
+    let mut strand_contrast_vec: Option<Vec<String>>  = Some(Vec::new());
+    if let Some(cont) = strand_contrasts {
+        let split: Vec<String> = cont.split(',').map(|x| x.to_string()).collect();
+        strand_contrast_vec = Some(split);
+    } else {
+        strand_contrast_vec = None;
+    };
+
+    let (
+        idx_key,
+        file_map,
+        geno_contrast_key_opt,
+        geno_contrast_file_map_opt,
+        strand_contrast_key_opt,
+        strand_contrast_file_map_opt,
+    ) = get_index_key(
+        &covar_key,
+        &vars,
+        out_direc,
+        genotype_contrast_vec,
+        strand_contrast_vec,
+    )?;
 
     // channel for threads to communicate
-    let (reader_tx, reader_rx) = mpsc::channel();
-    let (parser_tx, parser_rx) = mpsc::channel();
-    //let (handler_tx, handler_rx) = mpsc::channel();
+    let (reader_tx, reader_rx) = mpsc::sync_channel::<Vec<u8>>(1);
+    //let (reader_tx, reader_rx) = mpsc::channel::<Vec<u8>>();
+    // If parser channel is sync_channel, hangs for a long time, maybe forever
+    let (parser_tx, parser_rx) = mpsc::sync_channel(1);
+    //let (parser_tx, parser_rx) = mpsc::channel();
     let recd: Vec<u8> = Vec::new();
     let mut byte_iterator = BytesIterator::new(recd);
 
-    let file = File::open(&args[1])?;
+    let file = File::open(infname)?;
+
+    let mut reader = BufReader::new(file);
+    let mut buffer = [0; BUF_SIZE];
 
     // spawn reader thread
     // this thread is simply responsible for reading BUF_SIZE bytes at a time
     // and passing those bytes to the next thread.
-    let reader_thread = thread::spawn(move || -> io::Result<()> {
-        let mut reader = BufReader::new(file);
-        let mut buffer = [0; BUF_SIZE];
+    let _reader_thread = thread::spawn(move || -> io::Result<()> {
 
         loop {
             let num_bytes_read = reader.read(&mut buffer)?;
@@ -827,7 +1288,12 @@ fn main() -> BoxedResult<()> {
             }
 
             // send the slice of buffer as an owned vec with data to parser
-            reader_tx.send(buffer[..num_bytes_read].to_vec()).unwrap();
+            //println!("\nnum_bytes_read: {}", &num_bytes_read);
+            let to_send = buffer[..num_bytes_read].to_vec();
+            //println!("{:?}", &to_send);
+            let send_result = reader_tx.send(to_send);
+            //println!("send_result: {:?}", &send_result);
+            send_result.unwrap();
         }
 
         Ok(())
@@ -841,21 +1307,50 @@ fn main() -> BoxedResult<()> {
     // the sample number if we're in samples
     //
     // fields is a FieldVec, which has a single attribute, `fields`, of type Vec<StringField>
+    let mut col_idx: usize = 0;
     let parser_thread = thread::spawn(move || -> Result<(), ByteIterError> {
-        byte_iterator.update(reader_rx.recv().unwrap());
-        // fields is a FieldVec
-        let fields = byte_iterator.field_scan()?;
-        parser_tx.send(fields).unwrap();
+        loop {
+            let read_result = reader_rx.recv_timeout(time::Duration::from_secs(5));
+            //let read_result = reader_rx.recv();
+            let bytes_read: Vec<u8> = match read_result {
+                Ok(bytes) => bytes,
+                Err(error) => {
+                    println!("Encountered a ReceiverError or hit timeout");
+                    println!("{:?}", error);
+                    return Err(ByteIterError::ReceiverError)
+                }
+            };
+ 
+            //let bytes_read = read_result.unwrap();
+            //println!("bytes read by reader_tx: {:?}", &bytes_read);
+            byte_iterator.update(bytes_read);
+            // fields is a FieldVec
+            let fields = byte_iterator.field_scan(&mut col_idx)?;
+            if !fields.fields.is_empty() {
+                //println!("fields sent by parser tx: {:?}", &fields);
+                //let copy = fields.fields.to_vec();
+                let parser_send_result = parser_tx.send(fields);
+                let _ = match parser_send_result {
+                    Ok(send) => send,
+                    Err(error) => {
+                        println!("parser_send_error: {:?}", error);
+                        break
+                    }
+                };
+            }
+        }
         Ok(())
     });
 
+    //parser_thread.join()?;
     let mut samples_arr = SamplesArray::zeros_by_shape(
-        (covar_key.geno_num, covar_key.strand_num, vars.len(), covar_key.pos_num, samp_num)
+        (covar_key.geno_num, covar_key.strand_num, vars.len(), covar_key.pos_num, SAMP_NUM)
     );
     let mut retained_fields: Vec<(usize, (usize, usize, usize, usize))> = Vec::new();
+    let mut retained_idx: usize = 0;
 
-    // field handler thread
-    // this thread is responsible for accepting the FieldVec passed by parser thread
+    // field handler
+    // Responsible for accepting the FieldVec passed by parser thread
     // either assigning each field as retained or not, or assigning each value to
     // its proper position in the samples array.
     //
@@ -864,24 +1359,45 @@ fn main() -> BoxedResult<()> {
     //      Place the col index into retained_fields
     // 2) When in data, determine whether we're keeping each datum
     //      Place into appropriate cell in array.
-    let field_handler_thread = thread::spawn(move || -> Result<(), HandleFieldsError> {
-        // fields is a FieldVec
-        let mut fields = parser_rx.recv().unwrap();
-        ///////////////////////////////////////////////////////////////////////
-        // Add a "positions" key to covar_key.json. Figure out how to get geno num for
-        // instantiations
-        ///////////////////////////////////////////////////////////////////////
-        fields.parse_fields(
-            &mut retained_fields,
-            &vars,
-            &covar_key,
-            &idx_key,
-            &mut samples_arr,
-        )?;
+    loop {
+        let parse_result = parser_rx.recv_timeout(time::Duration::from_secs(5));
+        let _ = match parse_result {
+            Ok(mut fields) => {
+                fields.parse_fields(
+                    &mut retained_fields,
+                    &mut retained_idx,
+                    &vars,
+                    &covar_key,
+                    &idx_key,
+                    &mut samples_arr,
+                ).unwrap();
+            },
+            Err(error) => {
+                println!("{:?}", error);
+                break
+            }
+        };
 
-        //fields.filter(&vars, &covar_key)?;
-        Ok(())
-    });
+    }
+
+    println!("Finished parsing file, summarizing samples and writing output files.");
+    samples_arr.fetch_summaries(
+        &idx_key,
+        file_map,
+        &position_map,
+        threshold,
+    )?;
+
+    samples_arr.fetch_contrasts(
+        &idx_key,
+        geno_contrast_key_opt,
+        geno_contrast_file_map_opt,
+        strand_contrast_key_opt,
+        strand_contrast_file_map_opt,
+        &position_map,
+        genotype_threshold,
+        strand_threshold,
+    )?;
 
     Ok(())
 }

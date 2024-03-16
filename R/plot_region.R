@@ -274,14 +274,14 @@ if (!is.null(opt$features)) {
     plot_features = TRUE
     gff = gffRead(
         opt$features
-    )  %>% filter(
+    ) %>% filter(
         seqname == opt$contig,
         feature %in% feature_types
     )
-    print("========= read gff ============")
-    print(head(gff))
-    print("========= feature_name_field ============")
-    print(opt$feature_name_field)
+    #print("========= filtered gff ============")
+    #print(head(gff))
+    #print("========= feature_name_field ============")
+    #print(opt$feature_name_field)
     if (is.null(opt$feature_name_field)) {
         gff$name = getAttributeField(gff$attributes, "gene")
         gff$alt_name = getAttributeField(gff$attributes, "Name")
@@ -306,8 +306,8 @@ if (!is.null(opt$features)) {
     gff = NULL
 }
 
-print("========= named gff ============")
-print(head(gff))
+#print("========= named gff ============")
+#print(head(gff))
 
 duped = duplicated(gff$name)
 
