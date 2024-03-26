@@ -573,7 +573,7 @@ prep_par_stan_data = function(data_df, norm_method, spikein, spikein_rel_abund=0
     return(stan_list)
 }
 
-prep_stan_data = function(data_df, norm_method, spikein, spikein_rel_abund=0.05, input_subsample_dist_bp=50, input_frag_len_bp=125, ext_subsample_dist_bp=50, ext_frag_len_bp=50, log_lik=FALSE, frac_genome_enriched=NULL) {
+prep_stan_data = function(data_df, norm_method, spikein, spikein_rel_abund=0.05, input_subsample_dist_bp=50, input_frag_len_bp=125, ext_subsample_dist_bp=50, ext_frag_len_bp=50, log_lik=FALSE, frac_genome_enriched=NULL, shared_input=FALSE) {
     # this sort step is VERY USEFUL for arranging data later on to keep size factors
     # associated with correct samples
     data_df = data_df %>% arrange(sample_id)
@@ -615,6 +615,9 @@ prep_stan_data = function(data_df, norm_method, spikein, spikein_rel_abund=0.05,
     stan_list[["S"]] = samp_num
     stan_list[["B"]] = num_geno
     stan_list[["A"]] = num_geno
+    if (shared_input) {
+        stan_list[["A"]] = 1
+    }
     stan_list[["G"]] = num_geno
     stan_list[["Q"]] = strand_num
     stan_list[["geno_x"]] = info_df$geno_x
@@ -648,7 +651,6 @@ prep_stan_data = function(data_df, norm_method, spikein, spikein_rel_abund=0.05,
         }
     }
     stan_list[["Y"]] = data_arr
-
 
     resolution = median(diff(stan_list[["position_mapper"]]$start))
 

@@ -49,6 +49,7 @@ data {
     array[a_num_non_zero] int a_col_accessor;
     array[L+1] int a_row_non_zero_number;
     int<lower=0, upper=1> gather_log_lik;
+    int<lower=0, upper=1> shared_input;
 }
 
 transformed data {
@@ -72,7 +73,7 @@ parameters {
     vector<lower=0, upper=1>[S] sig_noise; // signal-to-noise allocation for each sample
     //vector[S] wsh; // wsh term for how much wsh for a given sample
     vector<lower=0>[2] prec; // stratify global precision inference by extracted vs input
-    array[G,Q] vector[a_sub_L] sub_Alpha; // one intercept for each genotype/sub-position
+    array[A,Q] vector[a_sub_L] sub_Alpha; // one intercept for each genotype/sub-position
     vector[B] Gamma; // an intercept to offset hbd samples by
 
     // local parameters for horseshoe prior
@@ -86,14 +87,15 @@ parameters {
 
 transformed parameters {
     array[B,Q] vector[L] Beta;
-    array[G,Q] vector[L] Alpha; // one intercept for each genotype/position combination
+    array[A,Q] vector[L] Alpha; // one intercept for each genotype/position combination
+    array[B,Q] vector[L] rebased_Beta;
 
     real lprior = 0.0;
 
     {
         //array[B,Q] vector[b_sub_L] sub_Beta
         vector[b_sub_L] sub_Beta; // one intercept for each genotype/sub-position
-        vector[L] tmp_Beta;
+        //vector[L] tmp_Beta;
         for (b in 1:B) {
             for (q in 1:Q) {
                 //print(sub_Beta
@@ -103,7 +105,8 @@ transformed parameters {
                     hs_global,
                     hs_scale_slab^2 * hs_slab
                 );
-                tmp_Beta = csr_matrix_times_vector(
+                //tmp_Beta = csr_matrix_times_vector(
+                rebased_Beta[b,q] = csr_matrix_times_vector(
                     L,
                     b_sub_L,
                     b_weights_vals,
@@ -112,20 +115,21 @@ transformed parameters {
                     sub_Beta
                     //sub_Beta[b,q]
                 );
-                Beta[b,q] = tmp_Beta + Gamma[b];
+                //Beta[b,q] = tmp_Beta + Gamma[b];
+                Beta[b,q] = rebased_Beta[b,q] + Gamma[b];
             }
         }
     }
 
-    for (g in 1:G) {
+    for (a in 1:A) {
         for (q in 1:Q) {
-            Alpha[g,q] = csr_matrix_times_vector(
+            Alpha[a,q] = csr_matrix_times_vector(
                 L,
                 a_sub_L,
                 a_weights_vals,
                 a_col_accessor,
                 a_row_non_zero_number,
-                sub_Alpha[g,q]
+                sub_Alpha[a,q]
             );
         }
     }
@@ -144,9 +148,9 @@ transformed parameters {
         }
     }
 
-    for (g in 1:B) {
+    for (a in 1:A) {
         for (q in 1:Q) {
-            lprior += normal_lpdf(sub_Alpha[g,q] | alpha_prior, 2);
+            lprior += normal_lpdf(sub_Alpha[a,q] | alpha_prior, 4);
         }
     }
 
@@ -157,6 +161,7 @@ transformed parameters {
 model {
     int sample_type;
     int genotype;
+    int alpha_genotype;
     //vector[L] Y_hat_signal_sq;
     //vector[L] Y_hat_noise_sq;
     vector[L] Y_hat_signal;
@@ -176,12 +181,17 @@ model {
     for (s in 1:S) {
         sample_type = sample_x[s];
         genotype = geno_x[s];
+        if (shared_input) {
+            alpha_genotype = 1;
+        } else {
+            alpha_genotype = genotype;
+        }
         //wsh_s = wsh[s];
         libsize_s = cent_loglibsize[s];
         log_signoise_s = log_signoise[s];
         log_comp_signoise_s = log_signoise[s];
         for (q in 1:Q) {
-            Y_hat_signal = Alpha[genotype,q]
+            Y_hat_signal = Alpha[alpha_genotype,q]
                 + sample_type * Beta[genotype,q]
                 + libsize_s;
             //Y_hat_noise = wsh_s + libsize_s;
