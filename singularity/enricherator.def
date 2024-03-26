@@ -37,7 +37,7 @@ Stage: build
     && echo -e 'options(repos=c("https://mc-stan.org/r-packages/", "http://cran.us.r-project.org"))' >> /conda/envs/rstan/lib/R/etc/Rprofile.site \
     && R -e 'install.packages("stringi", configure.args="--disable-pkg-config");' \
     && R -e 'install.packages("cmdstanr");' \
-    && R -e 'library(cmdstanr); cmdstan_model("/src/stan/sig_noise_alloc.stan", cpp_options=list(stan_threads=TRUE));'
+    && R -e 'library(cmdstanr); cmdstan_model("/src/stan/sig_noise_alloc.stan", cpp_options=list(stan_threads=TRUE)); cmdstan_model("/src/stan/normal_prior.stan", cpp_options=list(stan_threads=TRUE)); cmdstan_model("/src/stan/cauchy_prior.stan", cpp_options=list(stan_threads=TRUE)); cmdstan_model("/src/stan/student_t_prior.stan", cpp_options=list(stan_threads=TRUE));'
 
     CUSTOM_ENV=/.singularity.d/env/99-zz_custom_env.sh
     cat >$CUSTOM_ENV <<EOF

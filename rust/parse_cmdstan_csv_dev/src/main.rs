@@ -1036,8 +1036,8 @@ fn get_index_key(
 
     let (geno_contrast_key,geno_contrast_file_map) = if let Some(contrasts) = genotype_contrasts {
 
-        let mut geno_contrast_file_map: Vec<Vec<File>> = Vec::new();
         let mut geno_contrast_key: Vec<HashMap<String, usize>> = Vec::new();
+        let mut geno_contrast_file_map: Vec<Vec<File>> = Vec::new();
 
         // for each contrast at cli, collect the two genotypes being
         // contrasted, get their indices in geno_vec
@@ -1139,10 +1139,12 @@ fn get_index_key(
                     }
                     strand_contrast_file_map.push(file_vec);
 
-                    // now loop over the var key above to grab keys that match the strand, var,
+                    // now loop over the var key above to grab keys
+                    // that match the strand, var,
                     // geno idx here
                     for (l, (query_geno_idx, query_strand_idx, query_var_idx)) in arr_map.iter() {
-                        // if both strand and var indices match j and k, check if this is numerator
+                        // if both strand and var indices match j and k,
+                        // check if this is numerator
                         // or denominator and insert into the map
                         if query_geno_idx == &j && query_var_idx == &k {
                             if query_strand_idx == &numer_strand_idx {
@@ -1189,10 +1191,10 @@ struct Args {
     vars: Vec<String>,
     /// Comma-separated list of genotype-level contrasts to perform
     #[arg(long, value_parser, use_value_delimiter=true, value_delimiter=',')]
-    genotype_contrasts: Option<String>,
+    genotype_contrasts: Option<Vec<String>>,
     /// Comma-separated list of strand-level contrasts to perform
     #[arg(long, value_parser, use_value_delimiter=true, value_delimiter=',')]
-    strand_contrasts: Option<String>,
+    strand_contrasts: Option<Vec<String>>,
     /// File containing covariate key
     #[arg(long)]
     covar_key_file: String,
@@ -1224,27 +1226,13 @@ fn main() -> BoxedResult<()> {
     let genotype_threshold: f32 = args.genotype_contrast_threshold;
     let strand_threshold: f32 = args.genotype_contrast_threshold;
     let out_direc: &str = &args.out_direc;
-    let genotype_contrasts: Option<String> = args.genotype_contrasts;
-    let strand_contrasts: Option<String> = args.strand_contrasts;
+    let genotype_contrast_vec: Option<Vec<String>> = args.genotype_contrasts;
+    let strand_contrast_vec: Option<Vec<String>> = args.strand_contrasts;
+
+    println!("genotype_contrasts_arg: {:?}", genotype_contrast_vec);
 
     let position_map = make_position_map(pos_file_name)?;
     let covar_key = CovarKey::read_covar_key(covar_key_file)?;
-
-    let mut genotype_contrast_vec: Option<Vec<String>>  = Some(Vec::new());
-    if let Some(cont) = genotype_contrasts {
-        let split: Vec<String> = cont.split(',').map(|x| x.to_string()).collect();
-        genotype_contrast_vec = Some(split);
-    } else {
-        genotype_contrast_vec = None;
-    };
-
-    let mut strand_contrast_vec: Option<Vec<String>>  = Some(Vec::new());
-    if let Some(cont) = strand_contrasts {
-        let split: Vec<String> = cont.split(',').map(|x| x.to_string()).collect();
-        strand_contrast_vec = Some(split);
-    } else {
-        strand_contrast_vec = None;
-    };
 
     let (
         idx_key,

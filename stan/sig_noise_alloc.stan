@@ -49,6 +49,7 @@ data {
     array[a_num_non_zero] int a_col_accessor;
     array[L+1] int a_row_non_zero_number;
     int<lower=0, upper=1> gather_log_lik;
+    int<lower=0, upper=1> shared_input;
 }
 
 transformed data {
@@ -160,6 +161,7 @@ transformed parameters {
 model {
     int sample_type;
     int genotype;
+    int alpha_genotype;
     //vector[L] Y_hat_signal_sq;
     //vector[L] Y_hat_noise_sq;
     vector[L] Y_hat_signal;
@@ -179,12 +181,17 @@ model {
     for (s in 1:S) {
         sample_type = sample_x[s];
         genotype = geno_x[s];
+        if (shared_input) {
+            alpha_genotype = 1;
+        } else {
+            alpha_genotype = genotype;
+        }
         //wsh_s = wsh[s];
         libsize_s = cent_loglibsize[s];
         log_signoise_s = log_signoise[s];
         log_comp_signoise_s = log_signoise[s];
         for (q in 1:Q) {
-            Y_hat_signal = Alpha[genotype,q]
+            Y_hat_signal = Alpha[alpha_genotype,q]
                 + sample_type * Beta[genotype,q]
                 + libsize_s;
             //Y_hat_noise = wsh_s + libsize_s;

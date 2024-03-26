@@ -118,6 +118,10 @@ option_list = list(
     make_option(
         c("--grad_samps"), type="integer", default=1,
         help="Sets the value to grad_samples for variational inference. Do not adjust from its default of 1 unless you have a good reason to do so."
+    ),
+    make_option(
+        c("--shared_input"), action="store_true", default=FALSE,
+        help="Include at command line if input replicates are to be shared across ChIP-seq genotypes/conditions"
     )
 )
 print("Reading command line options")
@@ -234,6 +238,13 @@ if (opt$norm_method == "libsize") {
     stan_list[["libsize"]] = stan_list[["spikein_norm_factors"]]
 }
 
+shared_input = 0
+if (opt$shared_input) {
+    shared_input = 1
+}
+
+stan_list[["shared_input"]] = shared_input
+
 newlist = list()
 include_vars = c(
     "L","S","B","A","G","Q","alpha_prior","geno_x","sample_x",
@@ -241,7 +252,8 @@ include_vars = c(
     "hs_scale_global", "hs_scale_slab", "a_sub_L", "b_sub_L",
     "b_num_non_zero", "b_weights_vals", "b_col_accessor",
     "b_row_non_zero_number", "a_num_non_zero", "a_weights_vals",
-    "a_col_accessor", "a_row_non_zero_number", "gather_log_lik"
+    "a_col_accessor", "a_row_non_zero_number", "gather_log_lik",
+    "shared_input"
 )
 for (var in include_vars) {
     newlist[[var]] = stan_list[[var]]

@@ -107,6 +107,10 @@ option_list = list(
     make_option(
         c("--genome_data_file"), type="character", default=NULL,
         help="RData file containing initial genome data"
+    ),
+    make_option(
+        c("--shared_input"), action="store_true", default=FALSE,
+        help="include if you have input sequencing data from only one genotype that is intended to be shared across ChIP-seq data from multiple genotypes"
     )
 )
 print("Reading command line options")
@@ -134,6 +138,7 @@ if (is.na(opt$data_file)) {
 print(paste0("Compiling model in ", model_file))
 sm = cmdstan_model(model_file, cpp_options = list(stan_threads = TRUE))
 
+shared_input = opt$shared_input
 spikein = opt$spikein
 if (!is.null(opt$ignore_ctgs)) {
     ignores = str_split(opt$ignore_ctgs, ",", simplify=TRUE)[1,]
@@ -204,6 +209,12 @@ if (opt$norm_method == "libsize") {
     stan_list[["libsize"]] = stan_list[["spikein_norm_factors"]]
 }
 
+if (shared_input) {
+    stan_list[["shared_input"]] = 1
+} else {
+    stan_list[["shared_input"]] = 0
+}
+
 print("Fitting model using variational inference")
 
 newlist = list()
@@ -213,7 +224,8 @@ include_vars = c(
     "hs_scale_global", "hs_scale_slab", "a_sub_L", "b_sub_L",
     "b_num_non_zero", "b_weights_vals", "b_col_accessor",
     "b_row_non_zero_number", "a_num_non_zero", "a_weights_vals",
-    "a_col_accessor", "a_row_non_zero_number", "gather_log_lik"
+    "a_col_accessor", "a_row_non_zero_number", "gather_log_lik",
+    "shared_input"
 )
 for (var in include_vars) {
     newlist[[var]] = stan_list[[var]]
@@ -221,8 +233,13 @@ for (var in include_vars) {
 if (!dir.exists(opt$draws_direc)) {
     dir.create(opt$draws_direc, recursive=TRUE)
 }
+data_file = tempfile(tmpdir=Sys.getenv("TMPDIR"), fileext=".json")
+print(paste0("Writing data to ", data_file))
+options(scipen=999)
+write_stan_json_stream(newlist, data_file)
+
 fit = sm$sample(
-    data = newlist,
+    data = data_file,
     seed = opt$seed,
     chains = opt$cores,
     parallel_chains = opt$cores,

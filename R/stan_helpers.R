@@ -1010,6 +1010,10 @@ prep_stan_data = function(data_df, norm_method, spikein, spikein_rel_abund=0.05,
     } else {
         # default value of f (frac_genome_enriched) is 0.1
         #f = 0.1
+        #sig = sqrt(1/20)
+        #numer = f * sig
+        #denom = (1-f) * sqrt(b_K)
+        #scale = numer / denom
         scale = 1.0
     }
 
