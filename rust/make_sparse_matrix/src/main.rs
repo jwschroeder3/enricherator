@@ -180,7 +180,7 @@ fn main() {
             ctg_start = ctg_end + 1;
             let opt = ctg_ends.pop_front();
             if opt.is_none() {
-                println!("None in etg_ends: {:?}", ctg_ends);
+                println!("None in ctg_ends: {:?}", ctg_ends);
                 println!("genome_center: {}", genome_center);
             }
             ctg_end = opt.unwrap()

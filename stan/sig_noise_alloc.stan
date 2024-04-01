@@ -73,7 +73,7 @@ parameters {
     vector<lower=0, upper=1>[S] sig_noise; // signal-to-noise allocation for each sample
     //vector[S] wsh; // wsh term for how much wsh for a given sample
     vector<lower=0>[2] prec; // stratify global precision inference by extracted vs input
-    array[G,Q] vector[a_sub_L] sub_Alpha; // one intercept for each genotype/sub-position
+    array[A,Q] vector[a_sub_L] sub_Alpha; // one intercept for each genotype/sub-position
     vector[B] Gamma; // an intercept to offset hbd samples by
 
     // local parameters for horseshoe prior
@@ -87,7 +87,7 @@ parameters {
 
 transformed parameters {
     array[B,Q] vector[L] Beta;
-    array[G,Q] vector[L] Alpha; // one intercept for each genotype/position combination
+    array[A,Q] vector[L] Alpha; // one intercept for each genotype/position combination
     array[B,Q] vector[L] rebased_Beta;
 
     real lprior = 0.0;
@@ -121,15 +121,15 @@ transformed parameters {
         }
     }
 
-    for (g in 1:G) {
+    for (a in 1:A) {
         for (q in 1:Q) {
-            Alpha[g,q] = csr_matrix_times_vector(
+            Alpha[a,q] = csr_matrix_times_vector(
                 L,
                 a_sub_L,
                 a_weights_vals,
                 a_col_accessor,
                 a_row_non_zero_number,
-                sub_Alpha[g,q]
+                sub_Alpha[a,q]
             );
         }
     }
@@ -148,9 +148,9 @@ transformed parameters {
         }
     }
 
-    for (g in 1:B) {
+    for (a in 1:A) {
         for (q in 1:Q) {
-            lprior += normal_lpdf(sub_Alpha[g,q] | alpha_prior, 4);
+            lprior += normal_lpdf(sub_Alpha[a,q] | alpha_prior, 4);
         }
     }
 

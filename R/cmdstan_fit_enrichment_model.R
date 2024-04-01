@@ -227,7 +227,8 @@ if (load) {
         opt$ext_subsample_dist,
         opt$ext_fragment_length,
         opt$log_lik,
-        opt$frac_genome_enriched
+        opt$frac_genome_enriched,
+        opt$shared_input
     )
     save(stan_list, file=opt$data_file)
 }

@@ -648,7 +648,8 @@ prep_par_stan_data = function(data_df, norm_method, spikein, spikein_rel_abund=0
     #stan_list[["sub_L"]] = pos_num
 
     by_ctg_df = data_df$data[[1]] %>% filter(seqname != spikein) %>%
-        group_by(seqname) %>%
+        mutate(sort_key = as_factor(seqname) %>% fct_inorder()) %>%
+        group_by(sort_key) %>%
         summarize(ctg_posnum = n())
     ctg_end_vec = by_ctg_df$ctg_posnum
     #print("ctg_end_vec")
@@ -781,7 +782,7 @@ prep_par_stan_data = function(data_df, norm_method, spikein, spikein_rel_abund=0
     return(stan_list)
 }
 
-prep_stan_data = function(data_df, norm_method, spikein, spikein_rel_abund=0.05, input_subsample_dist_bp=50, input_frag_len_bp=125, ext_subsample_dist_bp=50, ext_frag_len_bp=50, log_lik=FALSE, frac_genome_enriched=NULL) {
+prep_stan_data = function(data_df, norm_method, spikein, spikein_rel_abund=0.05, input_subsample_dist_bp=50, input_frag_len_bp=125, ext_subsample_dist_bp=50, ext_frag_len_bp=50, log_lik=FALSE, frac_genome_enriched=NULL, shared_input=FALSE) {
     # this sort step is VERY USEFUL for arranging data later on to keep size factors
     # associated with correct samples
     data_df = data_df %>% arrange(sample_id)
@@ -823,7 +824,11 @@ prep_stan_data = function(data_df, norm_method, spikein, spikein_rel_abund=0.05,
     stan_list[["L"]] = pos_num
     stan_list[["S"]] = samp_num
     stan_list[["B"]] = num_geno
-    stan_list[["A"]] = num_geno
+    if (shared_input) {
+        stan_list[["A"]] = 1
+    } else {
+        stan_list[["A"]] = num_geno
+    }
     stan_list[["G"]] = num_geno
     stan_list[["Q"]] = strand_num
     stan_list[["geno_x"]] = info_df$geno_x
@@ -860,7 +865,6 @@ prep_stan_data = function(data_df, norm_method, spikein, spikein_rel_abund=0.05,
     }
     stan_list[["Y"]] = data_arr
 
-
     resolution = median(diff(stan_list[["position_mapper"]]$start))
 
     # round to nearest multiple of "resolution"
@@ -889,7 +893,8 @@ prep_stan_data = function(data_df, norm_method, spikein, spikein_rel_abund=0.05,
     #stan_list[["sub_L"]] = pos_num
 
     by_ctg_df = data_df$data[[1]] %>% filter(seqname != spikein) %>%
-        group_by(seqname) %>%
+        mutate(sort_key = as_factor(seqname) %>% fct_inorder()) %>%
+        group_by(sort_key) %>%
         summarize(ctg_posnum = n())
     ctg_end_vec = by_ctg_df$ctg_posnum
     #print("ctg_end_vec")
