@@ -51,6 +51,10 @@ option_list = list(
     make_option(
         c("--parameter"), type="character", default="Beta",
         help="Name of the parameter to perform contrasts for. Defaults to Beta.",
+    ),
+    make_option(
+        c("--threshold"), type="numeric", default="1.0",
+        help="Threshold for gathering evidence ratios.",
     )
 )
  
@@ -125,7 +129,8 @@ args_vec = c(
     param,
     contrasts,
     lut_fname,
-    con_type
+    con_type,
+    as.character(opt$threshold)
 )
 
 exec = c(bin_path, args_vec)

@@ -233,8 +233,18 @@ if (load) {
         opt$log_lik,
         opt$frac_genome_enriched
     )
+    stan_list[["covar_key_file"]] = paste0(opt$draws_direc, "/covar_key.json")
+    stan_list[["pos_map_file"]] = paste0(opt$draws_direc, "/position_map.tsv")
     save(stan_list, file=opt$data_file)
 }
+
+print(paste0("Writing covariate key to ", stan_list[["covar_key_file"]]))
+jsonlite::toJSON(stan_list[["covar_key"]], auto_unbox=TRUE) %>%
+    jsonlite::prettify() %>%
+    write(stan_list[["covar_key_file"]])
+
+print(paste0("Writing position map to ", stan_list[["pos_map_file"]]))
+stan_list[["position_mapper"]] %>% write_tsv(file=stan_list[["pos_map_file"]], col_names=FALSE)
 
 if (opt$norm_method == "libsize") {
     stan_list[["libsize"]] = stan_list[[opt$libsize_key]]
@@ -242,7 +252,6 @@ if (opt$norm_method == "libsize") {
     stan_list[["libsize"]] = stan_list[["spikein_norm_factors"]]
 }
 
-print("Fitting model using variational inference")
 
 newlist = list()
 include_vars = c(
@@ -258,35 +267,29 @@ include_vars = c(
 for (var in include_vars) {
     newlist[[var]] = stan_list[[var]]
 }
+
 if (!dir.exists(opt$draws_direc)) {
     dir.create(opt$draws_direc, recursive=TRUE)
 }
+
 grad_samps = opt$grad_samps
 
 
-if (is.null(opt$eta)) {
-    fit = sm$variational(
-        data = newlist,
-        seed = opt$seed,
-        threads = opt$cores,
-        output_samples = 500,
-        output_dir = opt$draws_direc,
-        output_basename = "draws",
-        sig_figs = 5
-    )
-} else {
-    fit = sm$variational(
-        data = newlist,
-        seed = opt$seed,
-        threads = opt$cores,
-        output_samples = 500,
-        output_dir = opt$draws_direc,
-        eta = opt$eta,
-        adapt_engaged = FALSE,
-        output_basename = "draws",
-        sig_figs = 5
-    )
-}
+data_file = tempfile(tmpdir=Sys.getenv("TMPDIR"), fileext=".json")
+print(paste0("Writing data to ", data_file))
+options(scipen=999)
+write_stan_json_stream(newlist, data_file)
+
+print("Fitting model using variational inference")
+fit = sm$variational(
+    data = data_file,
+    seed = opt$seed,
+    threads = opt$cores,
+    output_samples = 500,
+    output_dir = opt$draws_direc,
+    output_basename = "draws",
+    sig_figs = 5
+)
     #algorithm = "meanfield",
     #grad_samples = grad_samps
 

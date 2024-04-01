@@ -484,13 +484,14 @@ async fn write_summaries(
         cont_arr: Array<OrderedFloat<f32>, Ix4>,
         contrasts: Vec<&str>,
         cont_type: String,
+        threshold: f32,
 ) -> Result<(), Box<dyn Error>> {
 
     let file = File::create(fname).await?;
     let mut writer = BufWriter::new(file);
 
     println!("Summarizing contrasts and writing results to {}.", fname);
-    writer.write(b"var_name\tgenotype\tstrand\tposition\tlower\tmedian\tupper\tmean\n").await?;
+    writer.write(b"var_name\tgenotype\tstrand\tposition\tlower\tmedian\tupper\tmean\tK_gt\tK_lt\n").await?;
 
     let lower_idx = 24;
     //let lower_idx = 1;
@@ -516,9 +517,20 @@ async fn write_summaries(
                     let upper = f32::from(samples[upper_idx]);
                     let mean = f32::from(samples.iter().sum::<OrderedFloat<f32>>()
                         / samples.len() as f32);
+
+                    let positive_numbers: f32 = samples.iter().filter(|&&x| x > OrderedFloat(threshold)).count() as f32;
+                    let negative_numbers: f32 = samples.len() as f32 - positive_numbers;
+                    let mut K_gt = positive_numbers / negative_numbers;
+                    let mut K_lt = negative_numbers / positive_numbers;
+                    if K_gt > samples.len() as f32 {
+                        K_gt = samples.len() as f32;
+                    }
+                    if K_lt > samples.len() as f32 {
+                        K_lt = samples.len() as f32;
+                    }
                     writer.write(format!(
-                        "{}\t{}\t{}\t{}\n",
-                        lower,median,upper,mean
+                        "{}\t{}\t{}\t{}\t{}\t{}\n",
+                        lower,median,upper,mean,K_gt,K_lt
                     ).as_bytes()).await?;
                 }
             }
@@ -540,9 +552,14 @@ async fn write_summaries(
                     let upper = f32::from(samples[upper_idx]);
                     let mean = f32::from(samples.iter().sum::<OrderedFloat<f32>>()
                         / samples.len() as f32);
+                    let positive_numbers: f32 = samples.iter().filter(|&&x| x > OrderedFloat(threshold)).count() as f32;
+                    let negative_numbers: f32 = samples.len() as f32 - positive_numbers;
+                    let K_gt = positive_numbers / negative_numbers;
+                    let K_lt = negative_numbers / positive_numbers;
+ 
                     writer.write(format!(
-                        "{}\t{}\t{}\t{}\n",
-                        lower,median,upper,mean
+                        "{}\t{}\t{}\t{}\t{}\t{}\n",
+                        lower,median,upper,mean,K_gt,K_lt
                     ).as_bytes()).await?;
                 }
             }
@@ -562,6 +579,7 @@ async fn main() {
     let contrast_arg = &args[5];
     let lut_fname = &args[6];
     let cont_type = &args[7];
+    let threshold: f32 = args[8].parse().unwrap();
     let contrasts: Vec<&str> = contrast_arg.split(",").collect();
     let geno_lut = read_genotype_lut(lut_fname).await.unwrap();
     println!("Geno LUT: {:?}: ", geno_lut);
@@ -575,6 +593,7 @@ async fn main() {
         results,
         contrasts,
         cont_type.to_string(),
+        threshold,
     ).await.unwrap();
 }
 

@@ -56,6 +56,8 @@ fn parse_args(args: &Vec<String>) -> Result<(i64,i64,i64,f64,VecDeque<i64>), Box
     let L: i64 = args[1].parse::<i64>()?;
     let sub_L: i64 = args[2].parse::<i64>()?;
     let C: i64 = args[3].parse::<i64>()?;
+    // K is the kernel width in at the resolution of the original analysis. That's set in the R
+    // code.
     let K: f64 = args[4].parse::<f64>()?;
     let ctg_ends: VecDeque<i64> = args[5]
         .split(',')
@@ -86,7 +88,6 @@ fn set_up_gaussian_kernel(kern_width: f64) -> Vec<f64> {
         }).collect();
     kern
 }
-
 
 fn set_up_exponential_kernel(kern_width: f64) -> Vec<f64> {
     let rate: f64 = 1.0 / (kern_width / 2.0);
@@ -179,7 +180,7 @@ fn main() {
             ctg_start = ctg_end + 1;
             let opt = ctg_ends.pop_front();
             if opt.is_none() {
-                println!("None in etg_ends: {:?}", ctg_ends);
+                println!("None in ctg_ends: {:?}", ctg_ends);
                 println!("genome_center: {}", genome_center);
             }
             ctg_end = opt.unwrap()

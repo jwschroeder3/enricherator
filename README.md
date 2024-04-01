@@ -4,11 +4,19 @@ A set of tools to use Bayesian inference to infer enrichment
 of sequencing fragments in an extracted sample, i.e.,
 Chip-seq, IPOD-HR, HBD-seq, etc., vs. input DNA fragments.
 
+We note that Enricherator takes the term "sequencing fragments"
+seriously. Its statistical model works well for paried-end
+sequencing fragment counts. If you have single-end data, you must
+estimate the fragment size and extend the 3-primes end of your
+alignments by the appropriate ammount to count pseudo-fragments.
+
+<!--
 For the under-the-hood workings of Enricherator,
 see supplemental material in the original Enricherator [paper](https://www.science.org/doi/10.1126/sciadv.adi5945),
 which also happens to be the work you should cite if using Enricherator in your own research:
 
     Schroeder, et al. 2023. Science Advances 9 (30): eadi5945. 
+-->
 
 ## Using containerized Enricherator
 
@@ -86,7 +94,9 @@ Enter directory containing sample info file
 (see `examples/nonstranded_sample_info.txt` and
 `examples/stranded_sample_info.txt` for sample info file templates.
 Note: the norm\_factor column of these files is currently ignored, but
-just has to be present.).
+just has to be present. In future versions it may be used to
+enable spike-in normalization as opposed to Enricherator's current
+library size normalization).
 Run the code below; you will need to adjust several of the arguments
 passed to the scripts below for your own usage. As a rule of thumb,
 set `--ext_subsample_dist` to half the mean extracted data fragment length,
@@ -99,7 +109,9 @@ can set those contigs as a comma-separated lest using the `--ignore_ctgs`
 argument as shown below. To include all contigs, simply omit the
 `--ignore_ctgs` argument.
 
-The `--libsize_key` argument should be exactly as shown below in order
+In future versions of Enricherator we plan to support spike-in normalization,
+but for now, the `--libsize_key` argument should be exactly as
+shown below in order
 to use a trimmed mean coverage as the size factor for normalization.
 
 If not using apptainer, substitute your location of the Enricherator
@@ -290,4 +302,3 @@ apptainer exec -B $(pwd) /path/to/enricherator.sif \
     > ${OUTDIR}/gather.log \
     2> ${OUTDIR}/gather.err
 ```
-

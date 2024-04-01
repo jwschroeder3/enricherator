@@ -1,0 +1,29 @@
+{
+    "map": [
+        {
+            "var_name": "Alpha",
+            "strand_name": "both",
+            "genotype_name": "mut"
+        },
+        {
+            "var_name": "Beta",
+            "strand_name": "both",
+            "genotype_name": "mut"
+        },
+        {
+            "var_name": "Alpha",
+            "strand_name": "both",
+            "genotype_name": "wt"
+        },
+        {
+            "var_name": "Beta",
+            "strand_name": "both",
+            "genotype_name": "wt"
+        }
+    ],
+    "resolution": 5,
+    "pos_num": 3,
+    "geno_num": 2,
+    "strand_num": 1
+}
+

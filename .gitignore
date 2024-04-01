@@ -2,3 +2,4 @@ rust/*/target
 rust/*/Cargo.lock
 singularity/current
 R/.*
+rust/parse_cmdstan_csv_dev/test_data

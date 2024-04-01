@@ -494,3 +494,339 @@ plot_locus = function(signal_df, plotStart, plotEnd, chr_name,
     return(plot)
 }
 
+# plot a given locus' data
+plot_locus_fills = function(signal_df, plotStart, plotEnd, chr_name,
+                     bayes=NULL,
+                     feats_df = NULL,
+                     lineAlpha=1, lineSize=1.25,
+                     yvar="log2fc",
+                     color_var="strain",
+                     color_vals=NULL,
+                     linetype_var=NULL,
+                     ylabel="",
+                     feat_var = "locus_tag",
+                     feat_fill_var = "feature",
+                     facet = NULL,
+                     ylims=NULL, plotFeatures=TRUE, arrowLength=1.5,
+                     plotMotifLocs=FALSE, motifs_df=NULL,
+                     strand_colors=c("#4667FC", "#FB4B13"),
+                     feat_types = c("CDS", "tRNA", "rRNA"),
+                     feat_colors = c("#43BA37", "#619CFF", "#F0766D"),
+                     log_y=FALSE, name_angle=0, ygrid=FALSE
+) {
+
+    yvar = sym(yvar)
+    sym_color_var = sym(color_var)
+    if (!is.null(linetype_var)) {
+        linetype_var = sym(linetype_var)
+    }
+ 
+    plot_sig = signal_df %>%
+        dplyr::filter(seqname==chr_name, start<=plotEnd, end>=plotStart) %>%
+        mutate(position = (start + end) / 2)
+
+
+    if (plotMotifLocs) {
+        plotMotifs = motifs_df %>% 
+            dplyr::filter(seqname==chr_name, end > plotStart, start < plotEnd)
+    }
+
+    min_sig = min(plot_sig[,yvar])
+    max_sig = max(plot_sig[,yvar])
+
+    # set lower and upper vals for fill plot
+    which_lt = plot_sig[,yvar] < 0
+    which_gt = !which_lt
+
+    plot_sig$lower = unlist(plot_sig[,yvar], use.names=F)
+    plot_sig$lower[which_gt] = 0
+
+    plot_sig$upper = unlist(plot_sig[,yvar], use.names=F)
+    plot_sig$upper[which_lt] = 0
+
+    if (!is.null(bayes)) {
+        alphas = plot_sig$k / 150
+        alphas[which(alphas > 1)] = 1
+        plot_sig$alph = alphas
+    }
+
+    sig_range = max_sig - min_sig
+    geneTop = min_sig - 0.05*sig_range
+    geneBottom = geneTop - 0.075*sig_range
+    shiftTop = geneBottom - (0.2 * (geneTop - geneBottom))
+    shiftBottom = shiftTop - 0.075*sig_range
+    geneText = geneBottom - 0.1 * sig_range
+    shiftText = shiftBottom - 0.1 * sig_range
+    shiftDist = geneBottom - shiftBottom
+
+    #print("---------------------------")
+    #print(sig_range)
+    #print(min_sig)
+    #print(geneTop)
+    #print("---------------------------")
+
+    plot = ggplot()
+
+    if (plotMotifLocs) {
+        #print(plotMotifs %>% head)
+        plot = plot +
+            geom_rect(
+                data=plotMotifs,
+                aes(
+                    xmin=start/1e6,
+                    xmax=end/1e6,
+                    ymin=geneTop,
+                    ymax=Inf
+                ),
+                alpha=0.3
+            )
+    }
+
+    print(plot_sig[1,])
+    print(nrow(plot_sig))
+    for (i in seq(0.05,1.05,0.05)) {
+        if (i == 0.05) {
+            next
+        }
+        row_df = plot_sig
+        row_df$upper=0
+        row_df$lower=0
+        row_df$upper[alphas <=1 & alphas > i-0.05] = plot_sig$upper[alphas <=1 & alphas > i-0.05]
+        row_df$lower[alphas <=1 & alphas > i-0.05] = plot_sig$lower[alphas <=1 & alphas > i-0.05]
+        #print(row_df %>% head)
+        plot = plot +
+            geom_ribbon(
+                data = row_df,
+                aes(
+                    x=position/1e6,
+                    #y=!!yvar,
+                    ymax=upper,
+                    ymin=lower,
+                    fill=!!sym_color_var,
+                    #color=!!sym_color_var,
+                ),
+                alpha=i-0.05
+            ) + 
+            theme_classic() +
+            theme(
+                text = element_text(size=10),
+                axis.line = element_line(size=1),
+                axis.text = element_text(size=9, color="black"),
+                axis.ticks = element_line(color="black")
+            ) +
+            labs(y=ylabel, x="Genome position (Mb)") +
+            coord_cartesian(xlim = c(plotStart/1e6, plotEnd/1e6)) +
+            guides(colour = guide_legend(override.aes = list(alpha = 1)))
+    }
+
+    g = ggplot_build(plot)
+    fill_vals = unique(g$data[[1]]['fill'])
+    if (is.null(color_vals)) {
+        plot = plot +
+           scale_fill_manual(name=color_var, values=fill_vals$fill) +
+           scale_color_manual(name=color_var, values=fill_vals$fill)
+    } else {
+        distinct_samples = unlist(unique(plot_sig[,color_var]), use.names=FALSE)
+        plot = plot +
+           scale_fill_manual(name=color_var, breaks=distinct_samples, values=color_vals) +
+           scale_color_manual(name=color_var, breaks=distinct_samples, values=color_vals)
+    }
+   
+    if (plotFeatures) {
+        if (is.null(feats_df)) {
+            stop("You set plotFeatures = TRUE, but did not provide a dataframe of features to plot!")
+        }
+        plot_feats = feats_df %>% 
+            dplyr::filter(seqname==chr_name, end > plotStart, start < plotEnd) %>%
+            mutate(midpoint = as.numeric((start + end)/2))
+        feat_var = sym(feat_var)
+        feat_fill_var = sym(feat_fill_var)
+        feat_labs = feat_types
+
+        shift_feats = c("indep", "tRNA")
+        non_shift_feats = c("CDS", "5-UTR", "3-UTR", "rRNA")
+
+        names = plot_feats %>% select(!!feat_fill_var) %>% unlist(use.names=F)
+        this_nc = names %in% shift_feats
+
+        any_nc = any(this_nc)
+        any_non_nc = any(names %in% non_shift_feats)
+
+        shift_ncRNA = FALSE
+        if (any_nc && any_non_nc) {
+            shift_ncRNA = TRUE
+        }
+
+        plot_feats = plot_feats %>%
+            mutate(
+                is_nc = this_nc,
+                text_tmp_y = ifelse(
+                    (shift_ncRNA) & (this_nc),
+                    shiftText,
+                    geneText
+                ),
+                text_y = ifelse(shift_ncRNA, text_tmp_y-shiftDist, text_tmp_y)
+            )
+
+
+        #print("-------------------------------")
+        #print(geneTop)
+        #print(geneBottom)
+        #print(shiftTop)
+        #print(shiftBottom)
+        #print("-------------------------------")
+
+        plot_geoms = plot_feats %>%
+            mutate(poly_name = !!feat_var, poly_fill = !!feat_fill_var) %>%
+            nest(data=-c(!!feat_var, !!feat_fill_var)) %>%
+            mutate(
+                fill = !!feat_fill_var,
+                shape_data = purrr::map(
+                    data,
+                    make_polygons,
+                    shift_feats = shift_feats,
+                    shift_ncRNA = shift_ncRNA,
+                    feat_var = feat_var,
+                    plotStart = plotStart,
+                    plotEnd = plotEnd,
+                    shiftTop = shiftTop,
+                    shiftBottom = shiftBottom,
+                    geneTop = geneTop,
+                    geneBottom = geneBottom
+                )
+            ) %>% select(fill, shape_data) %>%
+            unnest(shape_data)
+
+        plot = plot + 
+            new_scale_fill() +
+            geom_polygon(
+                data=plot_geoms,
+                aes(
+                    x=x/1e6,
+                    y=y,
+                    group=!!feat_var,
+                    fill=fill
+                ),
+                color="black"
+            ) +
+            scale_fill_manual(
+                values=feat_colors,
+                labels=feat_labs,
+                breaks=feat_types
+            ) +
+            geom_text(
+                data=plot_feats,
+                aes(
+                    x=midpoint/1e6,
+                    y=text_y,
+                    label=!!feat_var
+                ),
+                parse=T,
+                angle=name_angle
+            )
+
+        #plot_geoms = plot_feats %>%
+        #    rowwise() %>%
+        #    summarize(
+        #        create_feature_polygon(
+        #            !!feat_var, start, end, strand,
+        #            top=geneTop, bottom=geneBottom,
+        #            plot_width=plotEnd-plotStart
+        #        ),
+        #        fill = !!feat_fill_var
+        #    )
+
+        #print(plot_feats)
+        #print(plot_geoms, n=Inf)
+        #print(unique(plot_feats$feature))
+        #feat_colors = c("#43BA37", "#619CFF", "#F0766D")
+        #feat_types = c("CDS", "tRNA", "rRNA")
+
+        #plot = plot + 
+        #    new_scale_fill() +
+        #    geom_polygon(
+        #        data=plot_geoms,
+        #        aes(
+        #            x=x/1e6,
+        #            y=y,
+        #            group=!!feat_var,
+        #            fill=fill
+        #        ),
+        #        color="black"
+        #    ) +
+        #    #scale_fill_manual(values=strand_colors) +
+        #    geom_text(
+        #        data=plot_feats,
+        #        aes(
+        #            x=midpoint/1e6,
+        #            y=geneText,
+        #            label=!!feat_var
+        #        ),
+        #        parse=T,
+        #        angle=name_angle
+        #    )
+        #if (!is.null(feat_colors)) {
+        #    plot = plot + scale_fill_manual(values=feat_colors, labels=feat_types, breaks=feat_types)
+        #}
+    }
+
+    if (ygrid) {
+        plot = plot +
+            theme(
+                panel.grid.major.y = element_line(color="#b5b5b5", linetype="dashed", size=0.25),
+                #panel.grid.minor.y = element_line(color="#595959", linetype="dashed")
+            )
+    }
+
+    g = ggplot_build(plot)
+    default_color_vals = unique(g$data[[1]]['colour'])
+    print(default_color_vals)
+    #print(names(g$data))
+    #print(head(g$data[[1]]))
+    #print(length(g$data))
+
+    if (is.null(color_vals)) {
+        plot = plot +
+           scale_color_manual(name=color_var, values=default_color_vals$colour)
+    } else {
+        distinct_samples = unlist(unique(plot_sig[,color_var]), use.names=FALSE)
+        plot = plot +
+           scale_color_manual(name=color_var, breaks=distinct_samples, values=color_vals)
+    }
+
+    if (!is.null(ylims)) {
+        plot = plot + coord_cartesian(
+            xlim = c(plotStart/1e6, plotEnd/1e6),
+            ylim=ylims
+        )
+    }
+
+    if (!is.null(facet)) {
+        facets = str_split(str_remove_all(facet, " "), "~", simplify=TRUE)
+        row_var = facets[1]
+        col_var = facets[2]
+        if (row_var == "") {
+            row_var = NULL
+        } else {
+            print(paste("Facetting rows by", row_var))
+            row_var = sym(row_var)
+            row_var = vars(!!row_var)
+        }
+        if (col_var == "") {
+            col_var = NULL
+        } else {
+            print(paste("Facetting columns by", col_var))
+            col_var = sym(col_var)
+            col_var = vars(!!col_var)
+        }
+        plot = plot + facet_grid(rows=row_var, cols=col_var)
+        #facet = as.formula(facet)
+        #plot = plot + facet_grid(facet)
+    }
+    if (log_y) {
+        plot = plot + scale_y_log10()
+    }
+
+    return(plot)
+}
+

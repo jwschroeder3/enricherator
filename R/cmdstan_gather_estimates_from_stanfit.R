@@ -43,6 +43,10 @@ option_list = list(
     make_option(
         c("-o", "--out_direc"), type="character",
         help="Name of directory to save output bedgraph files",
+    ),
+    make_option(
+        c("--threshold"), type="numeric", default=1.0,
+        help="Threshold for gathering evidence ratios.",
     )
 )
  
@@ -83,7 +87,8 @@ gather_vb_estimates(
     direc=opt$out_direc,
     interval=opt$quantile_interval,
     cmdstan=TRUE,
-    params=params
+    params=params,
+    threshold=opt$threshold
 )
 #save(param_df, file=opt$out_file)
 #precision = list_of_draws[["prec"]]

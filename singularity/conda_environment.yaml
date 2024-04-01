@@ -3,6 +3,7 @@ channels:
   - enable_revoked
   - r
   - conda-forge
+  - bioconda
   - defaults
 dependencies:
   - cmdstan >= 2.34.1
@@ -15,6 +16,7 @@ dependencies:
   - r-posterior >=1.4.1
   - r-rlang >=1.0.6
   - r-vctrs >=0.5.0
+  #- bioconductor-rtracklayer
   #- r-stringi
   #- r-stringr
   #- r-testthat
