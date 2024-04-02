@@ -335,3 +335,24 @@ apptainer exec -B $(pwd) /path/to/enricherator.sif \
     > ${OUTDIR}/gather.log \
     2> ${OUTDIR}/gather.err
 ```
+
+## Fully Bayesian peak calling using evidence ratios
+
+The evidence ratios provided by both the `cmdstan_gather_estimates_from_stanfit.R`
+script and the `get_contrasts.R` script can be used to call peaks at any desired
+level of evidence. We often use the evidence ratios pointed out by
+Kass and Raftery[^1], with K $\geq$ 3 representing "positive" evidence,
+K $\geq$ 20 representing "strong" evidence, and K $\geq$ 150 representing
+"very strong" evidence in favor of the hypothesis.
+
+While we do not provide peak calling utilities directly in this repository
+or in the Enricherator apptainer container, our basic workflow for peak calling
+follows.
+
+```bash
+TODO
+```
+
+[^1]: Kass, R. E., & Raftery, A. E. (1995). Bayes Factors. Journal of the American Statistical Association, 90(430), 773–795. https://doi.org/10.1080/01621459.1995.10476572
+
+
