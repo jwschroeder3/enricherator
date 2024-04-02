@@ -5,18 +5,51 @@ of sequencing fragments in an extracted sample, i.e.,
 Chip-seq, IPOD-HR, HBD-seq, etc., vs. input DNA fragments.
 
 We note that Enricherator takes the term "sequencing fragments"
-seriously. Its statistical model works well for paried-end
-sequencing fragment counts. If you have single-end data, you must
-estimate the fragment size and extend the 3-primes end of your
+seriously. Its statistical model works well for count data that quantify alignments of
+paried-end sequencing fragments. If you have single-end data, you must
+estimate the fragment size and extend the 3-prime ends of your
 alignments by the appropriate ammount to count pseudo-fragments.
 
-<!--
-For the under-the-hood workings of Enricherator,
-see supplemental material in the original Enricherator [paper](https://www.science.org/doi/10.1126/sciadv.adi5945),
-which also happens to be the work you should cite if using Enricherator in your own research:
 
-    Schroeder, et al. 2023. Science Advances 9 (30): eadi5945. 
--->
+The current version of Enricherator is in press at the Journal of Molecular Biology
+and will be published in the 2024 special issue "Computation Resources for Molecular Biology"
+
+
+The original implementation of Enricherator was published in this [paper](https://www.science.org/doi/10.1126/sciadv.adi5945), but the current version is substantially improved.
+Enricherator now allocates sequencing counts between "signal" and "noise" components.
+
+## Enricherator workflow
+
+Enricherator uses bedgraph files (in the near future we look forward to
+supporting use of bigwig files)
+containing fragment counts to infer enrichments.
+To use enricherator, the user must have counted paired-end alignment counts
+at their desired genome resolution (we often use 5-bp resolution), and have
+estimated the mean fragment size for their extracted data and their input
+sequencing data. Enricherator will use the fragment sizes to inform
+how much local genomic space over which to smooth enrichment estimates.
+
+Once the above information and files are in hand, an "info file" must
+be prepared to indicate to Enircherator the salient information about
+each sequencing library, i.e., the condition of interest, the biological repliate
+id a given library represents, and the strand represented by the data if a
+strand-specific analysis is desired.
+
+Examples of bedgraph files and info files can be found in the "examples"
+directory of this repository.
+
+The steps of running enricherator include:
+
+1. Fit the Enricherator model to data
+    * Enricherator will fit the model 5 independent times, concurrently,
+    and will choose to proceed with the fit that achieved the highest ELBO.
+2. Gather enrichment summaries
+    * Bedgraph files will be written containing enrichments
+3. Calculate contrasts (optional)
+    * Bedgraph files will be written containing estimates of the contrast
+    of interest. Currently Enricherator provides the ability to contrast
+    across conditions (drug vs control or knock-out vs wild type)
+    OR between strands.
 
 ## Using containerized Enricherator
 
@@ -121,36 +154,34 @@ line beginning with "apptainer".
 ```bash
 cd <top_direc>
 
-mkdir -p enricherator_results/draws
-
 SRCDIR="/src"
 
+# this script will perform 5 independent fits of the enricherator model
+# to the input data. It can transiently require a lot of storage space (100s of GB)
 apptainer exec -B $(pwd) /path/to/enricherator.sif \
-    Rscript $SRCDIR/R/cmdstan_fit_enrichment_model.R \
+    Rscript $SRCDIR/R/enricherator_fit.R \
     --info stan_sample_info.txt \
     --compiled_model ${SRCDIR}/stan/sig_noise_alloc \
     --ignore_ctgs P2918_rnadna_spikein,NC_011916.1 \
     --norm_method libsize \
-    --fit_file enricherator_results/fit.RData \
-    --data_file enricherator_results/data.RData \
+    --out_direc enricherator_results \
     --ext_subsample_dist <ext_frag_len/2> \
     --ext_fragment_length <ext_frag_len> \
     --input_subsample_dist <inp_frag_len/2> \
     --input_fragment_length <inp_frag_len> \
-    --libsize_key tm_size_factors \
-    --draws_direc enricherator_results/draws \
-    > enricherator_results/fit.log \
-    2> enricherator_results/fit.err
+    --libsize_key tm_size_factors
 ```
 
-Once complete, the following files should be present in `enricherator_results`:
+Once complete, the following files should be present in `enricherator_results`,
+where the `i` in `draws_i` will be replaced with a number from 1-5, depending
+on which of the 5 fits had the highest ELBO:
 
 ```bash
 fit.log
 fit.err
 fit.RData
 data.RData
-draws/draws-1.csv
+draws_i/draws-1.csv
 ```
 
 Note that if you fit the model to genome-wide data,
@@ -158,7 +189,8 @@ Note that if you fit the model to genome-wide data,
 since it is the full output for 500 samples of the
 approximate posterior for tens- to hundreds-of-millions of
 parameters. These parameters are filtered, and the 500 samples
-are summarized in the next step.
+are summarized in the next step, after which we typically
+delete `draws-1.csv`.
 
 ## Extracting quantities of interest from the cmdstan output
 
@@ -168,11 +200,13 @@ get summaries for each parameter of interest.
 We write a bedgraph file for each of the following summary statistics for each
 genotype and strand:
 mean of the 500 samples, median of the 500 samples, lower 90% quantile of the 
-500 samples, and the upper 90% quantile of the 500 samples.
+500 samples, the upper 90% quantile of the 500 samples, the evidence ratio
+(K) for the coefficient being greater than the value provided at the
+`--threshold` argument,
+and K for the coefficient being less than the `--threshold` value.
 
 ```bash
 cd <top_direc>
-mkdir enricherator_results/out_files
 SRCDIR="/src"
 
 apptainer exec -B $(pwd) /path/to/enricherator.sif \
@@ -181,6 +215,7 @@ apptainer exec -B $(pwd) /path/to/enricherator.sif \
     --data_file enricherator_results/data.RData \
     --out_direc enricherator_results/out_files \
     --params Alpha,Beta \
+    --threshold 1.0 \
     > enricherator_results/gather.log \
     2> enricherator_results/gather.err
 ```
@@ -201,7 +236,6 @@ To run contrasts using the samples from the approximate posterior, do the follow
 
 ```bash
 cd <top_direc>
-mkdir enricherator_results/contrasts
 SRCDIR="/src"
 
 apptainer exec -B $(pwd) /path/to/enricherator_<version>.sif \
@@ -211,6 +245,7 @@ apptainer exec -B $(pwd) /path/to/enricherator_<version>.sif \
     --samples_file enricherator_results/draws/samples.csv \
     --contrasts <contrast_arg> \
     --out_direc enricherator_results/contrasts \
+    --threshold <your_threshold> \
     > enricherator_results/contrast.log \
     2> enricherator_results/contrast.err
 ```
@@ -231,6 +266,12 @@ you would set the `--type` argument to "strand" and the `--contrasts`
 argument to `minus-plus`, assuming your original sample info file
 assigned the minus strand as "minus" and the plus strand as "plus".
 
+Consider your choice of threshold carefully above. If your hypothesis
+is that knocking out a protein will decrease enrichment, you likely
+will want to set `--threshold` to be a negative number to collect
+evidence ratios testing whether the knockout does, indeed, come with
+less occupancy.
+
 ## Running on provided example data
 
 To run Enricherator on our provided example simulated datasets, assuming your
@@ -244,20 +285,16 @@ SRCDIR="/src"
 OUTDIR="example_results"
 
 apptainer exec -B $(pwd) /path/to/enricherator.sif \
-    Rscript $SRCDIR/R/cmdstan_fit_enrichment_model.R \
+    Rscript $SRCDIR/R/enricherator_fit.R \
     --info example_info.csv \
     --compiled_model ${SRCDIR}/stan/sig_noise_alloc \
     --norm_method libsize \
-    --fit_file ${OUTDIR}/fit.RData \
-    --data_file ${OUTDIR}/data.RData \
+    --out_direc ${OUTDIR} \
     --ext_subsample_dist 30 \
     --ext_fragment_length 60 \
     --input_subsample_dist 60 \
     --input_fragment_length 120 \
-    --libsize_key tm_size_factors \
-    --draws_direc ${OUTDIR}/draws \
-    > ${OUTDIR}/fit.log \
-    2> ${OUTDIR}/fit.err
+    --libsize_key tm_size_factors
 
 apptainer exec -B $(pwd) /path/to/enricherator.sif \
     Rscript $SRCDIR/R/cmdstan_gather_estimates_from_stanfit.R \
@@ -278,20 +315,16 @@ SRCDIR="/src"
 OUTDIR="example_results"
 
 apptainer exec -B $(pwd) /path/to/enricherator.sif \
-    Rscript $SRCDIR/R/cmdstan_fit_enrichment_model.R \
+    Rscript $SRCDIR/R/enricherator_fit.R \
     --info example_info.csv \
     --compiled_model ${SRCDIR}/stan/sig_noise_alloc \
     --norm_method libsize \
-    --fit_file ${OUTDIR}/fit.RData \
-    --data_file ${OUTDIR}/data.RData \
+    --out_direc ${OUTDIR} \
     --ext_subsample_dist 30 \
     --ext_fragment_length 60 \
     --input_subsample_dist 60 \
     --input_fragment_length 120 \
-    --libsize_key tm_size_factors \
-    --draws_direc ${OUTDIR}/draws \
-    > ${OUTDIR}/fit.log \
-    2> ${OUTDIR}/fit.err
+    --libsize_key tm_size_factors
 
 apptainer exec -B $(pwd) /path/to/enricherator.sif \
     Rscript $SRCDIR/R/cmdstan_gather_estimates_from_stanfit.R \

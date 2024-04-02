@@ -1,0 +1,285 @@
+[1] "Reading command line options"
+[1] "Using precombiled model in /src/stan/sig_noise_alloc"
+[1] "Reading data from count_files/sample_py79_rep1_input_both_strand_counts_with_strand_col.bedgraph strand both"
+# A tibble: 6 x 4
+  seqname     start    end score
+  <chr>       <int>  <int> <dbl>
+1 CP006881.1 128000 128005   409
+2 CP006881.1 128005 128010   403
+3 CP006881.1 128010 128015   398
+4 CP006881.1 128015 128020   399
+5 CP006881.1 128020 128025   408
+6 CP006881.1 128025 128030   411
+# A tibble: 6 x 5
+  seqname     start    end score strand
+  <chr>       <int>  <int> <int> <chr> 
+1 CP006881.1 128000 128005   409 *     
+2 CP006881.1 128005 128010   403 *     
+3 CP006881.1 128010 128015   398 *     
+4 CP006881.1 128015 128020   399 *     
+5 CP006881.1 128020 128025   408 *     
+6 CP006881.1 128025 128030   411 *     
+[1] "Reading data from count_files/sample_py79_rep2_input_both_strand_counts_with_strand_col.bedgraph strand both"
+# A tibble: 6 x 4
+  seqname     start    end score
+  <chr>       <int>  <int> <dbl>
+1 CP006881.1 128000 128005   167
+2 CP006881.1 128005 128010   172
+3 CP006881.1 128010 128015   174
+4 CP006881.1 128015 128020   172
+5 CP006881.1 128020 128025   169
+6 CP006881.1 128025 128030   174
+# A tibble: 6 x 5
+  seqname     start    end score strand
+  <chr>       <int>  <int> <int> <chr> 
+1 CP006881.1 128000 128005   167 *     
+2 CP006881.1 128005 128010   172 *     
+3 CP006881.1 128010 128015   174 *     
+4 CP006881.1 128015 128020   172 *     
+5 CP006881.1 128020 128025   169 *     
+6 CP006881.1 128025 128030   174 *     
+[1] "Reading data from count_files/sample_py79_rep1_hbd_both_strand_counts_with_strand_col.bedgraph strand both"
+# A tibble: 6 x 4
+  seqname     start    end score
+  <chr>       <int>  <int> <dbl>
+1 CP006881.1 128000 128005    12
+2 CP006881.1 128005 128010    14
+3 CP006881.1 128010 128015    20
+4 CP006881.1 128015 128020    19
+5 CP006881.1 128020 128025    20
+6 CP006881.1 128025 128030    20
+# A tibble: 6 x 5
+  seqname     start    end score strand
+  <chr>       <int>  <int> <int> <chr> 
+1 CP006881.1 128000 128005    12 *     
+2 CP006881.1 128005 128010    14 *     
+3 CP006881.1 128010 128015    20 *     
+4 CP006881.1 128015 128020    19 *     
+5 CP006881.1 128020 128025    20 *     
+6 CP006881.1 128025 128030    20 *     
+[1] "Reading data from count_files/sample_py79_rep2_hbd_both_strand_counts_with_strand_col.bedgraph strand both"
+# A tibble: 6 x 4
+  seqname     start    end score
+  <chr>       <int>  <int> <dbl>
+1 CP006881.1 128000 128005     9
+2 CP006881.1 128005 128010    11
+3 CP006881.1 128010 128015    16
+4 CP006881.1 128015 128020    16
+5 CP006881.1 128020 128025    19
+6 CP006881.1 128025 128030    19
+# A tibble: 6 x 5
+  seqname     start    end score strand
+  <chr>       <int>  <int> <int> <chr> 
+1 CP006881.1 128000 128005     9 *     
+2 CP006881.1 128005 128010    11 *     
+3 CP006881.1 128010 128015    16 *     
+4 CP006881.1 128015 128020    16 *     
+5 CP006881.1 128020 128025    19 *     
+6 CP006881.1 128025 128030    19 *     
+[1] "Reading data from count_files/sample_rnhB_rep1_input_both_strand_counts_with_strand_col.bedgraph strand both"
+# A tibble: 6 x 4
+  seqname     start    end score
+  <chr>       <int>  <int> <dbl>
+1 CP006881.1 128000 128005   240
+2 CP006881.1 128005 128010   237
+3 CP006881.1 128010 128015   238
+4 CP006881.1 128015 128020   232
+5 CP006881.1 128020 128025   226
+6 CP006881.1 128025 128030   225
+# A tibble: 6 x 5
+  seqname     start    end score strand
+  <chr>       <int>  <int> <int> <chr> 
+1 CP006881.1 128000 128005   240 *     
+2 CP006881.1 128005 128010   237 *     
+3 CP006881.1 128010 128015   238 *     
+4 CP006881.1 128015 128020   232 *     
+5 CP006881.1 128020 128025   226 *     
+6 CP006881.1 128025 128030   225 *     
+[1] "Reading data from count_files/sample_rnhB_rep2_input_both_strand_counts_with_strand_col.bedgraph strand both"
+# A tibble: 6 x 4
+  seqname     start    end score
+  <chr>       <int>  <int> <dbl>
+1 CP006881.1 128000 128005   335
+2 CP006881.1 128005 128010   338
+3 CP006881.1 128010 128015   333
+4 CP006881.1 128015 128020   330
+5 CP006881.1 128020 128025   324
+6 CP006881.1 128025 128030   326
+# A tibble: 6 x 5
+  seqname     start    end score strand
+  <chr>       <int>  <int> <int> <chr> 
+1 CP006881.1 128000 128005   335 *     
+2 CP006881.1 128005 128010   338 *     
+3 CP006881.1 128010 128015   333 *     
+4 CP006881.1 128015 128020   330 *     
+5 CP006881.1 128020 128025   324 *     
+6 CP006881.1 128025 128030   326 *     
+[1] "Reading data from count_files/sample_rnhB_rep1_hbd_both_strand_counts_with_strand_col.bedgraph strand both"
+# A tibble: 6 x 4
+  seqname     start    end score
+  <chr>       <int>  <int> <dbl>
+1 CP006881.1 128000 128005    23
+2 CP006881.1 128005 128010    29
+3 CP006881.1 128010 128015    32
+4 CP006881.1 128015 128020    34
+5 CP006881.1 128020 128025    33
+6 CP006881.1 128025 128030    35
+# A tibble: 6 x 5
+  seqname     start    end score strand
+  <chr>       <int>  <int> <int> <chr> 
+1 CP006881.1 128000 128005    23 *     
+2 CP006881.1 128005 128010    29 *     
+3 CP006881.1 128010 128015    32 *     
+4 CP006881.1 128015 128020    34 *     
+5 CP006881.1 128020 128025    33 *     
+6 CP006881.1 128025 128030    35 *     
+[1] "Reading data from count_files/sample_rnhB_rep2_hbd_both_strand_counts_with_strand_col.bedgraph strand both"
+# A tibble: 6 x 4
+  seqname     start    end score
+  <chr>       <int>  <int> <dbl>
+1 CP006881.1 128000 128005    34
+2 CP006881.1 128005 128010    40
+3 CP006881.1 128010 128015    44
+4 CP006881.1 128015 128020    42
+5 CP006881.1 128020 128025    42
+6 CP006881.1 128025 128030    43
+# A tibble: 6 x 5
+  seqname     start    end score strand
+  <chr>       <int>  <int> <int> <chr> 
+1 CP006881.1 128000 128005    34 *     
+2 CP006881.1 128005 128010    40 *     
+3 CP006881.1 128010 128015    44 *     
+4 CP006881.1 128015 128020    42 *     
+5 CP006881.1 128020 128025    42 *     
+6 CP006881.1 128025 128030    43 *     
+[1] "Reading data from count_files/sample_rnhC_rep1_input_both_strand_counts_with_strand_col.bedgraph strand both"
+# A tibble: 6 x 4
+  seqname     start    end score
+  <chr>       <int>  <int> <dbl>
+1 CP006881.1 128000 128005   241
+2 CP006881.1 128005 128010   229
+3 CP006881.1 128010 128015   229
+4 CP006881.1 128015 128020   233
+5 CP006881.1 128020 128025   232
+6 CP006881.1 128025 128030   240
+# A tibble: 6 x 5
+  seqname     start    end score strand
+  <chr>       <int>  <int> <int> <chr> 
+1 CP006881.1 128000 128005   241 *     
+2 CP006881.1 128005 128010   229 *     
+3 CP006881.1 128010 128015   229 *     
+4 CP006881.1 128015 128020   233 *     
+5 CP006881.1 128020 128025   232 *     
+6 CP006881.1 128025 128030   240 *     
+[1] "Reading data from count_files/sample_rnhC_rep2_input_both_strand_counts_with_strand_col.bedgraph strand both"
+# A tibble: 6 x 4
+  seqname     start    end score
+  <chr>       <int>  <int> <dbl>
+1 CP006881.1 128000 128005   105
+2 CP006881.1 128005 128010   105
+3 CP006881.1 128010 128015   108
+4 CP006881.1 128015 128020   109
+5 CP006881.1 128020 128025   110
+6 CP006881.1 128025 128030   110
+# A tibble: 6 x 5
+  seqname     start    end score strand
+  <chr>       <int>  <int> <int> <chr> 
+1 CP006881.1 128000 128005   105 *     
+2 CP006881.1 128005 128010   105 *     
+3 CP006881.1 128010 128015   108 *     
+4 CP006881.1 128015 128020   109 *     
+5 CP006881.1 128020 128025   110 *     
+6 CP006881.1 128025 128030   110 *     
+[1] "Reading data from count_files/sample_rnhC_rep1_hbd_both_strand_counts_with_strand_col.bedgraph strand both"
+# A tibble: 6 x 4
+  seqname     start    end score
+  <chr>       <int>  <int> <dbl>
+1 CP006881.1 128000 128005     5
+2 CP006881.1 128005 128010     4
+3 CP006881.1 128010 128015     3
+4 CP006881.1 128015 128020     4
+5 CP006881.1 128020 128025     4
+6 CP006881.1 128025 128030     4
+# A tibble: 6 x 5
+  seqname     start    end score strand
+  <chr>       <int>  <int> <int> <chr> 
+1 CP006881.1 128000 128005     5 *     
+2 CP006881.1 128005 128010     4 *     
+3 CP006881.1 128010 128015     3 *     
+4 CP006881.1 128015 128020     4 *     
+5 CP006881.1 128020 128025     4 *     
+6 CP006881.1 128025 128030     4 *     
+[1] "Reading data from count_files/sample_rnhC_rep2_hbd_both_strand_counts_with_strand_col.bedgraph strand both"
+# A tibble: 6 x 4
+  seqname     start    end score
+  <chr>       <int>  <int> <dbl>
+1 CP006881.1 128000 128005    34
+2 CP006881.1 128005 128010    42
+3 CP006881.1 128010 128015    48
+4 CP006881.1 128015 128020    48
+5 CP006881.1 128020 128025    49
+6 CP006881.1 128025 128030    49
+# A tibble: 6 x 5
+  seqname     start    end score strand
+  <chr>       <int>  <int> <int> <chr> 
+1 CP006881.1 128000 128005    34 *     
+2 CP006881.1 128005 128010    42 *     
+3 CP006881.1 128010 128015    48 *     
+4 CP006881.1 128015 128020    48 *     
+5 CP006881.1 128020 128025    49 *     
+6 CP006881.1 128025 128030    49 *     
+[1] "Getting library sizes and sample information"
+[1] "Building data array"
+[1] "Placing data from sample 1 into data array."
+[1] "Placing data from sample 2 into data array."
+[1] "Placing data from sample 3 into data array."
+[1] "Placing data from sample 4 into data array."
+[1] "Placing data from sample 5 into data array."
+[1] "Placing data from sample 6 into data array."
+[1] "Placing data from sample 7 into data array."
+[1] "Placing data from sample 8 into data array."
+[1] "Placing data from sample 9 into data array."
+[1] "Placing data from sample 10 into data array."
+[1] "Placing data from sample 11 into data array."
+[1] "Placing data from sample 12 into data array."
+[1] "Building sparse matrix of weights for beta smoothing"
+[1] "Using beta subsampling distance of 30 to perform smoothing."
+[1] "Using 1400 as list of 0-indexed contig end positions, at resolution 5"
+[1] "Running command:"
+[1] "make_sparse_matrix 1401 200 7 12 1400 /scratch/schroedj/tmp/file396c3c38dc4310b_w_12_200_vals.txt /scratch/schroedj/tmp/file396c3c6e593260b_v_12_200_vals.txt /scratch/schroedj/tmp/file396c3c20daf3b5b_u_12_200_vals.txt"
+[1] "Building sparse matrix of weights for alpha smoothing"
+[1] "Using alpha subsampling distance of 60 to perform smoothing."
+[1] "Using 1400 as list of 0-indexed contig end positions, at resolution 5"
+[1] "Running command:"
+[1] "make_sparse_matrix  1401   107   13   24   1400 /scratch/schroedj/tmp/file396c3c29e2c26fa_w_12_200_vals.txt /scratch/schroedj/tmp/file396c3c1df6e5d7a_v_12_200_vals.txt /scratch/schroedj/tmp/file396c3c50d5454a_u_12_200_vals.txt"
+[1] "Writing data to /scratch/schroedj/tmp/file396c3c7679f1ce.json"
+[1] "Fitting model using variational inference"
+------------------------------------------------------------ 
+EXPERIMENTAL ALGORITHM: 
+  This procedure has not been thoroughly tested and may be unstable 
+  or buggy. The interface is subject to change. 
+------------------------------------------------------------ 
+Gradient evaluation took 0.01023 seconds 
+1000 transitions using 10 leapfrog steps per transition would take 102.3 seconds. 
+Adjust your expectations accordingly! 
+Begin eta adaptation. 
+Iteration:   1 / 250 [  0%]  (Adaptation) 
+Iteration:  50 / 250 [ 20%]  (Adaptation) 
+Iteration: 100 / 250 [ 40%]  (Adaptation) 
+Iteration: 150 / 250 [ 60%]  (Adaptation) 
+Iteration: 200 / 250 [ 80%]  (Adaptation) 
+Success! Found best value [eta = 1] earlier than expected. 
+Begin stochastic gradient ascent. 
+  iter             ELBO   delta_ELBO_mean   delta_ELBO_med   notes  
+   100       -94097.409             1.000            1.000 
+   200       -78969.869             0.596            1.000 
+   300      -108102.766             0.487            0.269 
+   400       -77880.147             0.462            0.388 
+   500       -77576.502             0.371            0.269 
+   600       -77546.869             0.309            0.269 
+   700       -77763.715             0.265            0.192 
+   800       -77563.012             0.232            0.192 
+   900       -77517.309             0.207            0.004   MEDIAN ELBO CONVERGED 
+Drawing a sample of size 500 from the approximate posterior...  
+COMPLETED. 
+Finished in  14.9 seconds.

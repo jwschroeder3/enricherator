@@ -159,6 +159,10 @@ if (is.na(opt$data_file)) {
     stop("--data_file argument is required, but was absent. Exiting now.")
 }
 
+if (!dir.exists(opt$draws_direc)) {
+    dir.create(opt$draws_direc, recursive=TRUE)
+}
+
 if (is.null(bin_file)) {
     print(paste0("Compiling model in ", model_file))
     sm = cmdstan_model(model_file, cpp_options = list(stan_threads = TRUE))
