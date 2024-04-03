@@ -204,6 +204,9 @@ mean of the 500 samples, median of the 500 samples, lower 90% quantile of the
 (K) for the coefficient being greater than the value provided at the
 `--threshold` argument,
 and K for the coefficient being less than the `--threshold` value.
+Note that `--threshold` is on the log2-scale, so setting `--threshold 1.0`
+denotes a fold-enrichment of 2, and setting `--threshold 2.0` would
+denote a fold-enrichment of 4.
 
 ```bash
 cd <top_direc>
@@ -332,6 +335,7 @@ apptainer exec -B $(pwd) /path/to/enricherator.sif \
     --data_file ${OUTDIR}/data.RData \
     --out_direc ${OUTDIR}/out_files \
     --params Alpha,Beta \
+    --threshold 1.0 \
     > ${OUTDIR}/gather.log \
     2> ${OUTDIR}/gather.err
 ```
@@ -346,13 +350,81 @@ K $\geq$ 20 representing "strong" evidence, and K $\geq$ 150 representing
 "very strong" evidence in favor of the hypothesis.
 
 While we do not provide peak calling utilities directly in this repository
-or in the Enricherator apptainer container, our basic workflow for peak calling
-follows.
+or in the Enricherator apptainer container, we share our basic workflow for peak calling
+below.
+
+### Calling peaks
+
+Let us say that we ran Enricherator on ChIP-seq data and want to call peaks
+in enrichment, and that we define our threshold on the log2-scale to be 1.0.
+To call peaks we would then need to identify contiguous regions of the genome
+with an evidence ratio supporting the hypothesis for enrichment above 1.0 that
+exceeds our evidence threshold.
+
+For this example, we will require "very strong" evidence (K $\geq$ 150 ) for enrichment
+to call peaks. We will also remove any enriched regions narrower than 50 base pairs,
+simply as an example here to demonstrate how that could be done. We use 
+[`bgtools`](https://github.com/jwschroeder3/bgtools)
+in this example to merge contigous bedgraph files into bed formatted regions.
 
 ```bash
-TODO
+OUTDIR="enricherator_results/out_files"
+K_thresh=150
+min_width=50
+
+# we will call peaks in every condition using the following loop
+# The bedgraph files with K_gt in their names contain the evidence ratios for
+# samples from the approximate posterior being greater than the threshold, so
+# those are the files we'll use for peak calling
+for bgfile in ${OUTDIR}/*_K_gt.bedgraph; do
+    # strip the file extension and path to generate new file name
+    base=$(basename $bgfile .bedgraph)
+    # get the path only
+    direc=$(dirname $bgfile)
+    # now make the new file path
+    outfile="${direc}/${base}_Kgeq_${K_thresh}.bed"
+    echo "Creating ${outfile} by filtering ${bgfile}"
+    # use awk to print only lines exceeding the evidence threshold,
+    # pipe the result to bgtools to get just the contiguous regions as bed format
+    # pipe the bed formatted regions to awk to filter by size.
+    awk -v thresh=$K_thresh '$4 >= thresh {print}' $bgfile \
+        | bgtools contiguous_regions -i - \
+        | awk -v width=$min_width 'BEGIN{OFS=FS="\t"} $3-$2 >= width {print}' \
+        > $outfile
+done
+```
+
+Similarly, negative peaks can be called. We find this useful for assessing evidence
+for a given genotype of condition _decreasing_ enrichment of the signal of interest.
+To identify regions greater than or equal to 50 bp wide with "strong evidence"
+of decreased enrichment in genotype A vs genotype B, the code would look something like
+the following:
+
+```bash
+OUTDIR="enricherator_results/contrasts"
+K_thresh=150
+min_width=50
+
+# The bedgraph files with K_lt in their names contain the evidence ratios for
+# samples from the approximate posterior being less than the threshold, so
+# those are the files we'll use to test for loss of enrichment
+bgfile="${OUTDIR}/genoA-genoB_both_strand_Beta_K_lt.bedgraph"
+
+# strip the file extension and path to generate new file name
+base=$(basename $bgfile .bedgraph)
+
+# now make the new file path
+outfile="${OUTDIR}/${base}_Kgeq_${K_thresh}.bed"
+echo "Creating ${outfile} by filtering ${bgfile}"
+
+# use awk to print only lines exceeding the evidence threshold,
+# pipe the result to bgtools to get just the contiguous regions as bed format
+# pipe the bed formatted regions to awk to filter by size.
+awk -v thresh=$K_thresh '$4 >= thresh {print}' $bgfile \
+    | bgtools contiguous_regions -i - \
+    | awk -v width=$min_width 'BEGIN{OFS=FS="\t"} $3-$2 >= width {print}' \
+    > $outfile
 ```
 
 [^1]: Kass, R. E., & Raftery, A. E. (1995). Bayes Factors. Journal of the American Statistical Association, 90(430), 773–795. https://doi.org/10.1080/01621459.1995.10476572
-
 
