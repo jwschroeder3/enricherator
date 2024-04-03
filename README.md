@@ -50,6 +50,7 @@ The steps of running enricherator include:
     of interest. Currently Enricherator provides the ability to contrast
     across conditions (drug vs control or knock-out vs wild type)
     OR between strands.
+4. Perform Bayesian peak calling (optional)
 
 ## Using containerized Enricherator
 
@@ -158,6 +159,8 @@ SRCDIR="/src"
 
 # this script will perform 5 independent fits of the enricherator model
 # to the input data. It can transiently require a lot of storage space (100s of GB)
+# after the fits have all converged this script will choose which fit
+# acheived the highest ELBO and will remove files associated with the other 4 fits.
 apptainer exec -B $(pwd) /path/to/enricherator.sif \
     Rscript $SRCDIR/R/enricherator_fit.R \
     --info stan_sample_info.txt \
@@ -260,7 +263,7 @@ For example, if you had three genotypes in your analysis,
 you could supply as the `--type` argument `genotype`, and for the
 `--contrasts` argument `genoB-genoA,genoC-genoA,genoC-genoB`.
 This would perform pairwise comparisons of enrichments from genotype B
-to genotype A, genotype C to genotype A, and genotype C to genotype A,
+to genotype A, genotype C to genotype A, and genotype C to genotype B,
 respectively. The list of contrasts can be arbitrarily long.
 The contrasts must be comma-separated with no spaces.
 
@@ -305,6 +308,7 @@ apptainer exec -B $(pwd) /path/to/enricherator.sif \
     --data_file ${OUTDIR}/data.RData \
     --out_direc ${OUTDIR}/out_files \
     --params Alpha,Beta \
+    --threshold 1.0 \
     > ${OUTDIR}/gather.log \
     2> ${OUTDIR}/gather.err
 ```
@@ -365,7 +369,7 @@ For this example, we will require "very strong" evidence (K $\geq$ 150 ) for enr
 to call peaks. We will also remove any enriched regions narrower than 50 base pairs,
 simply as an example here to demonstrate how that could be done. We use 
 [`bgtools`](https://github.com/jwschroeder3/bgtools)
-in this example to merge contigous bedgraph files into bed formatted regions.
+in this example to merge contiguous bedgraph files into bed formatted regions.
 
 ```bash
 OUTDIR="enricherator_results/out_files"

@@ -3,3 +3,5 @@ rust/*/Cargo.lock
 singularity/current
 R/.*
 rust/parse_cmdstan_csv_dev/test_data
+examples/*/example_results/draws*
+examples/*/example_results
