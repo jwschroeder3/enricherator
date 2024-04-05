@@ -399,7 +399,7 @@ done
 ```
 
 Similarly, negative peaks can be called. We find this useful for assessing evidence
-for a given genotype of condition _decreasing_ enrichment of the signal of interest.
+for a given genotype or condition _decreasing_ enrichment of the signal of interest.
 To identify regions greater than or equal to 50 bp wide with "strong evidence"
 of decreased enrichment in genotype A vs genotype B, the code would look something like
 the following:
