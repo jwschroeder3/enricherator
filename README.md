@@ -14,8 +14,8 @@ alignments by the appropriate ammount to count pseudo-fragments.
 The current version of Enricherator is in press at the Journal of Molecular Biology
 and will be published in the 2024 special issue "Computation Resources for Molecular Biology"
 
-
-The original implementation of Enricherator was published in this [paper](https://www.science.org/doi/10.1126/sciadv.adi5945), but the current version is substantially improved.
+The original implementation of Enricherator was published in its use on HBD-seq data[^1],
+but the current version is substantially improved.
 Enricherator now allocates sequencing counts between "signal" and "noise" components.
 
 ## Enricherator workflow
@@ -349,7 +349,7 @@ apptainer exec -B $(pwd) /path/to/enricherator.sif \
 The evidence ratios provided by both the `cmdstan_gather_estimates_from_stanfit.R`
 script and the `get_contrasts.R` script can be used to call peaks at any desired
 level of evidence. We often use the evidence ratios pointed out by
-Kass and Raftery[^1], with K $\geq$ 3 representing "positive" evidence,
+Kass and Raftery[^2], with K $\geq$ 3 representing "positive" evidence,
 K $\geq$ 20 representing "strong" evidence, and K $\geq$ 150 representing
 "very strong" evidence in favor of the hypothesis.
 
@@ -430,5 +430,6 @@ awk -v thresh=$K_thresh '$4 >= thresh {print}' $bgfile \
     > $outfile
 ```
 
-[^1]: Kass, R. E., & Raftery, A. E. (1995). Bayes Factors. Journal of the American Statistical Association, 90(430), 773–795. https://doi.org/10.1080/01621459.1995.10476572
+[^1]: Schroeder, Jeremy W., Rebecca L. Hurto, Justin R. Randall, Katherine J. Wozniak, Taylor A. Timko, Taylor M. Nye, Jue D. Wang, Peter L. Freddolino, and Lyle A. Simmons. 2023. “RNase H Genes Cause Distinct Impacts on RNA:DNA Hybrid Formation and Mutagenesis Genome Wide.” Science Advances 9 (30): eadi5945.
+[^2]: Kass, Robert E., and Adrian E. Raftery. 1995. “Bayes Factors.” Journal of the American Statistical Association 90 (430): 773–95.
 
