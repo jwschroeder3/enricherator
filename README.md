@@ -14,9 +14,7 @@ alignments by the appropriate ammount to count pseudo-fragments.
 The current version of Enricherator is in press at the Journal of Molecular Biology
 and will be published in the 2024 special issue "Computation Resources for Molecular Biology"
 
-The original implementation of Enricherator was published in its use on HBD-seq data[^1],
-but the current version is substantially improved.
-Enricherator now allocates sequencing counts between "signal" and "noise" components.
+The current version of Enricherator[^1] is a substantial improvement over its original implementation on HBD-seq data[^2], the major improvement being that Enricherator now allocates sequencing counts between "signal" and "noise" components.
 
 ## Enricherator workflow
 
@@ -431,6 +429,7 @@ awk -v thresh=$K_thresh '$4 >= thresh {print}' $bgfile \
     > $outfile
 ```
 
-[^1]: Schroeder, Jeremy W., Rebecca L. Hurto, Justin R. Randall, Katherine J. Wozniak, Taylor A. Timko, Taylor M. Nye, Jue D. Wang, Peter L. Freddolino, and Lyle A. Simmons. 2023. “RNase H Genes Cause Distinct Impacts on RNA:DNA Hybrid Formation and Mutagenesis Genome Wide.” Science Advances 9 (30): eadi5945.
-[^2]: Kass, Robert E., and Adrian E. Raftery. 1995. “Bayes Factors.” Journal of the American Statistical Association 90 (430): 773–95.
+[^1]: Schroeder, Jeremy W., and P. Lydia Freddolino. 2024. “Enricherator: A Bayesian Method for Inferring Regularized Genome-Wide Enrichments from Sequencing Count Data.” Journal of Molecular Biology, April, 168567.
+[^2]: Schroeder, Jeremy W., Rebecca L. Hurto, Justin R. Randall, Katherine J. Wozniak, Taylor A. Timko, Taylor M. Nye, Jue D. Wang, Peter L. Freddolino, and Lyle A. Simmons. 2023. “RNase H Genes Cause Distinct Impacts on RNA:DNA Hybrid Formation and Mutagenesis Genome Wide.” Science Advances 9 (30): eadi5945.
+[^3]: Kass, Robert E., and Adrian E. Raftery. 1995. “Bayes Factors.” Journal of the American Statistical Association 90 (430): 773–95.
 
