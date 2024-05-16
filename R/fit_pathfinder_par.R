@@ -210,7 +210,6 @@ if (load) {
                 sample_id = as.character(interaction(genotype,sample,rep)),
                 data = purrr::map2(file, strand, read_file, ignores=ignores, debug=debug)
             )
-        save(experiment_info, file="intermediate.RData")
     } else {
         load(opt$genome_data_file)
     }

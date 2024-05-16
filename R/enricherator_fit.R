@@ -171,7 +171,7 @@ choose_fit = function(inputs, .opt) {
         fcon = file(outfile, "r")
         while(TRUE) {
             line = readLines(fcon, n=1)
-            if (grepl("MEDIAN ELBO CONVERGED", line)) {
+            if (grepl("ELBO CONVERGED", line)) {
                 break
             }
         }
