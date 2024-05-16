@@ -348,7 +348,7 @@ apptainer exec -B $(pwd) /path/to/enricherator.sif \
 The evidence ratios provided by both the `cmdstan_gather_estimates_from_stanfit.R`
 script and the `get_contrasts.R` script can be used to call peaks at any desired
 level of evidence. We often use the evidence ratios pointed out by
-Kass and Raftery[^2], with K $\geq$ 3 representing "positive" evidence,
+Kass and Raftery[^3], with K $\geq$ 3 representing "positive" evidence,
 K $\geq$ 20 representing "strong" evidence, and K $\geq$ 150 representing
 "very strong" evidence in favor of the hypothesis.
 
