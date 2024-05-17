@@ -666,9 +666,12 @@ prep_par_stan_data = function(data_df, norm_method, spikein, spikein_rel_abund=0
     # make ends into comma-separated list as required by make_sparse_matrix
     ctg_ends = paste(accum_ctg_ends, collapse=",")
 
-    w_out = tempfile(tmpdir=Sys.getenv("TMPDIR"), fileext=paste("b_w", b_K, b_sub_L, "vals.txt", sep="_"))
-    v_out = tempfile(tmpdir=Sys.getenv("TMPDIR"), fileext=paste("b_v", b_K, b_sub_L, "vals.txt", sep="_"))
-    u_out = tempfile(tmpdir=Sys.getenv("TMPDIR"), fileext=paste("b_u", b_K, b_sub_L, "vals.txt", sep="_"))
+    #w_out = tempfile(tmpdir=Sys.getenv("TMPDIR"), fileext=paste("b_w", b_K, b_sub_L, "vals.txt", sep="_"))
+    #v_out = tempfile(tmpdir=Sys.getenv("TMPDIR"), fileext=paste("b_v", b_K, b_sub_L, "vals.txt", sep="_"))
+    #u_out = tempfile(tmpdir=Sys.getenv("TMPDIR"), fileext=paste("b_u", b_K, b_sub_L, "vals.txt", sep="_"))
+    w_out = tempfile(fileext=paste("b_w", b_K, b_sub_L, "vals.txt", sep="_"))
+    v_out = tempfile(fileext=paste("b_v", b_K, b_sub_L, "vals.txt", sep="_"))
+    u_out = tempfile(fileext=paste("b_u", b_K, b_sub_L, "vals.txt", sep="_"))
 
     print("Building sparse matrix of weights for beta smoothing")
     print(paste0("Using beta subsampling distance of ", ext_subsample_dist_bp, " to perform smoothing."))
@@ -709,9 +712,12 @@ prep_par_stan_data = function(data_df, norm_method, spikein, spikein_rel_abund=0
     stan_list[["b_col_accessor"]] = v
     stan_list[["b_row_non_zero_number"]] = u
 
-    w_out = tempfile(tmpdir=Sys.getenv("TMPDIR"), fileext=paste("a_w", b_K, b_sub_L, "vals.txt", sep="_"))
-    v_out = tempfile(tmpdir=Sys.getenv("TMPDIR"), fileext=paste("a_v", b_K, b_sub_L, "vals.txt", sep="_"))
-    u_out = tempfile(tmpdir=Sys.getenv("TMPDIR"), fileext=paste("a_u", b_K, b_sub_L, "vals.txt", sep="_"))
+    #w_out = tempfile(tmpdir=Sys.getenv("TMPDIR"), fileext=paste("a_w", b_K, b_sub_L, "vals.txt", sep="_"))
+    #v_out = tempfile(tmpdir=Sys.getenv("TMPDIR"), fileext=paste("a_v", b_K, b_sub_L, "vals.txt", sep="_"))
+    #u_out = tempfile(tmpdir=Sys.getenv("TMPDIR"), fileext=paste("a_u", b_K, b_sub_L, "vals.txt", sep="_"))
+    w_out = tempfile(fileext=paste("a_w", b_K, b_sub_L, "vals.txt", sep="_"))
+    v_out = tempfile(fileext=paste("a_v", b_K, b_sub_L, "vals.txt", sep="_"))
+    u_out = tempfile(fileext=paste("a_u", b_K, b_sub_L, "vals.txt", sep="_"))
 
     print("Building sparse matrix of weights for alpha smoothing")
     print(paste0("Using alpha subsampling distance of ", input_subsample_dist_bp, " to perform smoothing."))
@@ -911,9 +917,12 @@ prep_stan_data = function(data_df, norm_method, spikein, spikein_rel_abund=0.05,
     # make ends into comma-separated list as required by make_sparse_matrix
     ctg_ends = paste(accum_ctg_ends, collapse=",")
 
-    w_out = tempfile(tmpdir=Sys.getenv("TMPDIR"), fileext=paste("b_w", b_K, b_sub_L, "vals.txt", sep="_"))
-    v_out = tempfile(tmpdir=Sys.getenv("TMPDIR"), fileext=paste("b_v", b_K, b_sub_L, "vals.txt", sep="_"))
-    u_out = tempfile(tmpdir=Sys.getenv("TMPDIR"), fileext=paste("b_u", b_K, b_sub_L, "vals.txt", sep="_"))
+    #w_out = tempfile(tmpdir=Sys.getenv("TMPDIR"), fileext=paste("b_w", b_K, b_sub_L, "vals.txt", sep="_"))
+    #v_out = tempfile(tmpdir=Sys.getenv("TMPDIR"), fileext=paste("b_v", b_K, b_sub_L, "vals.txt", sep="_"))
+    #u_out = tempfile(tmpdir=Sys.getenv("TMPDIR"), fileext=paste("b_u", b_K, b_sub_L, "vals.txt", sep="_"))
+    w_out = tempfile(fileext=paste("b_w", b_K, b_sub_L, "vals.txt", sep="_"))
+    v_out = tempfile(fileext=paste("b_v", b_K, b_sub_L, "vals.txt", sep="_"))
+    u_out = tempfile(fileext=paste("b_u", b_K, b_sub_L, "vals.txt", sep="_"))
 
     print("Building sparse matrix of weights for beta smoothing")
     print(paste0("Using beta subsampling distance of ", ext_subsample_dist_bp, " to perform smoothing."))
@@ -954,9 +963,12 @@ prep_stan_data = function(data_df, norm_method, spikein, spikein_rel_abund=0.05,
     stan_list[["b_col_accessor"]] = v
     stan_list[["b_row_non_zero_number"]] = u
 
-    w_out = tempfile(tmpdir=Sys.getenv("TMPDIR"), fileext=paste("a_w", b_K, b_sub_L, "vals.txt", sep="_"))
-    v_out = tempfile(tmpdir=Sys.getenv("TMPDIR"), fileext=paste("a_v", b_K, b_sub_L, "vals.txt", sep="_"))
-    u_out = tempfile(tmpdir=Sys.getenv("TMPDIR"), fileext=paste("a_u", b_K, b_sub_L, "vals.txt", sep="_"))
+    #w_out = tempfile(tmpdir=Sys.getenv("TMPDIR"), fileext=paste("a_w", b_K, b_sub_L, "vals.txt", sep="_"))
+    #v_out = tempfile(tmpdir=Sys.getenv("TMPDIR"), fileext=paste("a_v", b_K, b_sub_L, "vals.txt", sep="_"))
+    #u_out = tempfile(tmpdir=Sys.getenv("TMPDIR"), fileext=paste("a_u", b_K, b_sub_L, "vals.txt", sep="_"))
+    w_out = tempfile(fileext=paste("a_w", b_K, b_sub_L, "vals.txt", sep="_"))
+    v_out = tempfile(fileext=paste("a_v", b_K, b_sub_L, "vals.txt", sep="_"))
+    u_out = tempfile(fileext=paste("a_u", b_K, b_sub_L, "vals.txt", sep="_"))
 
     print("Building sparse matrix of weights for alpha smoothing")
     print(paste0("Using alpha subsampling distance of ", input_subsample_dist_bp, " to perform smoothing."))
