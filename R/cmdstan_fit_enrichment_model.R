@@ -196,6 +196,8 @@ if (load) {
         opt$input_fragment_length,
         opt$ext_subsample_dist,
         opt$ext_fragment_length,
+        opt$ipod_subsample_dist,
+        opt$ipod_fragment_length,
         opt$log_lik,
         opt$frac_genome_enriched
     )
@@ -213,8 +215,13 @@ print("Fitting model using variational inference")
 newlist = list()
 include_vars = c(
     "L","S","B","A","G","Q","alpha_prior","geno_x","sample_x",
-    "Y", "libsize", "hs_df", "hs_df_global", "hs_df_slab",
-    "hs_scale_global", "hs_scale_slab", "a_sub_L", "b_sub_L",
+    "Y", "libsize", "hs_df_beta", "hs_df_global_beta", "hs_df_slab_beta",
+    "hs_df_gamma", "hs_df_global_gamma", "hs_df_slab_gamma",
+    "hs_scale_global_gamma", "hs_scale_slab_gamma", 
+    "hs_scale_global_beta", "hs_scale_slab_beta", "a_sub_L", "b_sub_L",
+    "g_sub_L",
+    "g_num_non_zero", "g_weights_vals", "g_col_accessor",
+    "g_row_non_zero_number", 
     "b_num_non_zero", "b_weights_vals", "b_col_accessor",
     "b_row_non_zero_number", "a_num_non_zero", "a_weights_vals",
     "a_col_accessor", "a_row_non_zero_number", "gather_log_lik"

@@ -306,7 +306,7 @@ insert_data = function(data, spike_name, spikein_rel_abund) {
 }
 
 
-prep_stan_data = function(data_df, norm_method, spikein, spikein_rel_abund=0.05, input_subsample_dist_bp=50, input_frag_len_bp=125, ext_subsample_dist_bp=50, ext_frag_len_bp=50, log_lik=FALSE, frac_genome_enriched=NULL) {
+prep_stan_data = function(data_df, norm_method, spikein, spikein_rel_abund=0.05, input_subsample_dist_bp=50, input_frag_len_bp=125, ext_subsample_dist_bp=50, ext_frag_len_bp=50, ipod_subsample_dist_bp=50, ipod_frag_len_bp=50, log_lik=FALSE, frac_genome_enriched=NULL) {
     # this sort step is VERY USEFUL for arranging data later on to keep size factors
     # associated with correct samples
     data_df = data_df %>% arrange(sample_id)
@@ -388,11 +388,15 @@ prep_stan_data = function(data_df, norm_method, spikein, spikein_rel_abund=0.05,
     input_frag_len_bp = round(input_frag_len_bp/resolution)*resolution
     ext_subsample_dist_bp = round(ext_subsample_dist_bp/resolution)*resolution
     ext_frag_len_bp = round(ext_frag_len_bp/resolution)*resolution
+    ipod_subsample_dist_bp = round(ipod_subsample_dist_bp/resolution)*resolution
+    ipod_frag_len_bp = round(ipod_frag_len_bp/resolution)*resolution
 
     a_C = floor(input_subsample_dist_bp / resolution)
     b_C = floor(ext_subsample_dist_bp / resolution)
-    b_K = ext_frag_len_bp / resolution
+    g_C = floor(ipod_subsample_dist_bp / resolution)
     a_K = input_frag_len_bp / resolution
+    b_K = ext_frag_len_bp / resolution
+    g_K = ipod_frag_len_bp / resolution
     # enforce that C must be odd
     if (a_C %% 2 == 0) {
         a_C = a_C+1
@@ -400,12 +404,18 @@ prep_stan_data = function(data_df, norm_method, spikein, spikein_rel_abund=0.05,
     if (b_C %% 2 == 0) {
         b_C = b_C+1
     }
+    if (g_C %% 2 == 0) {
+        g_C = g_C+1
+    }
     stan_list[["a_C"]] = a_C
     a_sub_L = as.integer(pos_num/a_C)
     stan_list[["a_sub_L"]] = a_sub_L
     stan_list[["b_C"]] = b_C
     b_sub_L = as.integer(pos_num/b_C)
     stan_list[["b_sub_L"]] = b_sub_L
+    stan_list[["g_C"]] = g_C
+    g_sub_L = as.integer(pos_num/g_C)
+    stan_list[["g_sub_L"]] = g_sub_L
     #stan_list[["sub_L"]] = pos_num
 
     by_ctg_df = data_df$data[[1]] %>% filter(seqname != spikein) %>%
@@ -426,9 +436,55 @@ prep_stan_data = function(data_df, norm_method, spikein, spikein_rel_abund=0.05,
     # make ends into comma-separated list as required by make_sparse_matrix
     ctg_ends = paste(accum_ctg_ends, collapse=",")
 
-    w_out = paste("w", b_K, b_sub_L, "vals.txt", sep="_")
-    v_out = paste("v", b_K, b_sub_L, "vals.txt", sep="_")
-    u_out = paste("u", b_K, b_sub_L, "vals.txt", sep="_")
+    w_out = tempfile(fileext=paste("g_w", g_K, g_sub_L, "vals.txt", sep="_"))
+    v_out = tempfile(fileext=paste("g_v", g_K, g_sub_L, "vals.txt", sep="_"))
+    u_out = tempfile(fileext=paste("g_u", g_K, g_sub_L, "vals.txt", sep="_"))
+
+    print("Building sparse matrix of weights for beta smoothing")
+    print(paste0("Using gamma subsampling distance of ", ipod_subsample_dist_bp, " to perform smoothing."))
+    print(paste0("Using ", ctg_ends, " as list of 0-indexed contig end positions, at resolution ", resolution))
+
+    exec_f_path = get_exec_file()
+    exec_direc = dirname(exec_f_path)
+    bin_path = file.path(exec_direc, "../bin/make_sparse_matrix")
+    
+    #if (!file.exists(w_out)) {
+    print("Running command:")
+    print(paste("make_sparse_matrix", pos_num, g_sub_L, g_C, g_K, ctg_ends, w_out, v_out, u_out, sep=" "))
+    res = system2(
+        bin_path,
+        c(
+            as.character(pos_num),
+            as.character(g_sub_L),
+            as.character(g_C),
+            as.character(g_K),
+            ctg_ends,
+            w_out,
+            v_out,
+            u_out
+        ),
+        env="RUST_BACKTRACE=1",
+        stderr="",
+        stdout=""
+    )
+    if (res != 0) stop("Error in sparse matrix creation. Check err and log files.")
+    #} else {
+    #    print(paste("File", w_out, "already exists. Reading it.", sep=" "))
+    #}
+    w = unlist(read_table(w_out, col_names=F), use.names=F)
+    v = unlist(read_table(v_out, col_names=F), use.names=F)
+    u = unlist(read_table(u_out, col_names=F), use.names=F)
+    #stan_list[["gauss_dist"]] = C*2+1
+    #sparse_weights_info = make_weights_array(pos_num, C, stan_list[["gauss_dist"]])
+    #save(sparse_weights_info, file="debug_weights.RData")
+    stan_list[["g_weights_vals"]] = w
+    stan_list[["g_num_non_zero"]] = length(stan_list[["g_weights_vals"]])
+    stan_list[["g_col_accessor"]] = v
+    stan_list[["g_row_non_zero_number"]] = u
+
+    w_out = tempfile(fileext=paste("b_w", b_K, b_sub_L, "vals.txt", sep="_"))
+    v_out = tempfile(fileext=paste("b_v", b_K, b_sub_L, "vals.txt", sep="_"))
+    u_out = tempfile(fileext=paste("b_u", b_K, b_sub_L, "vals.txt", sep="_"))
 
     print("Building sparse matrix of weights for beta smoothing")
     print(paste0("Using beta subsampling distance of ", ext_subsample_dist_bp, " to perform smoothing."))
@@ -472,9 +528,9 @@ prep_stan_data = function(data_df, norm_method, spikein, spikein_rel_abund=0.05,
     stan_list[["b_col_accessor"]] = v
     stan_list[["b_row_non_zero_number"]] = u
 
-    w_out = paste("w", a_K, a_sub_L, "vals.txt", sep="_")
-    v_out = paste("v", a_K, a_sub_L, "vals.txt", sep="_")
-    u_out = paste("u", a_K, a_sub_L, "vals.txt", sep="_")
+    w_out = tempfile(fileext=paste("a_w", b_K, b_sub_L, "vals.txt", sep="_"))
+    v_out = tempfile(fileext=paste("a_v", b_K, b_sub_L, "vals.txt", sep="_"))
+    u_out = tempfile(fileext=paste("a_u", b_K, b_sub_L, "vals.txt", sep="_"))
 
     print("Building sparse matrix of weights for alpha smoothing")
     print(paste0("Using alpha subsampling distance of ", input_subsample_dist_bp, " to perform smoothing."))
@@ -521,15 +577,21 @@ prep_stan_data = function(data_df, norm_method, spikein, spikein_rel_abund=0.05,
         num_enriched = b_sub_L * frac_genome_enriched
         par_ratio = num_enriched / (N_per_hs - num_enriched)
         scale = par_ratio / sqrt(N_per_hs)
-        stan_list[["hs_scale_global"]] = scale
+        stan_list[["hs_scale_global_beta"]] = scale
+        stan_list[["hs_scale_global_gamma"]] = scale
     } else {
-        stan_list[["hs_scale_global"]] = 1
+        stan_list[["hs_scale_global_beta"]] = 1
+        stan_list[["hs_scale_global_gamma"]] = 1
     }
 
-    stan_list[["hs_df"]] = 1
-    stan_list[["hs_df_global"]] = 1
-    stan_list[["hs_scale_slab"]] = 2
-    stan_list[["hs_df_slab"]] = 4
+    stan_list[["hs_df_beta"]] = 1
+    stan_list[["hs_df_global_beta"]] = 1
+    stan_list[["hs_scale_slab_beta"]] = 2
+    stan_list[["hs_df_slab_beta"]] = 4
+    stan_list[["hs_df_gamma"]] = 1
+    stan_list[["hs_df_global_gamma"]] = 1
+    stan_list[["hs_scale_slab_gamma"]] = 2
+    stan_list[["hs_df_slab_gamma"]] = 4
     return(stan_list)
 }
 
