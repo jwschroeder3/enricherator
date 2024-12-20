@@ -1,0 +1,15 @@
+{
+    "geno_map": [
+        "wt",
+        "vpsR",
+        "vpsT"
+    ],
+    "strand_map": [
+        "both"
+    ],
+    "resolution": 5,
+    "pos_num": 3,
+    "geno_num": 3,
+    "strand_num": 1
+}
+

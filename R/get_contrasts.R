@@ -62,6 +62,7 @@ con_type = opt$type
 data_file = opt$data_file
 samples = opt$samples_file
 out_dir = opt$out_direc
+param = opt$parameter
 
 if (is.na(out_dir)) {
     stop("--out_direc argument was not provided, but is mandatory. Exiting now.")
@@ -130,6 +131,9 @@ args_vec = c(
 exec = c(bin_path, args_vec)
 print(paste0("Running the following: ", paste(exec, collapse=" ")))
 
+#err_fname = file.path(out_dir, "contrast_bin.err")
+#out_fname = file.path(out_dir, "contrast_bin.log")
+
 res = system2(
     bin_path,
     args_vec,
@@ -142,5 +146,5 @@ if (res != 0) {
 }
 param_summaries = read_tsv(contrast_fname)
 #print(head(param_summaries))
-write_cmdstan_summaries(param_summaries, stan_list, out_dir, param, contrasts, con_type)
+write_cmdstan_contrasts(param_summaries, stan_list, out_dir, param, contrasts, con_type)
 

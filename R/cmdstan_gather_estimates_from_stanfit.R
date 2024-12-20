@@ -33,16 +33,32 @@ option_list = list(
         help="Name of RData file containing stan data list",
     ),
     make_option(
-        c("-q", "--quantile_interval"), type="numeric", default=90,
-        help="Quantile intervale to return.",
-    ),
-    make_option(
         c("-p", "--params"), type="character",
         help="Comma-separated list of parameter names to gather",
     ),
     make_option(
         c("-o", "--out_direc"), type="character",
         help="Name of directory to save output bedgraph files",
+    ),
+    make_option(
+        c("--threshold"), type="double", default=1.0,
+        help="Threshold for calling a position enriched",
+    ),
+    make_option(
+        c("--genotype_contrast_threshold"), type="double", default=0.0,
+        help="Threshold for calling a genotype-level contrast different",
+    ),
+    make_option(
+        c("--strand_contrast_threshold"), type="double", default=0.0,
+        help="Threshold for calling a strand-level contrast different",
+    ),
+    make_option(
+        c("--genotype_contrasts"), type="character",
+        help="Comma-separated list of genotype-level contrasts."
+    ),
+    make_option(
+        c("--strand_contrasts"), type="character",
+        help="Comma-separated list of strand-level contrasts."
     )
 )
  
@@ -78,12 +94,17 @@ if (!dir.exists(opt$out_direc)) {
 }
 
 gather_vb_estimates(
-    fit,
-    stan_list,
+    fit=fit,
+    stan_data=stan_list,
     direc=opt$out_direc,
     interval=opt$quantile_interval,
     cmdstan=TRUE,
-    params=params
+    params=params,
+    threshold=opt$threshold,
+    geno_contrasts=opt$genotype_contrasts,
+    geno_threshold=opt$genotype_contrast_threshold,
+    strand_contrasts=opt$strand_contrasts,
+    strand_threshold=opt$genotype_contrast_threshold
 )
 #save(param_df, file=opt$out_file)
 #precision = list_of_draws[["prec"]]

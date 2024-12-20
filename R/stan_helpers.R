@@ -1,4 +1,5 @@
 library(tidyverse)
+library(jsonlite)
 #library(rstan)
 
 get_exec_file = function() {
@@ -17,16 +18,21 @@ get_exec_file = function() {
 
 read_file = function(fname, ignores, debug=FALSE) {
     print(paste0("Reading data from ", fname))
-    tmp_tib = read_delim(
+    tmp_tib = data.table::fread(
         file=fname,
-        col_names=c("seqname","start","end","score","strand"),
-        col_types="ciidc",
-        delim="\t"
+        #col.names=c("seqname","start","end","score","strand"),
+        #colClasses=c("c","i","i","d","c"),
+        sep="\t"
     ) %>% filter(
-        !(seqname %in% ignores)
+        !(V1 %in% ignores)
     ) %>% mutate(
-        score = as.integer(score)
+        V4 = as.integer(V4)
     )
+    if (dim(tmp_tib)[2] == 4) {
+        names(tmp_tib) = c("seqname","start","end","score")
+    } else {
+        names(tmp_tib) = c("seqname","start","end","score", "strand")
+    }
 
     if (debug) {
         tmp_tib = tmp_tib %>%
@@ -337,6 +343,12 @@ prep_stan_data = function(data_df, norm_method, spikein, spikein_rel_abund=0.05,
     for (q in distinct_strand_ids) {
         strand_names[q] = data_df$strand[data_df$strand_x == q][1]
     }
+
+    geno_names = NA
+    distinct_geno_ids = sort(unique(data_df$geno_x))
+    for (g in distinct_geno_ids) {
+        geno_names[g] = data_df$genotype[data_df$geno_x == g][1]
+    }
     #strand_names = unique(data_df$strand)
     #print(strand_names)
     #stop("Reached stop point")
@@ -357,6 +369,10 @@ prep_stan_data = function(data_df, norm_method, spikein, spikein_rel_abund=0.05,
     #print(stan_list[["Q"]])
     stan_list[["info"]] = data_df %>% select(-data)
     stan_list[["gather_log_lik"]] = log_lik
+    stan_list[["expt_key"]] = list()
+    stan_list[["expt_key"]][["geno_map"]] = geno_names
+    stan_list[["expt_key"]][["strand_map"]] = strand_names
+
     data_arr = base::array(0, dim=c(samp_num,strand_num,pos_num))
     for (s in 1:samp_num) {
         level = levels[s]
@@ -382,6 +398,11 @@ prep_stan_data = function(data_df, norm_method, spikein, spikein_rel_abund=0.05,
     stan_list[["Y"]] = data_arr
 
     resolution = median(diff(stan_list[["position_mapper"]]$start))
+    stan_list[["expt_key"]][["resolution"]] = resolution
+    stan_list[["expt_key"]][["pos_num"]] = pos_num
+    stan_list[["expt_key"]][["geno_num"]] = num_geno
+    stan_list[["expt_key"]][["strand_num"]] = strand_num
+
 
     # round to nearest multiple of "resolution"
     input_subsample_dist_bp = round(input_subsample_dist_bp/resolution)*resolution
@@ -697,8 +718,15 @@ prep_param_df_for_file = function(df, stan_data, .genotype, .strand, .quant) {
     return(this_df)
 }
 
+cs_pred_func = function(xvals, .a, .b, .c) {
+    print(xvals[1:5])
+    print(.a)
+    print(.b)
+    print(.c)
+    ypred = .a * xvals + .b * xvals^2 + .c * xvals^3
+}
 
-write_cmdstan_summaries = function(summary_df, stan_data, out_direc, params, contrasts=NULL, contrast_type=NULL) {
+write_cmdstan_contrasts = function(summary_df, stan_data, out_direc, params, contrasts, contrast_type) {
 
     info_df = stan_data[["info"]]
     if (is.null(contrasts)) {
@@ -719,29 +747,30 @@ write_cmdstan_summaries = function(summary_df, stan_data, out_direc, params, con
     print(strand_ids)
     print(genotype_ids)
     print("Writing quantiles of interest to files")
-    for (param in params) {
-        print(paste0("Param: ", param))
-        for (geno_id in genotype_ids) {
-            if (is.null(contrasts)) {
-                genotype = info_df$genotype[info_df$geno_x == geno_id][1]
+
+    for (geno_id in genotype_ids) {
+        if (is.null(contrasts)) {
+            genotype = info_df$genotype[info_df$geno_x == geno_id][1]
+        } else {
+            if (contrast_type == "genotype") {
+                genotype = contrast_vec[geno_id]
             } else {
-                if (contrast_type == "genotype") {
-                    genotype = contrast_vec[geno_id]
-                } else {
-                    genotype = info_df$genotype[info_df$geno_x == geno_id][1]
-                }
+                genotype = info_df$genotype[info_df$geno_x == geno_id][1]
             }
-            for (k in strand_ids) {
+        }
 
-                .strand = info_df$strand[info_df$strand_x == k][1]
+        for (k in strand_ids) {
 
-                if (!is.null(contrasts)) {
-                    if (contrast_type == "genotype") {
-                        .strand = info_df$strand[info_df$strand_x == k][1]
-                    } else { if (contrast_type == "strand") {
-                        .strand = contrast_vec[k]
-                    }}
-                }
+            .strand = info_df$strand[info_df$strand_x == k][1]
+
+            if (!is.null(contrasts)) {
+                if (contrast_type == "genotype") {
+                    .strand = info_df$strand[info_df$strand_x == k][1]
+                } else { if (contrast_type == "strand") {
+                    .strand = contrast_vec[k]
+                }}
+            }
+            for (param in params) {
 
                 print(paste0("Geno_id: ", geno_id))
                 this_df = summary_df %>%
@@ -770,7 +799,165 @@ write_cmdstan_summaries = function(summary_df, stan_data, out_direc, params, con
     }
 }
 
-gather_vb_estimates = function(fit, stan_data, direc, interval=90, cmdstan=FALSE, params=NULL) {
+write_cmdstan_summaries = function(summary_df, stan_data, out_direc, params, contrasts=NULL, contrast_type=NULL) {
+
+    info_df = stan_data[["info"]]
+    if (is.null(contrasts)) {
+        genotype_ids = sort(unique(stan_data[["geno_x"]]))
+        strand_ids = sort(unique(stan_data[["strand_x"]]))
+    } else {
+        contrast_vec = str_split(contrasts, ",", simplify=TRUE)[1,]
+        if (contrast_type == "genotype") {
+            genotype_ids = 1:length(contrast_vec)
+            strand_ids = sort(unique(stan_data[["strand_x"]]))
+        }
+        if (contrast_type == "strand") {
+            genotype_ids = sort(unique(stan_data[["geno_x"]]))
+            strand_ids = 1:length(contrast_vec)
+        }
+    }
+
+    print(strand_ids)
+    print(genotype_ids)
+    print("Writing quantiles of interest to files")
+
+    for (geno_id in genotype_ids) {
+        a_vals = summary_df %>%
+            filter(genotype == geno_id, var_name == "a_cubic") %>%
+            .$mean
+        #a_vals_lower = summary_df %>%
+        #    filter(genotype == geno_id, var_name == "a_cubic") %>%
+        #    .$lower
+        #a_vals_upper = summary_df %>%
+        #    filter(genotype == geno_id, var_name == "a_cubic") %>%
+        #    .$upper
+        b_vals = summary_df %>%
+            filter(genotype == geno_id, var_name == "b_cubic") %>%
+            .$mean
+        #b_vals_lower = summary_df %>%
+        #    filter(genotype == geno_id, var_name == "b_cubic") %>%
+        #    .$lower
+        #b_vals_upper = summary_df %>%
+        #    filter(genotype == geno_id, var_name == "b_cubic") %>%
+        #    .$upper
+        c_vals = summary_df %>%
+            filter(genotype == geno_id, var_name == "c_cubic") %>%
+            .$mean
+        #c_vals_lower = summary_df %>%
+        #    filter(genotype == geno_id, var_name == "c_cubic") %>%
+        #    .$lower
+        #c_vals_upper = summary_df %>%
+        #    filter(genotype == geno_id, var_name == "c_cubic") %>%
+        #    .$upper
+        if (is.null(contrasts)) {
+            genotype = info_df$genotype[info_df$geno_x == geno_id][1]
+        } else {
+            if (contrast_type == "genotype") {
+                genotype = contrast_vec[geno_id]
+            } else {
+                genotype = info_df$genotype[info_df$geno_x == geno_id][1]
+            }
+        }
+
+        for (k in strand_ids) {
+
+            .strand = info_df$strand[info_df$strand_x == k][1]
+
+            if (!is.null(contrasts)) {
+                if (contrast_type == "genotype") {
+                    .strand = info_df$strand[info_df$strand_x == k][1]
+                } else { if (contrast_type == "strand") {
+                    .strand = contrast_vec[k]
+                }}
+            }
+            beta_vals = summary_df %>%
+                filter(genotype == geno_id, strand == k, var_name == "Beta") %>%
+                .$mean
+            for (param in params) {
+
+                print(paste0("Geno_id: ", geno_id))
+                this_df = summary_df %>%
+                    filter(genotype == geno_id, strand == k, var_name == param) %>%
+                    mutate(
+                        seqnames=stan_data[["position_mapper"]]$seqnames,
+                        start=stan_data[["position_mapper"]]$start,
+                        end=stan_data[["position_mapper"]]$end,
+                        strand = ifelse(.strand == "plus", "+",
+                            ifelse(.strand == "minus", "-",
+                            ifelse(.strand=="both", "*", .strand)))
+                    )
+                if (param == "non_sub_ipod") {
+                    inds = floor(seq(1,nrow(this_df),length.out=10000))
+                    plot_data = tibble(y=unlist(this_df[inds,"mean"], use.names=F), x=unlist(beta_vals[inds], use.names=F))
+                    pred_xvals = seq(0, max(beta_vals), length.out=100)
+                    pred_yvals = cs_pred_func(pred_xvals, a_vals, b_vals, c_vals)
+                    #pred_yvals_lower = cs_pred_func(pred_xvals, a_vals_lower, b_vals_lower, c_vals_lower)
+                    #pred_yvals_upper = cs_pred_func(pred_xvals, a_vals_upper, b_vals_upper, c_vals_upper)
+                    print(paste0("pred_yvals: ", pred_yvals))
+                    print(paste0("length(pred_yvals): ", length(pred_yvals)))
+                    plot_xvals = c(min(beta_vals), pred_xvals)
+                    print(paste0("plot_xvals: ", plot_xvals))
+                    print(paste0("length(plot_xvals): ", length(plot_xvals)))
+                    plot_yvals = c(0, pred_yvals)
+                    #plot_yvals_lower = c(0, pred_yvals_lower)
+                    #plot_yvals_upper = c(0, pred_yvals_upper)
+                    plot_fname = paste0(out_direc, "/", genotype, "_", .strand,
+                        "_strand_chipsub_fit_diagnostic.png")
+                    
+                    plot_tib = tibble(x=plot_xvals, y=plot_yvals) #, upper=plot_yvals_upper, lower=plot_yvals_lower)
+                    p = ggplot(data=plot_tib, aes(x=x, y=y)) + #, ymin=lower, ymax=upper)) +
+                        #geom_ribbon(fill="red", alpha=0.2) +
+                        geom_line(color="red")
+                    p = p + geom_point(data=plot_data, aes(x=x, y=y), alpha=0.05)
+                    ggsave(filename=plot_fname, plot=p, height=5, width=7)
+                }
+                if (param == "Gamma") {
+                    inds = floor(seq(1,nrow(this_df),length.out=10000))
+                    plot_data = tibble(y=unlist(this_df[inds,"mean"], use.names=F), x=unlist(beta_vals[inds], use.names=F))
+                    pred_xvals = seq(0, max(beta_vals), length.out=100)
+                    pred_yvals = cs_pred_func(pred_xvals, a_vals, b_vals, c_vals)
+                    print(paste0("pred_yvals: ", pred_yvals))
+                    print(paste0("length(pred_yvals): ", length(pred_yvals)))
+                    plot_xvals = c(min(beta_vals), pred_xvals)
+                    print(paste0("plot_xvals: ", plot_xvals))
+                    print(paste0("length(plot_xvals): ", length(plot_xvals)))
+                    plot_yvals = c(0, pred_yvals)
+                    print(paste0("plot_yvals: ", plot_yvals))
+                    print(paste0("length(plot_yvals): ", length(plot_yvals)))
+                    plot_fname = paste0(out_direc, "/", genotype, "_", .strand,
+                        "_strand_chipsub_result.png")
+                    
+                    plot_tib = tibble(x=plot_xvals, y=plot_yvals)
+                    p = ggplot(data=plot_data, aes(x=x,y=y)) + geom_point(alpha=0.05)
+                    ggsave(filename=plot_fname, plot=p, height=5, width=7)
+                }
+
+                for (quant in c("lower", "median", "mean", "upper")) {
+                    out_fname = paste0(out_direc, "/", genotype, "_",
+                        .strand, "_strand_", param, "_", quant, ".bedgraph")
+                    print(paste0("Writing ", quant,
+                            " ", param, " estimates to ", out_fname))
+                    readr::write_tsv(
+                        this_df[,c("seqnames","start","end",quant,"strand")],
+                        file=out_fname,
+                        col_names=FALSE
+                    )
+                }
+            }
+        }
+    }
+}
+
+write_expt_key_file = function(.direc, .stan_data) {
+    out_info = list()
+    map = NA
+    out_info[["resolution"]] = median(diff(.stan_data$position_mapper[1:5,"start"]))
+    out_info[["pos_num"]] = nrow(.stan_data$position_mapper)
+    out_info[["geno_num"]] = max(.stan_data$geno_x)
+    out_info[["strand_num"]] = max(.stan_data$strand_x)
+}
+
+gather_vb_estimates = function(fit, stan_data, direc, interval=90, cmdstan=FALSE, params=NULL, threshold=1.0, geno_threshold=0.0, strand_threshold=0.0, geno_contrasts=NA, strand_contrasts=NA) {
     tail = (100-interval)/2
     quant_vec = c(tail/100, 0.5, (100-tail)/100)
 
@@ -778,19 +965,41 @@ gather_vb_estimates = function(fit, stan_data, direc, interval=90, cmdstan=FALSE
         print("Running command:")
         exec_f_path = get_exec_file()
         exec_direc = dirname(exec_f_path)
-        bin_path = file.path(exec_direc, "../bin/parse_cmdstan_csv")
+        #bin_path = file.path(exec_direc, "../bin/parse_cmdstan_csv")
+        bin_path = file.path(exec_direc, "../rust/parse_cmdstan_csv_dev/target/release/parse_cmdstan_csv_dev")
  
         in_file = fit$output_files()
         summary_out_file = file.path(dirname(in_file), "summaries.txt")
         sample_out_file = file.path(dirname(in_file), "samples.csv")
+        parse_args = c(
+            "--draws-file", in_file,
+            "--vars", paste(params, collapse=","),
+            "--expt-key-file", stan_data[["expt_key_file"]],
+            "--pos-file-name", stan_data[["pos_map_file"]],
+            "--threshold", as.character(threshold),
+            "--out-direc", direc
+        )
+
+        if (!is.na(strand_contrasts)) {
+            parse_args = c(parse_args,
+                "--strand-contrasts", strand_contrasts,
+                "--strand-contrast-threshold", as.character(strand_threshold)
+            )
+        }
+        if (!is.na(geno_contrasts)) {
+            parse_args = c(parse_args,
+                "--genotype-contrasts", geno_contrasts,
+                "--genotype-contrast-threshold", as.character(geno_threshold)
+            )
+        }
         parse_cmd = paste(
-            bin_path, in_file, summary_out_file, sample_out_file, "500", paste(params, collapse=","),
+            parse_args,
             sep=" "
         )
         print(parse_cmd)
         res = system2(
             bin_path,
-            c(in_file, summary_out_file, sample_out_file, "500", paste(params, collapse=",")),
+            parse_args,
             env="RUST_BACKTRACE=1",
             stderr="",
             stdout=""

@@ -447,6 +447,7 @@ fn do_contrasts(
     };
     println!("Cont arr dims: {:?}", result_arr.dim());
     println!("Contrasts: {:?}", contrasts);
+    println!("Lookup table: {:?}", lut);
 
     for (i,contrast) in contrasts.iter().enumerate() {
         println!("Running contrast: {}", contrast);
@@ -454,6 +455,8 @@ fn do_contrasts(
             .iter().map(|x| x.trim()).collect();
         let numer_geno = cont_vec[0];
         let denom_geno = cont_vec[1];
+        println!("Contrast numerator: {}", numer_geno);
+        println!("Contrast denominator: {}", denom_geno);
         let numer_idx = lut.get(numer_geno).unwrap();
         let denom_idx = lut.get(denom_geno).unwrap();
         let numer_vals = if contrast_type == String::from("genotype") {

@@ -84,6 +84,18 @@ option_list = list(
         help="Distance (in bp) between sampled alphas, which will later be mixed using overlapping exponential kernels defined by --input_fragment_length."
     ),
     make_option(
+        c("--ipod_fragment_length"), type="integer", default=90,
+        help="Sets the width of the smoothing kernel applied to ipod fits"
+    ),
+    make_option(
+        c("--ipod_subsample_dist"), type="integer", default=45,
+        help="Distance (in bp) between sampled ipod factors."
+    ),
+    make_option(
+        c("--grad_samps"), type="integer", default=1,
+        help="Sets the value to grad_samples for variational inference. Do not adjust from its default of 1 unless you have a good reason to do so."
+    ),
+    make_option(
         c("--cores"), type="integer", default=4,
         help="The number of cores to use for parallel chains when doing MCMC."
     ),
@@ -151,7 +163,7 @@ if (load) {
     if (is.null(opt$genome_data_file)) {
         experiment_info = read_csv(opt$info) %>%
             mutate(
-                sample_x = ifelse(sample=="input", 0, ifelse(sample=="inp", 0, 1)), # set hbd to 1
+                sample_x = ifelse(sample=="input", 0, ifelse(sample=="inp", 0, ifelse(sample=="chip", 1, 2))), # set hbd to 1
                 strand_x = ifelse(strand=="both", 1, ifelse(strand=="plus", 1, 2)) #plus strand is idx 1, minus is idx2
             )
 
@@ -201,8 +213,19 @@ if (load) {
         opt$log_lik,
         opt$frac_genome_enriched
     )
+    stan_list[["expt_key_file"]] = paste0(opt$draws_direc, "/expt_key.json")
+    stan_list[["pos_map_file"]] = paste0(opt$draws_direc, "/position_map.tsv")
     save(stan_list, file=opt$data_file)
 }
+
+print(paste0("Writing covariate key to ", stan_list[["expt_key_file"]]))
+jsonlite::toJSON(stan_list[["expt_key"]], auto_unbox=TRUE) %>%
+    jsonlite::prettify() %>%
+    write(stan_list[["expt_key_file"]])
+
+print(paste0("Writing position map to ", stan_list[["pos_map_file"]]))
+stan_list[["position_mapper"]] %>% write_tsv(file=stan_list[["pos_map_file"]], col_names=FALSE)
+
 
 if (opt$norm_method == "libsize") {
     stan_list[["libsize"]] = stan_list[[opt$libsize_key]] 
@@ -232,6 +255,7 @@ for (var in include_vars) {
 if (!dir.exists(opt$draws_direc)) {
     dir.create(opt$draws_direc, recursive=TRUE)
 }
+grad_samps = opt$grad_samps
 fit = sm$variational(
     data = newlist,
     seed = opt$seed,
@@ -240,7 +264,7 @@ fit = sm$variational(
     output_dir = opt$draws_direc,
     output_basename = "draws",
     algorithm = "meanfield",
-    grad_samples = 1
+    grad_samples = grad_samps
 )
 
 save(fit, file=opt$fit_file)

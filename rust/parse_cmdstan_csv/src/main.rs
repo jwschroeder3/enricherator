@@ -5,6 +5,8 @@ use tokio::fs::File;
 //use std::fs::File;
 use std::error::Error;
 use std::iter::zip;
+use std::collections::HashMap;
+use std::collections::hash_map::Entry;
 //use std::io::prelude::*;
 use rayon::prelude::*;
 
@@ -52,17 +54,35 @@ async fn parse_lines<'a>(
     println!("total number of columns: {}", split.len());
 
     let mut row_data = Vec::<OrderedFloat<f32>>::with_capacity(split.len());
+    let chipsub_vars = vec!["a_cubic", "b_cubic", "c_cubic"];
+    //let mut chipsub_plot_values: HashMap<usize, > = HashMap::new();
 
     let col_names: Vec<(usize,(usize,usize,usize,String))> = split.par_iter()
         .enumerate()
         .filter(|(_,x)| {
-            vars.iter().any(|var_name| x.starts_with(var_name))
+            // if this var starts with any of the requested parameters or any of the chipsub
+            // parameters names, go on to parse it.
+            vars.iter().any(|var_name| x.starts_with(var_name)) || chipsub_vars.iter().any(|var_name| x.starts_with(var_name))
         }).map(|(i,x)| {
             let splitx: Vec<&str> = x.split('.').collect();
             let var_name = splitx[0];
             let geno: usize = splitx[1].parse::<usize>().unwrap()-1;
-            let strand: usize = splitx[2].parse::<usize>().unwrap()-1;
-            let pos: usize = splitx[3].parse::<usize>().unwrap()-1;
+            //match chipsub_plot_values.entry(geno) {
+            //    Entry::Vacant(entry) => {
+            //        entry.insert();
+            //    },
+            //    Entry::Occupied(entry) => {
+            //    };
+            //}
+            let (strand, pos): (usize,usize) = if chipsub_vars.iter().any(|cs_var_name| cs_var_name == &var_name) {
+                let s: usize = 1000;
+                let p: usize = 1000;
+                (s,p)
+            } else {
+                let s: usize = splitx[2].parse::<usize>().unwrap()-1;
+                let p: usize = splitx[3].parse::<usize>().unwrap()-1;
+                (s,p)
+            };
 
             (i, (geno,strand,pos,var_name.to_string()))
         }).collect();
@@ -97,6 +117,7 @@ async fn parse_lines<'a>(
     println!("Final var column: {:?}", col_names[col_names.len()-1]);
     println!("Number of vars: {}", col_names.len());
 
+
     // skip the cmdstan output's header
     while let Some(line_str) = lines.next_line().await? {
     //let lines = lines.skip_while(|line| {
@@ -109,6 +130,16 @@ async fn parse_lines<'a>(
             for j in 0..(col_num-1) {
                 let col_info = &col_names[j];
                 let k = col_info.0;
+                let g = col_info.1.0;
+                //if chipsub_vars.iter().any(|var_name| g == var_name) {
+                //    match chipsub_plot_values.entry(geno) {
+                //        Entry::Vacant(entry) => {
+                //            entry.insert();
+                //        },
+                //        Entry::Occupied(entry) => {
+                //        };
+                //    }
+                //}
                 //let col_idx = col_info.1.0;
                 let this_samp = &mut samples[j];
                 // convert from ln to log2, and place in vector of samples for this parameter
@@ -194,6 +225,18 @@ fn fetch_summaries(data: &Vec<Vec<OrderedFloat<f32>>>) -> Vec<Vec<f32>> {
             f32::from(samples.iter().sum::<OrderedFloat<f32>>()
                 / samples.len() as f32)
         );
+        let positive_numbers: f32 = samples.iter().filter(|&&x| x > OrderedFloat(0.0)).count() as f32;
+        let negative_numbers: f32 = samples.len() as f32 - positive_numbers;
+        let mut K_gt = positive_numbers / negative_numbers;
+        let mut K_lt = negative_numbers / positive_numbers;
+        if K_gt > samples.len() as f32 {
+            K_gt = samples.len() as f32;
+        }
+        if K_lt > samples.len() as f32 {
+            K_lt = samples.len() as f32;
+        }
+        summary.push(K_gt);
+        summary.push(K_lt);
         summaries.push(summary);
     }
     summaries
@@ -208,12 +251,12 @@ async fn write_summaries(
     let mut writer = BufWriter::new(file);
 
     println!("Writing summary statistics to file {}", fname);
-    writer.write(b"var_name\tgenotype\tstrand\tposition\tlower\tmedian\tupper\tmean\n").await?;
+    writer.write(b"var_name\tgenotype\tstrand\tposition\tlower\tmedian\tupper\tmean\tK_gt\tK_lt\n").await?;
     let iterator = zip(summaries, info);
     for dat in iterator {
         let line = format!(
-            "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n",
-            dat.1.1.3, dat.1.1.0+1, dat.1.1.1+1, dat.1.1.2+1, dat.0[0], dat.0[1], dat.0[2], dat.0[3]
+            "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n",
+            dat.1.1.3, dat.1.1.0+1, dat.1.1.1+1, dat.1.1.2+1, dat.0[0], dat.0[1], dat.0[2], dat.0[3], dat.0[4], dat.0[5]
         );
 
         writer.write(line.as_bytes()).await?;
@@ -229,7 +272,7 @@ async fn main() {
     let summary_outfname = &args[2];
     let sample_outfname = &args[3];
     let samp_num: usize = args[4].parse().unwrap();
-    let var_arg = &args[5];
+    let var_arg = &args[5]; // Alpha,Beta
     println!("Reading {:?} from {}", var_arg, infname);
     let vars: Vec<&str> = var_arg.split(",").collect();
     let (cols,samps) = parse_lines(infname, samp_num, vars, sample_outfname).await.unwrap();

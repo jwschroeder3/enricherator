@@ -1,0 +1,728 @@
+use std::{env, fmt, thread};
+use std::sync::mpsc;
+use std::fs::File;
+use std::collections::HashMap;
+//use tokio::io::{AsyncReadExt};
+use std::io::{self, BufRead, BufReader, Read};
+//use bytes::{BytesMut, BufMut};
+use std::error::Error;
+use std::iter::zip;
+use std::str;
+
+use ndarray::Array5;
+use ordered_float::OrderedFloat;
+use serde::{Serialize, Deserialize};
+use serde_json;
+
+const BUF_SIZE: usize = 1064;
+
+type BoxedResult<T> = std::result::Result<T, Box<dyn Error>>;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    //use assert_approx_eq::*;
+
+    fn set_up_tests() -> HashMap<String, &'static str> {
+        let into_colname_text = "#header text \nlp__,log_p__,log_g__,sig_noise.1,sub_Alpha.1.1.1,sub_Beta.1.1.1,Alpha_Beta.1.1,Alpha_Beta.2.1,Alpha_Beta.3.1,Alpha_Beta.1.2,Alpha_Beta.2.2,Alpha_Beta.3.2\n";
+        let into_sample_text = "#header text \nlp__,log_p__,log_g__,sig_noise.1,sub_Alpha.1.1.1,sub_Beta.1.1.1,Alpha_Beta.1.1,Alpha_Beta.2.1,Alpha_Beta.3.1,Alpha_Beta.1.2,Alpha_Beta.2.2,Alpha_Beta.3.2\n0.0,0.00,0.0,0.99999,1.0,1.2,1.0,2.0,3.0,4.0,5.0,6.0\n";
+        let first_batch = "#header text \nlp__,log_p__,log_g__,sig_noise.1,sub_Alpha.1.1.1,sub_Beta.1";
+        let leftover = "sub_Beta.1";
+        let the_rest = ".1.1,Alpha_Beta.1.1,Alpha_Beta.2.1,Alpha_Beta.3.1,Alpha_Beta.1.2,Alpha_Beta.2.2,Alpha_Beta.3.2\n";
+        let colname_text = "lp__,log_p__,log_g__,sig_noise.1,sub_Alpha.1.1.1,sub_Beta.1.1.1,Alpha_Beta.1.1,Alpha_Beta.2.1,Alpha_Beta.3.1,Alpha_Beta.1.2,Alpha_Beta.2.2,Alpha_Beta.3.2\n";
+        let fname = "test_data/test_parse.csv";
+        let covar_fname = "test_data/covar_key.json";
+
+        let mut hash = HashMap::new();
+        hash.insert(String::from("into_colname"), into_colname_text);
+        hash.insert(String::from("into_sample"), into_sample_text);
+        hash.insert(String::from("first_batch"), first_batch);
+        hash.insert(String::from("leftover"), leftover);
+        hash.insert(String::from("the_rest"), the_rest);
+        hash.insert(String::from("colname_text"), colname_text);
+        hash.insert(String::from("fname"), fname);
+        hash.insert(String::from("covar_fname"), covar_fname);
+        hash
+    }
+
+    #[test]
+    fn assign_to_samp_arr() {
+        let idx = (0,0,0,0,0);
+        let mut samp_arr = SamplesArray::zeros_by_shape((2,2,2,2,2));
+        assert_eq!(samp_arr.samples[[0,0,0,0,0]], 0.0);
+        samp_arr.assign_at(1.0, idx);
+        assert_eq!(samp_arr.samples[[0,0,0,0,0]], 1.0);
+        assert_eq!(samp_arr.samples[[0,0,0,0,1]], 0.0);
+    }
+
+    #[test]
+    fn test_get_index_key() {
+        let covar_key = CovarKey::read_covar_key("test_data/covar_key.json").unwrap();
+        let vars = vec![String::from("Alpha"),String::from("Beta")];
+        let idx_key = get_index_key(&covar_key, &vars);
+        assert_eq!(idx_key.get(&0).unwrap().0, 0);
+        assert_eq!(idx_key.get(&0).unwrap().1, 0);
+        assert_eq!(idx_key.get(&0).unwrap().2, 0);
+        assert_eq!(idx_key.get(&1).unwrap().0, 0);
+        assert_eq!(idx_key.get(&1).unwrap().1, 0);
+        assert_eq!(idx_key.get(&1).unwrap().2, 1);
+        assert_eq!(idx_key.get(&2).unwrap().0, 1);
+        assert_eq!(idx_key.get(&2).unwrap().1, 0);
+        assert_eq!(idx_key.get(&2).unwrap().2, 0);
+        assert_eq!(idx_key.get(&3).unwrap().0, 1);
+        assert_eq!(idx_key.get(&3).unwrap().1, 0);
+        assert_eq!(idx_key.get(&3).unwrap().2, 1);
+    }
+
+    #[test]
+    fn test_read_covar_key() {
+        let hash = set_up_tests();
+        let covar_key = CovarKey::read_covar_key("test_data/covar_key.json").unwrap();
+        assert_eq!(covar_key.map[0].genotype_name, String::from("mut"));
+        assert_eq!(covar_key.map[1].genotype_name, String::from("mut"));
+        assert_eq!(covar_key.map[0].strand_name, String::from("both"));
+        assert_eq!(covar_key.map[1].strand_name, String::from("both"));
+        assert_eq!(covar_key.map[0].var_name, String::from("Alpha"));
+        assert_eq!(covar_key.map[1].var_name, String::from("Beta"));
+    }
+
+    #[test]
+    fn update_byter() {
+        let new_bytes = vec![0,0,0,0,0];
+        let bytes = Vec::new();
+        let leftover = vec![5,5,5,5,5];
+        let linetype = PriorByteIn::Header;
+        let sample_idx = 0;
+        let mut byter = BytesIterator{bytes, leftover, linetype, sample_idx};
+
+        // test that byter.bytes is empty
+        let target: Vec<u8> = Vec::new();
+        assert_eq!(target, byter.bytes);
+        // test that byter.leftover is what we expect
+        let target: Vec<u8> = vec![5,5,5,5,5];
+        assert_eq!(target, byter.leftover);
+
+        // update byter
+        byter.update(new_bytes);
+
+        // test that byter.bytes has what we expect
+        let target: Vec<u8> = vec![5,5,5,5,5,0,0,0,0,0];
+        assert_eq!(target, byter.bytes);
+        // test that byter.leftover is now empty
+        let target: Vec<u8> = Vec::new();
+        assert_eq!(target, byter.leftover);
+    }
+    
+    #[test]
+    fn parse_field_names() {
+        let hash = set_up_tests();
+        let text = hash.get("first_batch").unwrap();
+        let target_leftover = hash.get("leftover").unwrap();
+        let bytes = text.as_bytes();
+        let mut byter = BytesIterator::new(bytes.to_vec());
+        //println!("{:?}", byter);
+        assert_eq!(byter.bytes[0], b'#');
+        let fields = byter.field_scan().unwrap();
+        assert_eq!(target_leftover.as_bytes(), byter.leftover);
+        //println!("{:?}", fields);
+        assert_eq!("lp__", fields.fields[0].string);
+        let text = hash.get("the_rest").unwrap();
+        byter.update(text.as_bytes().to_vec());
+        let fields = byter.field_scan().unwrap();
+        //println!("{:?}", fields);
+        assert_eq!("sub_Beta.1.1.1", fields.fields[0].string);
+    }
+
+    #[test]
+    fn enter_colnames() {
+        let hash = set_up_tests();
+        let bytes = hash.get("into_colname").unwrap().as_bytes();
+        let mut byter = BytesIterator::new(bytes.to_vec());
+        let fields = byter.field_scan().unwrap();
+        assert_eq!("lp__", fields.fields[0].string);
+        assert_eq!("Alpha_Beta.3.2", fields.fields[fields.len()-1].string);
+    }
+
+    #[test]
+    fn filter_fields() {
+        "#header text \nlp__,log_p__,log_g__,sig_noise.1,sub_Alpha.1.1.1,sub_Beta.1.1.1,Alpha_Beta.1.1,Alpha_Beta.2.1,Alpha_Beta.3.1,Alpha_Beta.1.2,Alpha_Beta.2.2,Alpha_Beta.3.2\n";
+        let hash = set_up_tests();
+        let bytes = hash.get("into_colname").unwrap().as_bytes();
+        let mut byter = BytesIterator::new(bytes.to_vec());
+        let mut fields = byter.field_scan().unwrap();
+        let mut retained_fields: Vec<(usize, (usize, usize, usize, usize))> = Vec::new();
+
+        let covar_key = CovarKey::read_covar_key("test_data/covar_key.json").unwrap();
+        let vars = vec![String::from("Alpha"),String::from("Beta")];
+        let idx_key = get_index_key(&covar_key, &vars);
+
+        let mut samples_arr = SamplesArray::zeros_by_shape((2,2,2,2,2));
+
+        let in_samples = fields.parse_fields(
+            &mut retained_fields,
+            &vars,
+            &covar_key,
+            &idx_key,
+            &mut samples_arr,
+        ).unwrap();
+
+        assert!(!in_samples);
+
+        let target_cols = vec![6,7,8,9,10,11];
+        let target_genos = vec![0,0,0,0,0,0];
+        let target_strands = vec![0,0,0,0,0,0];
+        let target_vars = vec![0,0,0,1,1,1];
+        for (i,col) in target_cols.iter().enumerate() {
+            assert_eq!(col, &retained_fields[i].0);
+            assert_eq!(target_genos[i], retained_fields[i].1.0);
+            assert_eq!(target_strands[i], retained_fields[i].1.1);
+            assert_eq!(target_vars[i], retained_fields[i].1.2);
+        }
+        // should not be equal, so assert that
+        let target_cols = vec![7,8,9,10,11,12];
+        for (i,col) in target_cols.iter().enumerate() {
+            assert_ne!(col, &retained_fields[i].0);
+        }
+
+    }
+
+    #[test]
+    fn test_into_samples() {
+        "#header text \nlp__,log_p__,log_g__,sig_noise.1,sub_Alpha.1.1.1,sub_Beta.1.1.1,Alpha_Beta.1.1,Alpha_Beta.2.1,Alpha_Beta.3.1,Alpha_Beta.1.2,Alpha_Beta.2.2,Alpha_Beta.3.2\n0.0,0.00,0.0,0.99999,1.0,1.2,1.0,2.0,3.0,4.0,5.0,6.0\n";
+        let hash = set_up_tests();
+        let bytes = hash.get("into_samples").unwrap().as_bytes();
+        let mut byter = BytesIterator::new(bytes.to_vec());
+        let mut fields = byter.field_scan().unwrap();
+        let mut retained_fields: Vec<(usize, (usize, usize, usize, usize))> = Vec::new();
+
+        let covar_key = CovarKey::read_covar_key("test_data/covar_key.json").unwrap();
+        let vars = vec![String::from("Alpha"),String::from("Beta")];
+        let idx_key = get_index_key(&covar_key, &vars);
+        let mut samples_arr = SamplesArray::zeros_by_shape((2,2,2,2,2));
+
+        let in_samples = fields.parse_fields(
+            &mut retained_fields,
+            &vars,
+            &covar_key,
+            &idx_key,
+            &mut samples_arr,
+        ).unwrap();
+
+        assert!(in_samples);
+
+    }
+}
+
+#[derive(Deserialize, Debug)]
+struct CovarKey {
+    map: Vec<CovarInfo>,
+    resolution: u8,
+}
+
+#[derive(Deserialize, Debug)]
+struct CovarInfo {
+    var_name: String,
+    genotype_name: String,
+    strand_name: String,
+}
+
+impl CovarKey {
+    fn read_covar_key(fname: &str) -> BoxedResult<CovarKey> {
+        let mut file = File::open(fname)?;
+        let mut data = String::new();
+        file.read_to_string(&mut data)?;
+        let covar_key: CovarKey = serde_json::from_str(&data)?;
+        Ok(covar_key)
+    }
+}
+
+/// Enumeration to handle information appropriately, depending on what we know about a line
+#[derive(Debug,Copy,Clone)]
+enum PriorByteIn {
+    Header,
+    EndOfHeader,
+    HeaderAfterColnames,
+    EndOfHeaderAfterColnames,
+    ColNames,
+    Samples(usize),
+}
+
+#[derive(Debug)]
+enum HandleSamplesError {
+    Placeholder,
+}
+
+impl fmt::Display for HandleSamplesError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            HandleSamplesError::Placeholder => write!(f, "nothing, really"),
+        }
+    }
+}
+
+impl Error for HandleSamplesError {}
+
+#[derive(Debug)]
+enum HandleFieldsError {
+    CheckColnamesError,
+    FilterFieldsError,
+}
+
+impl fmt::Display for HandleFieldsError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            HandleFieldsError::CheckColnamesError => write!(f, "nothing, really"),
+            HandleFieldsError::FilterFieldsError => write!(f, "nothing, really"),
+        }
+    }
+}
+
+impl Error for HandleFieldsError {}
+
+#[derive(Debug)]
+enum ByteIterError {
+    HashAfterSampleError,
+}
+
+impl fmt::Display for ByteIterError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            ByteIterError::HashAfterSampleError =>
+                write!(f, "Reached a '#' symbol after samples. This should not occur in cmdstan output files. Check your draws file."),
+        }
+    }
+}
+
+impl Error for ByteIterError {}
+
+#[derive(Debug)]
+struct BytesIterator {
+    bytes: Vec<u8>,
+    leftover: Vec<u8>,
+    linetype: PriorByteIn,
+    sample_idx: usize,
+}
+
+#[derive(Debug)]
+struct ByteField {
+    bytes: Vec<u8>,
+}
+
+#[derive(Debug)]
+struct StringField {
+    string: String,
+    linetype: PriorByteIn,
+    col_idx: usize,
+}
+
+impl StringField {
+    fn new(string: String, linetype: PriorByteIn, col_idx: usize) -> StringField {
+        StringField { string, linetype, col_idx }
+    }
+}
+
+impl ByteField {
+    fn new() -> ByteField {
+        let bytes = Vec::new();
+        ByteField{bytes}
+    }
+
+    fn from_vec(bytes: Vec<u8>) -> ByteField {
+        ByteField { bytes }
+    }
+
+    fn push(&mut self, byte: u8) {
+        self.bytes.push(byte);
+    }
+
+    fn clear(&mut self) {
+        self.bytes.clear();
+    }
+}
+
+#[derive(Debug)]
+struct SamplesArray {
+    // samples array is shape (geno, strand, params, position, samples)
+    // so that for each genotype, strand, parameter combination, there is a 2D sub-array
+    // of shape (positions, samples). I think that placing samples last will promote
+    // faster sorting if I'm not mistaken
+    samples: Array5<f32>,
+}
+
+impl SamplesArray {
+
+    fn zeros_by_shape(shape: (usize,usize,usize,usize,usize)) -> SamplesArray {
+        let samples = Array5::zeros(shape);
+        SamplesArray{ samples }
+    }
+
+    fn assign_at(&mut self, val: f32, idx: (usize,usize,usize,usize,usize)) {
+        self.samples[idx] = val;
+    }
+}
+
+#[derive(Debug)]
+struct RetainedCols {
+    // inds is a vec of tuples (i, (g,q,v,p)),
+    // where i is the column index in the csv file,
+    // g is the index for data in genotype axis,
+    // q is the index for data in strand axis,
+    // v is the index for the covariate axis,
+    // p is the index for the position axis.
+    inds: Vec<(usize, (usize, usize, usize, usize))>,
+}
+
+#[derive(Debug)]
+struct FieldVec {
+    fields: Vec<StringField>,
+}
+
+impl FieldVec {
+    fn new() -> FieldVec {
+        FieldVec{fields: Vec::<StringField>::new()}
+    }
+
+    unsafe fn push_bytes(&mut self, field: &mut ByteField, linetype: &PriorByteIn, col_idx: usize) {
+        //println!("Input bytes: {:?}", &field);
+        let field_string = unsafe {
+            String::from_utf8_unchecked(field.bytes.to_vec())
+        };
+        //println!("String from the bytes: {:?}", &field_string);
+        // if pushing to a fieldvec, always want to clear the field
+        field.clear();
+        //println!("Should be empty: {:?}", &field);
+        let string_field = StringField::new(field_string, *linetype, col_idx);
+        //println!("StringField: {:?}", &string_field);
+        // push this field to fields
+        self.fields.push(string_field);
+    }
+
+    fn len(&self) -> usize {
+        self.fields.len()
+    }
+
+    // retained fields is used to map column indices to their proper position in the final array
+    fn parse_fields(
+            &mut self,
+            retained_fields: &mut Vec<(usize, (usize, usize, usize, usize))>,
+            vars: &Vec<String>,
+            covar_key: &CovarKey,
+            idx_key: &HashMap<usize, (usize, usize, usize)>,
+            samples_arr: &mut SamplesArray,
+    ) -> Result<bool, HandleFieldsError> {
+        let mut in_samples = false;
+        for field in &self.fields {
+            match field.linetype {
+                // if this field is a column name, do the following
+                PriorByteIn::ColNames => {
+                    // check whether the col name starts with "Alpha_Beta."
+                    if field.string.starts_with("Alpha_Beta") {
+                        // split string on ".", unpack to position and covar_idx
+                        let field_split: Vec<&str> = field.string.split('.').collect();
+                        // toss out the first element, keeping final two, converting to usize
+                        let field_usize: Vec<usize> = field_split[1..3].iter().map(|x| {
+                            x.parse::<usize>().unwrap()
+                        }).collect();
+                        let covar_idx = field_usize[1] - 1;
+                        let position_idx = field_usize[0] - 1;
+                        let this_covar_info = &covar_key.map[covar_idx];
+                        // if any value in vars matches this var_name, do the following
+                        if vars.iter().any(|x| x == &this_covar_info.var_name) {
+                            // we're keeping values in this column, so we need to
+                            // mark this col_idx as retained, and track which position in the
+                            // samples array to place this column's values into once we get
+                            // to its samples
+                            let (geno_idx,strand_idx,var_idx) = idx_key.get(&covar_idx).unwrap();
+                            retained_fields.push(
+                                (field.col_idx, (*geno_idx,*strand_idx,*var_idx, position_idx))
+                            );
+                        }
+                    }
+                },
+                PriorByteIn::Samples(_) => {
+                    //samples_arr.assign_at(&mut self, val: f32, idx: (usize,usize,usize,usize,usize))
+                    in_samples = true;
+                },
+                _ => continue
+            }
+        }
+        Ok(in_samples)
+    }
+
+    fn filter(&mut self, vars: &Vec<String>, covar_key: &CovarKey) -> Result<(), HandleFieldsError> {
+        //let filtered
+        //// Check whether each field is one of vars
+        //let mut iter = self.fields.iter().filter(|x| {
+        //    x.
+        //});
+        Ok(())
+    }
+}
+
+impl BytesIterator {
+    fn new(bytes: Vec<u8>) -> BytesIterator {
+        let leftover: Vec<u8> = Vec::new();
+        let linetype = PriorByteIn::Header;
+        let sample_idx: usize = 0;
+        BytesIterator{bytes, leftover, linetype, sample_idx}
+    }
+
+    fn update(&mut self, mut bytes: Vec<u8>) {
+        let mut complete_data = Vec::new();
+        // if there is something leftover from prior buffer read, prepend to data here
+        if !self.leftover.is_empty() {
+            complete_data.append(&mut self.leftover);
+            complete_data.append(&mut bytes);
+            self.bytes = complete_data;
+            self.leftover.clear();
+        } else {
+            self.bytes = bytes;
+        }
+        self.leftover.clear();
+    }
+
+    fn field_scan(&mut self) -> Result<FieldVec, ByteIterError> {
+
+        let mut fields = FieldVec::new();
+        let mut field = ByteField::new();
+        let mut col_idx = 0;
+        // look at every byte to scan for fields of interest
+        for byte in &self.bytes {
+            match *byte {
+                // if byte is '#', entering a header
+                b'#' => {
+                    match self.linetype {
+                        PriorByteIn::Header => {continue},
+                        PriorByteIn::EndOfHeader => {
+                            self.linetype = PriorByteIn::Header;
+                        },
+                        PriorByteIn::HeaderAfterColnames => {continue},
+                        PriorByteIn::EndOfHeaderAfterColnames => {
+                            self.linetype = PriorByteIn::HeaderAfterColnames;
+                        },
+                        PriorByteIn::ColNames => {
+                            self.linetype = PriorByteIn::HeaderAfterColnames
+                        },
+                        PriorByteIn::Samples(_) => {
+                            return Err(ByteIterError::HashAfterSampleError)
+                        },
+                    };
+                },
+                // if the current byte is an EOL character
+                b'\n' => {
+                    match self.linetype {
+                        // if the current byte is EOL and we're coming
+                        // from a header, continue
+                        PriorByteIn::Header => {
+                            self.linetype = PriorByteIn::EndOfHeader;
+                        },
+                        PriorByteIn::EndOfHeader => {continue},
+                        PriorByteIn::HeaderAfterColnames => {
+                            self.linetype = PriorByteIn::EndOfHeaderAfterColnames;
+                            col_idx = 0;
+                        },
+                        PriorByteIn::EndOfHeaderAfterColnames => {continue},
+                        // if the current byte is EOL and we're coming from colnames,
+                        // gather the final field in the row
+                        // and set linetype to headeraftercolnames
+                        PriorByteIn::ColNames => {
+                            unsafe { fields.push_bytes(&mut field, &self.linetype, col_idx) };
+                            self.linetype = PriorByteIn::HeaderAfterColnames;
+                            col_idx = 0;
+                        },
+                        PriorByteIn::Samples(samp_idx) => {
+                            unsafe { fields.push_bytes(&mut field, &self.linetype, col_idx) };
+                            // increment sample index by one and re-set col index to 0
+                            self.linetype = PriorByteIn::Samples(samp_idx + 1);
+                            col_idx = 0;
+                        },
+                    };
+                },
+                b',' => {
+                    match self.linetype {
+                        // if the current byte is ',' and we're coming from a
+                        // header, continue
+                        PriorByteIn::Header => {continue},
+                        PriorByteIn::EndOfHeader => {continue},
+                        PriorByteIn::HeaderAfterColnames => {continue},
+                        PriorByteIn::EndOfHeaderAfterColnames => {continue},
+                        // if the current byte is ',' and we're in colnames,
+                        // push field to fieldvec
+                        PriorByteIn::ColNames => {
+                            unsafe {
+                                fields.push_bytes(&mut field, &self.linetype, col_idx)
+                            };
+                            // increment col idx by one
+                            col_idx += 1;
+                        },
+                        // if current byte is ',' and we're in samples,
+                        // push field to fieldvec
+                        PriorByteIn::Samples(_) => {
+                            unsafe {
+                                fields.push_bytes(&mut field, &self.linetype, col_idx)
+                            };
+                            // increment col idx by one
+                            col_idx += 1;
+                        },
+                    };
+                },
+                other => {
+                    match self.linetype {
+                        PriorByteIn::Header => {continue},
+                        PriorByteIn::EndOfHeader => {
+                            self.linetype = PriorByteIn::ColNames;
+                            field.push(*byte);
+                        },
+                        PriorByteIn::HeaderAfterColnames => {continue},
+                        PriorByteIn::EndOfHeaderAfterColnames => {
+                            field.push(*byte);
+                            self.linetype = PriorByteIn::Samples(0);
+                        },
+                        PriorByteIn::ColNames => {
+                            field.push(*byte);
+                        },
+                        PriorByteIn::Samples(_) => {
+                            field.push(*byte);
+                        },
+                    };
+                },
+            };
+        };
+
+        // place remaining bytes in field into leftover
+        self.leftover = field.bytes;
+
+        Ok(fields)
+    }
+}
+
+/// returns the hashmap that will be used to map a covariate index to a position in the first
+/// three axes of the final samples array.
+fn get_index_key(covar_key: &CovarKey, vars: &Vec<String>) -> HashMap<usize, (usize, usize, usize)> {
+    // samples array is shape (geno, strand, params, position, samples)
+    let mut geno_vec: Vec<&str> = Vec::new();
+    let mut strand_vec: Vec<&str> = Vec::new();
+
+    let mut arr_map: HashMap<usize, (usize, usize, usize)> = HashMap::new();
+
+    for (i,covar_info) in covar_key.map.iter().enumerate() {
+        // if the genotype name isn't currently in geno_vec, append it
+        if !geno_vec.iter().any(|x| x == &covar_info.genotype_name) {
+            geno_vec.push(&covar_info.genotype_name);
+        }
+        if !strand_vec.iter().any(|x| x == &covar_info.strand_name) {
+            strand_vec.push(&covar_info.strand_name);
+        }
+        let geno_idx = geno_vec.iter().position(|x| x == &covar_info.genotype_name).unwrap();
+        let strand_idx = strand_vec.iter().position(|x| x == &covar_info.strand_name).unwrap();
+        let var_idx = vars.iter().position(|x| x == &covar_info.var_name).unwrap();
+        arr_map.insert(i, (geno_idx, strand_idx, var_idx));
+    }
+    arr_map
+}
+
+fn main() -> BoxedResult<()> {
+
+    let args: Vec<String> = env::args().collect();
+    //let infname = &args[1];
+    let summary_outfname = &args[2];
+    let sample_outfname = &args[3];
+    let samp_num: usize = args[4].parse()?;
+    let var_arg = &args[5]; // Alpha,Beta
+    let covar_key_file = &args[6];
+
+    let covar_key = CovarKey::read_covar_key(covar_key_file)?;
+
+    println!("Reading {:?} from {}", var_arg, &args[1]);
+    let mut vars: Vec<String> = Vec::new();
+    for var in var_arg.split(",") {
+        vars.push(String::from(var))
+    }
+
+    let idx_key = get_index_key(&covar_key, &vars);
+
+    // channel for threads to communicate
+    let (reader_tx, reader_rx) = mpsc::channel();
+    let (parser_tx, parser_rx) = mpsc::channel();
+    //let (handler_tx, handler_rx) = mpsc::channel();
+    let recd: Vec<u8> = Vec::new();
+    let mut byte_iterator = BytesIterator::new(recd);
+
+    let file = File::open(&args[1])?;
+
+    // spawn reader thread
+    // this thread is simply responsible for reading BUF_SIZE bytes at a time
+    // and passing those bytes to the next thread.
+    let reader_thread = thread::spawn(move || -> io::Result<()> {
+        let mut reader = BufReader::new(file);
+        let mut buffer = [0; BUF_SIZE];
+
+        loop {
+            let num_bytes_read = reader.read(&mut buffer)?;
+            // zero bytes read indicates EOF
+            if num_bytes_read == 0 {
+                break
+            }
+
+            // send the slice of buffer as an owned vec with data to parser
+            reader_tx.send(buffer[..num_bytes_read].to_vec()).unwrap();
+        }
+
+        Ok(())
+    });
+
+    // parser thread
+    // this thread is repsonsible for splitting fields and determining what
+    // type of row the fields are in, i.e., column header vs. samples
+    // Information to pass to the handler thread is, the actual data in the field,
+    // the type of data contained (col head vs samples), and
+    // the sample number if we're in samples
+    //
+    // fields is a FieldVec, which has a single attribute, `fields`, of type Vec<StringField>
+    let parser_thread = thread::spawn(move || -> Result<(), ByteIterError> {
+        byte_iterator.update(reader_rx.recv().unwrap());
+        // fields is a FieldVec
+        let fields = byte_iterator.field_scan()?;
+        parser_tx.send(fields).unwrap();
+        Ok(())
+    });
+
+    let mut retained_fields: Vec<(usize, (usize, usize, usize, usize))> = Vec::new();
+    // toggle to false once we're into samples to turn off checking
+    let mut check_for_samples: bool = true;
+
+    // field handler thread
+    // this thread is responsible for accepting the FieldVec passed by parser thread
+    // either assigning each field as retained or not, or assigning each value to
+    // its proper position in the samples array.
+    //
+    // Tasks it must perform
+    // 1) When in colname line, get vec of column indices and info
+    //      Place the col index into retained_fields
+    // 2) When in data, determine whether we're keeping each datum
+    //      Place into appropriate cell in array.
+    let field_handler_thread = thread::spawn(move || -> Result<(), HandleFieldsError> {
+        // fields is a FieldVec
+        let mut fields = parser_rx.recv().unwrap();
+        ///////////////////////////////////////////////////////////////////////
+        // Add a "positions" key to covar_key.json. Figure out how to get geno num for
+        // instantiations
+        ///////////////////////////////////////////////////////////////////////
+        if check_for_samples {
+            let in_samples = fields.parse_fields(
+                &mut retained_fields,
+                &vars,
+                &covar_key,
+                &idx_key,
+                &mut samples_arr,
+            )?;
+            if in_samples {
+                check_for_samples = false;
+            }
+        }
+
+        //fields.filter(&vars, &covar_key)?;
+        Ok(())
+    });
+    Ok(())
+}

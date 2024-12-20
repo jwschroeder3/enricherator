@@ -87,9 +87,13 @@ parameters {
     vector[B] Delta; // an intercept to offset beta by
     vector[B] Eta; // an intercept to offset gamma by
 
-    vector[G] a_cubic;
-    vector[G] b_cubic;
-    vector[G] c_cubic;
+    vector<lower=0>[G] a_cubic;
+    vector<lower=0>[G] b_cubic;
+    vector<lower=0>[G] c_cubic;
+
+    //vector[G] a_cubic;
+    //vector[G] b_cubic;
+    //vector[G] c_cubic;
 
     // local parameters for horseshoe prior
     array[B,Q] vector[b_sub_L] zbeta;
@@ -121,9 +125,10 @@ transformed parameters {
         vector[b_sub_L] sub_Gamma;
         vector[L] tmp_Beta;
         vector[L] tmp_Gamma;
+        vector[L] gr_zero;
+        vector[L] tmp_Beta_plus;
         for (b in 1:B) {
             for (q in 1:Q) {
-                //print(sub_Beta
                 sub_Beta = horseshoe(
                     zbeta[b,q],
                     hs_local_beta[b,q],
@@ -137,9 +142,11 @@ transformed parameters {
                     b_col_accessor,
                     b_row_non_zero_number,
                     sub_Beta
-                    //sub_Beta[b,q]
                 );
-                Beta[b,q] = tmp_Beta + Delta[b];
+                tmp_Beta_plus = tmp_Beta + Delta[b];
+                for (l in 1:L) {
+                    gr_zero[l] = tmp_Beta_plus[l] > 0;
+                }
                 sub_Gamma = horseshoe(
                     zgamma[b,q],
                     hs_local_gamma[b,q],
@@ -154,11 +161,15 @@ transformed parameters {
                     g_row_non_zero_number,
                     sub_Gamma
                 );
+                // Gamma represents the chip-subbed estimates
                 Gamma[b,q] = tmp_Gamma + Eta[b];
-                non_sub_ipod[b,q] = a_cubic[b]*Beta[b,q]
-                    + b_cubic[b]*Beta[b,q]^2
-                    + c_cubic[b]*Beta[b,q]^3
+
+                // iff beta is greater than zero, do chipsub
+                non_sub_ipod[b,q] = (a_cubic[b]*tmp_Beta_plus
+                    + b_cubic[b]*tmp_Beta_plus^2
+                    + c_cubic[b]*tmp_Beta_plus^3) .* gr_zero
                     + Gamma[b,q];
+                Beta[b,q] = tmp_Beta_plus;
             }
         }
     }
@@ -176,6 +187,9 @@ transformed parameters {
         }
     }
 
+    lprior += student_t_lpdf(a_cubic | 3, 1.0, 1.0);
+    lprior += student_t_lpdf(b_cubic | 3, 0.0, 1.0);
+    lprior += student_t_lpdf(c_cubic | 3, 0.0, 1.0);
     lprior += student_t_lpdf(hs_global_beta | hs_df_global_beta, 0, hs_scale_global_beta)
         - 1 * log(0.5);
     lprior += inv_gamma_lpdf(hs_slab_beta | 0.5 * hs_df_slab_beta, 0.5 * hs_df_slab_beta);
@@ -223,7 +237,6 @@ model {
     target += lprior;
 
     prec ~ lognormal(0, 1);
-    //wsh ~ normal(0, 3);
 
     for (s in 1:S) {
         sample_type = sample_x[s];
@@ -231,9 +244,9 @@ model {
         //wsh_s = wsh[s];
         libsize_s = cent_loglibsize[s];
         log_signoise_s = log_signoise[s];
-        log_comp_signoise_s = log_signoise[s];
+        log_comp_signoise_s = log_comp_signoise[s];
         for (q in 1:Q) {
-            // if sample_type is zero, else is run to just do alpha + libsize
+            // if sample_type is zero (input), just do alpha + libsize
             // if sample_type is 1, RNAP ChIP is run
             // if sample_type is 2, IPOD branch is run
 ////////////////////////////////////////////////////////////////
