@@ -16,6 +16,26 @@ functions {
         vector[K] lambda_tilde = sqrt(c2 * lambda2 ./ (c2 + tau^2 * lambda2));
         return z .* lambda_tilde * tau;
     }
+
+    // Same trend as used in DESeq2 and DEXSeq
+    vector overdisp_f(vector y_hat, real a, real b) {
+        int L = rows(y_hat);
+        vector[L] overdisp = ( b / exp(y_hat) ) + a;
+        return overdisp;
+    }
+
+    // Hill function
+    vector hill_f(array[] int y, real libsize, real h, real k) {
+        int L = num_elements(y);
+        real y_hat;
+        vector[L] signoise;
+        for (l in 1:L) {
+            y_hat = y[l] ./ libsize;
+            //print("y_hat: ", y_hat);
+            signoise[l] = y_hat^h / (k + y_hat^h);
+        }
+        return signoise;
+    }
 }
 
 data {
@@ -25,10 +45,12 @@ data {
     int<lower=1> S; // number of samples
     int<lower=1> B; // number of betas
     int<lower=1> A; // number of alphas
-    int<lower=1> G; // number of genotypes
+    int<lower=1> G; // number of gammas
     int<lower=1, upper=2> Q; // number of strands
     real alpha_prior;
-    array[S] int geno_x; // genotype for each sample
+    //matrix[S,G] geno_mat; // genotypes for each sample
+    array[S,3] int param_idx_arr; // parameter index for each of alpha, beta, gamma
+    array[B,G] int gamma_idx; // for each B, establishes which G should have that B subtracted
     array[S] int sample_x; // sample_id for each datum
     array[S,Q,L] int Y; // counts
     array[S] real<lower=0> libsize; // exposure term for each sample
@@ -80,16 +102,21 @@ transformed data {
 }
 
 parameters {
-    vector<lower=0, upper=1>[S] sig_noise; // signal-to-noise allocation for each sample
+    //vector<lower=0, upper=1>[S] sig_noise; // signal-to-noise allocation for each sample
+    //vector<lower=0>[S] sig_noise_hill; // signal-to-noise allocation for each sample
+    //vector<lower=0>[S] sig_noise_k; // signal-to-noise allocation for each sample
+    vector<lower=0>[S] psi; // pseudocount for each sample
     //vector[S] wsh; // wsh term for how much wsh for a given sample
     vector<lower=0>[3] prec; // stratify global precision inference by ChIP vs input vs ipod
-    array[G,Q] vector[a_sub_L] sub_Alpha; // one intercept for each genotype/sub-position
-    vector[B] Delta; // an intercept to offset beta by
-    vector[B] Eta; // an intercept to offset gamma by
+    //vector<lower=0>[S] overdisp_a; // disp trend for each sample
+    //vector<lower=0>[S] overdisp_b; // disp trend for each sample
+    array[A,Q] vector[a_sub_L] sub_Alpha; // one intercept for each genotype/sub-position
+    //vector[B] Delta; // an intercept to offset beta by
+    //vector[B] Eta; // an intercept to offset gamma by
 
-    vector<lower=0>[G] a_cubic;
-    vector<lower=0>[G] b_cubic;
-    vector<lower=0>[G] c_cubic;
+    array[B,G] real<lower=0> a_cubic;
+    array[B,G] real<lower=0> b_cubic;
+    array[B,G] real<lower=0> c_cubic;
 
     //vector[G] a_cubic;
     //vector[G] b_cubic;
@@ -104,8 +131,8 @@ parameters {
     real<lower=0> shape_beta; 
 
     // local parameters for horseshoe prior
-    array[B,Q] vector[g_sub_L] zgamma;
-    array[B,Q] vector<lower=0>[g_sub_L] hs_local_gamma;
+    array[G,Q] vector[g_sub_L] zgamma;
+    array[G,Q] vector<lower=0>[g_sub_L] hs_local_gamma;
     // horseshoe shrinkage parameters 
     real<lower=0> hs_global_gamma; 
     real<lower=0> hs_slab_gamma; 
@@ -114,19 +141,43 @@ parameters {
 
 transformed parameters {
     array[B,Q] vector[L] Beta;
-    array[G,Q] vector[L] Alpha; // one intercept for each genotype/position combination
-    array[B,Q] vector[L] Gamma;
-    array[B,Q] vector[L] non_sub_ipod;
+    array[A,Q] vector[L] Alpha; // one intercept for each genotype/position combination
+    array[G,Q] vector[L] Gamma;
+    array[G,Q] vector[L] non_sub_ipod;
 
     real lprior = 0.0;
 
     {
         vector[b_sub_L] sub_Beta; 
-        vector[b_sub_L] sub_Gamma;
+        vector[g_sub_L] sub_Gamma;
         vector[L] tmp_Beta;
         vector[L] tmp_Gamma;
         vector[L] gr_zero;
-        vector[L] tmp_Beta_plus;
+        //vector[L] tmp_Beta_plus;
+//////////////////////////////////////////////////
+//////////////////////////////////////////////////
+//To update the following for shared controls/inputs,
+//  I think I should iterate over Beta vectors.
+//  Within each Beta vector loop, I should iterate over
+//  each Gamma vector for which this Beta vector is used
+//  as a control.
+//This would require me to have the indices to each Gamma
+//  for each beta. Would be something like:
+// array[B,G] gamma_idxs
+//I could, for each b in B, iterate over g in G, checking if
+// gamma_idxs[b,g] == 1. If it is 1, get gamma and subtract this beta.
+//for (b in 1:B) {
+//  stuff on beta
+//  for (g in 1:G) {
+//    if (gamma_idx[b,g] == 1) {
+//      stuff on gamma
+//      AND slice cubic stuff like so,
+//      a_cubic[b,g] ...
+//    }
+//  }
+//}
+//////////////////////////////////////////////////
+//////////////////////////////////////////////////
         for (b in 1:B) {
             for (q in 1:Q) {
                 sub_Beta = horseshoe(
@@ -143,53 +194,70 @@ transformed parameters {
                     b_row_non_zero_number,
                     sub_Beta
                 );
-                tmp_Beta_plus = tmp_Beta + Delta[b];
+                //tmp_Beta_plus = tmp_Beta// + Delta[b];
+                Beta[b,q] = tmp_Beta;
                 for (l in 1:L) {
-                    gr_zero[l] = tmp_Beta_plus[l] > 0;
+                    //gr_zero[l] = tmp_Beta_plus[l] > 0;
+                    gr_zero[l] = tmp_Beta[l] > 0;
                 }
-                sub_Gamma = horseshoe(
-                    zgamma[b,q],
-                    hs_local_gamma[b,q],
-                    hs_global_gamma,
-                    hs_scale_slab_gamma^2 * hs_slab_gamma
-                );
-                tmp_Gamma = csr_matrix_times_vector(
-                    L,
-                    g_sub_L,
-                    g_weights_vals,
-                    g_col_accessor,
-                    g_row_non_zero_number,
-                    sub_Gamma
-                );
-                // Gamma represents the chip-subbed estimates
-                Gamma[b,q] = tmp_Gamma + Eta[b];
+                for (g in 1:G) {
+                    if (gamma_idx[b,g] == 1) {
+                        sub_Gamma = horseshoe(
+                            zgamma[g,q],
+                            hs_local_gamma[g,q],
+                            hs_global_gamma,
+                            hs_scale_slab_gamma^2 * hs_slab_gamma
+                        );
+                        tmp_Gamma = csr_matrix_times_vector(
+                            L,
+                            g_sub_L,
+                            g_weights_vals,
+                            g_col_accessor,
+                            g_row_non_zero_number,
+                            sub_Gamma
+                        );
 
-                // iff beta is greater than zero, do chipsub
-                non_sub_ipod[b,q] = (a_cubic[b]*tmp_Beta_plus
-                    + b_cubic[b]*tmp_Beta_plus^2
-                    + c_cubic[b]*tmp_Beta_plus^3) .* gr_zero
-                    + Gamma[b,q];
-                Beta[b,q] = tmp_Beta_plus;
+                        // iff beta is greater than zero, do chipsub
+                        // here there may be missed parameters in the cubic fit,
+                        // but they'll just be ignored by the likelihood and so won't affect inference.
+                        non_sub_ipod[g,q] = (a_cubic[b,g]*tmp_Beta
+                            + b_cubic[b,g]*tmp_Beta^2
+                            + c_cubic[b,g]*tmp_Beta^3) .* gr_zero
+                            + tmp_Gamma;
+                        // Gamma represents the chip-subbed estimates
+                        Gamma[g,q] = tmp_Gamma;// + Eta[b];
+                        // Beta represents control for ChIP-seq or RNAP ChIP for IPOD-HR
+                        //non_sub_ipod[b,q] = (a_cubic[b]*tmp_Beta_plus
+                        //    + b_cubic[b]*tmp_Beta_plus^2
+                        //    + c_cubic[b]*tmp_Beta_plus^3) .* gr_zero
+                        //    + Gamma[b,q];
+                        //Beta[b,q] = tmp_Beta_plus;
+                    }
+                }
             }
         }
     }
 
-    for (g in 1:G) {
+    for (a in 1:A) {
         for (q in 1:Q) {
-            Alpha[g,q] = csr_matrix_times_vector(
+            Alpha[a,q] = csr_matrix_times_vector(
                 L,
                 a_sub_L,
                 a_weights_vals,
                 a_col_accessor,
                 a_row_non_zero_number,
-                sub_Alpha[g,q]
+                sub_Alpha[a,q]
             );
         }
     }
 
-    lprior += student_t_lpdf(a_cubic | 3, 1.0, 1.0);
-    lprior += student_t_lpdf(b_cubic | 3, 0.0, 1.0);
-    lprior += student_t_lpdf(c_cubic | 3, 0.0, 1.0);
+    for (b in 1:B) {
+        for (g in 1:G) {
+            lprior += student_t_lpdf(a_cubic[b,g] | 3, 1.0, 1.0);
+            lprior += student_t_lpdf(b_cubic[b,g] | 3, 0.0, 1.0);
+            lprior += student_t_lpdf(c_cubic[b,g] | 3, 0.0, 1.0);
+        }
+    }
     lprior += student_t_lpdf(hs_global_beta | hs_df_global_beta, 0, hs_scale_global_beta)
         - 1 * log(0.5);
     lprior += inv_gamma_lpdf(hs_slab_beta | 0.5 * hs_df_slab_beta, 0.5 * hs_df_slab_beta);
@@ -203,48 +271,73 @@ transformed parameters {
             lprior += std_normal_lpdf(zbeta[b,q]);
             lprior += student_t_lpdf(hs_local_beta[b,q] | hs_df_beta, 0, 1)
               - b_num_hs * log(0.5);
-            lprior += std_normal_lpdf(zgamma[b,q]);
-            lprior += student_t_lpdf(hs_local_gamma[b,q] | hs_df_gamma, 0, 1)
+        }
+    }
+
+    for (g in 1:G) {
+        for (q in 1:Q) {
+            lprior += std_normal_lpdf(zgamma[g,q]);
+            lprior += student_t_lpdf(hs_local_gamma[g,q] | hs_df_gamma, 0, 1)
               - g_num_hs * log(0.5);
         }
     }
 
-    for (g in 1:B) {
+    for (a in 1:A) {
         for (q in 1:Q) {
-            lprior += normal_lpdf(sub_Alpha[g,q] | alpha_prior, 4);
+            lprior += normal_lpdf(sub_Alpha[a,q] | alpha_prior, 4);
         }
     }
 
-    lprior += student_t_lpdf(Delta | 3, 0, 5);
-    lprior += student_t_lpdf(Eta | 3, 0, 5);
-    lprior += beta_lpdf(sig_noise | 25.0, 1.0);
+    lprior += lognormal_lpdf(prec | 0, 1);
+    //lprior += cauchy_lpdf(overdisp_a | 0.0, 1.0);
+    //lprior += inv_gamma_lpdf(overdisp_b | 0.65, 5.0);
+    lprior += gamma_lpdf(psi | 3.0, 1.0);
+
+    //lprior += student_t_lpdf(Delta | 3, 0, 5);
+    //lprior += student_t_lpdf(Eta | 3, 0, 5);
+    //lprior += beta_lpdf(sig_noise | 25.0, 1.0);
+
+    // prior on hill is centered on 3 and fairly narrow
+    //lprior += gamma_lpdf(sig_noise_hill | 6.0, 0.5);
+    // prior on k is centered on 10, and wide.
+    //lprior += gamma_lpdf(sig_noise_k | 5.0, 0.5);
 }
 
 model {
     int sample_type;
-    int genotype;
+    array[3] int param_idxs;
+    //vector[G] genotype_row;
     //vector[L] Y_hat_signal_sq;
     //vector[L] Y_hat_noise_sq;
     vector[L] Y_hat_signal;
+    //vector[L] overdispersion_s;
     //real Y_hat_noise;
     //real wsh_s;
     real libsize_s;
-    real log_signoise_s;
-    real log_comp_signoise_s;
-    vector[S] log_signoise = log(sig_noise);
-    vector[S] log_comp_signoise = log1m(sig_noise);
+    real psi_s;
+    //real log_signoise_s;
+    //real log_comp_signoise_s;
+    //vector[S] log_signoise = log(sig_noise);
+    //vector[S] log_comp_signoise = log1m(sig_noise);
+    //vector[L] signoise_s;
+    //vector[L] log_signoise_s;
+    //vector[L] log_comp_signoise_s;
 
     target += lprior;
 
-    prec ~ lognormal(0, 1);
 
     for (s in 1:S) {
         sample_type = sample_x[s];
-        genotype = geno_x[s];
+        param_idxs = param_idx_arr[s];
+        //genotype_row = geno_mat[s]';
+        psi_s = psi[s];
         //wsh_s = wsh[s];
         libsize_s = cent_loglibsize[s];
-        log_signoise_s = log_signoise[s];
-        log_comp_signoise_s = log_comp_signoise[s];
+        //log_signoise_s = log_signoise[s];
+        //log_comp_signoise_s = log_comp_signoise[s];
+        // if this sample is of the given genotype, calculate the likelihood and update target
+        //for (genotype in 1:G) {
+            //if (genotype_row[genotype] == 1) {
         for (q in 1:Q) {
             // if sample_type is zero (input), just do alpha + libsize
             // if sample_type is 1, RNAP ChIP is run
@@ -253,23 +346,59 @@ model {
 // amendments needed to actually handle the paired nature of the data
 // ammendments needed to handle imputation of missing libraries if using paired nature of data
 ////////////////////////////////////////////////////////////////
+
+////////////////////////////////////////////////////////////////////////////////////
+// A major change needed: set geno_mat for each of alpha, beta, gamma.
+// This way, I can have super-genotypes for shared control, input, etc. that can be used
+//   here so that I'm not allowing shared info to have too much influence on the likelihood
+////////////////////////////////////////////////////////////////////////////////////
+            // Library size and pseudocount adjustments
+            // y/libsize + psi = pred
+            // therefore, y = libsize * (pred - psi)
             if (sample_type == 0) {
-                Y_hat_signal = Alpha[genotype,q] + libsize_s;
+                Y_hat_signal = Alpha[param_idxs[1],q] + libsize_s;
+                //Y_hat_signal = Alpha[genotype,q] + libsize_s;
+                //Y_hat_signal = (exp(Alpha[genotype,q]) - psi_s) * libsize_s;
             } else if (sample_type == 1) {
-                Y_hat_signal = Alpha[genotype,q] + Beta[genotype,q] + libsize_s;
+                Y_hat_signal = Alpha[param_idxs[1],q] + Beta[param_idxs[2],q] + libsize_s;
+                //Y_hat_signal = Alpha[genotype,q] + Beta[genotype,q] + libsize_s;
+                //Y_hat_signal = (exp(Alpha[genotype,q] + Beta[genotype,q]) - psi_s) * libsize_s;
             } else {
-                Y_hat_signal = Alpha[genotype,q] + non_sub_ipod[genotype,q] + libsize_s;
+                Y_hat_signal = Alpha[param_idxs[1],q] + non_sub_ipod[param_idxs[3],q] + libsize_s;
+                //Y_hat_signal = Alpha[genotype,q] + non_sub_ipod[genotype,q] + libsize_s;
+                //Y_hat_signal = (exp(Alpha[genotype,q] + non_sub_ipod[genotype,q]) - psi_s) * libsize_s;
             }
+
+            // lower counts get lower signal-to-noise
+            //signoise_s = hill_f(Y[s,q], exp(libsize_s), sig_noise_hill[s], sig_noise_k[s]);
+            //log_signoise_s = log(signoise_s);
+            //log_comp_signoise_s = log1m(signoise_s);
+            //overdispersion_s = overdisp_f(Y_hat_signal, overdisp_a[s], overdisp_b[s]);
             for (l in 1:L) {
                
                 // allocates counts proportionally to signal/noise,
                 // where noise is just a fraction of libsize
-                target += log_sum_exp(
-                    log_signoise_s + neg_binomial_2_log_lpmf(Y[s,q,l] | Y_hat_signal[l], prec[sample_type+1]),
-                    log_comp_signoise_s + poisson_log_lpmf(Y[s,q,l] | libsize_s)
-                );
+                //print("sig_noise_hill[s]: ", sig_noise_hill[s]);
+                //print("sig_noise_k[s]: ", sig_noise_k[s]);
+                //print("exp(Y_hat_signal[l]): ", exp(Y_hat_signal[l]));
+                //print("sig_noise_s[l]: ", signoise_s[l]);
+                //print("");
+                if (Y[s,q,l] <= psi_s) {
+                    target += log_sum_exp(
+                        poisson_lpmf(Y[s,q,l] | psi_s),
+                        neg_binomial_2_log_lpmf(Y[s,q,l] | Y_hat_signal[l], prec[sample_type+1])
+                    );
+                } else {
+                    target += neg_binomial_2_log_lpmf(Y[s,q,l] | Y_hat_signal[l], prec[sample_type+1]);
+                }
+                //target += log_sum_exp(
+                //    log_signoise_s[l] + neg_binomial_2_log_lpmf(Y[s,q,l] | Y_hat_signal[l], prec[sample_type+1]),
+                //    log_comp_signoise_s[l] + poisson_log_lpmf(Y[s,q,l] | libsize_s)
+                //);
             }
         }
+        //}
+        //}
     }
 }
 

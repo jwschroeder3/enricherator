@@ -7,9 +7,17 @@
     "strand_map": [
         "both"
     ],
-    "resolution": 5,
-    "pos_num": 3,
-    "geno_num": 3,
-    "strand_num": 1
+    "resolution": [
+        5
+    ],
+    "pos_num": [
+        3
+    ],
+    "geno_num": [
+        3
+    ],
+    "strand_num": [
+        1
+    ]
 }
 

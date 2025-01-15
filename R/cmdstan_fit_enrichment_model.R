@@ -3,6 +3,7 @@
 library(cmdstanr)
 library(optparse)
 library(tidyverse)
+library(stringr)
 
 get_exec_file = function() {
     # copied from https://stackoverflow.com/questions/1815606/determine-path-of-the-executing-script
@@ -112,10 +113,6 @@ option_list = list(
         help="include if you want the point-wise log-likelihood calculated and returned from the stanfit object."
     ),
     make_option(
-        c("--no_beta"), action="store_true", default=FALSE,
-        help="include if you only want to use input data and fit only alphas."
-    ),
-    make_option(
         c("--load_data_file"), action="store_true", default=FALSE,
         help="include if you want to load data already prepared from --data_file"
     ),
@@ -133,16 +130,16 @@ options(mc.cores = opt$cores)
 debug = opt$debug
 
 model_file = opt$stan_file
-if (is.na(model_file)) {
+if (is.null(model_file)) {
     stop("--stan_file argument is required, but was absent. Exiting now.")
 }
-if (is.na(opt$draws_direc)) {
+if (is.null(opt$draws_direc)) {
     stop("--draws_direc argument is required, but was absent. Exiting now.")
 }
-if (is.na(opt$fit_file)) {
+if (is.null(opt$fit_file)) {
     stop("--fit_file argument is required, but was absent. Exiting now.")
 }
-if (is.na(opt$data_file)) {
+if (is.null(opt$data_file)) {
     stop("--data_file argument is required, but was absent. Exiting now.")
 }
 
@@ -163,8 +160,14 @@ if (load) {
     if (is.null(opt$genome_data_file)) {
         experiment_info = read_csv(opt$info) %>%
             mutate(
-                sample_x = ifelse(sample=="input", 0, ifelse(sample=="inp", 0, ifelse(sample=="chip", 1, 2))), # set hbd to 1
-                strand_x = ifelse(strand=="both", 1, ifelse(strand=="plus", 1, 2)) #plus strand is idx 1, minus is idx2
+                sample_x = ifelse(sample=="input", 0, ifelse(sample=="inp", 0, ifelse(sample=="chip", 1, 2))),
+                strand_x = ifelse(
+                    strand=="both", 1,
+                    ifelse(
+                        strand=="plus", 1,
+                        ifelse(
+                            strand=="minus", 2,
+                            stop(paste0("For a non-stranded analysis, every value in the 'strand' column of your info file should be 'both'. For a stranded analysis, you must have either 'plus' or 'minus' in the strand column. Instead, ", strand, " was found. Exiting without fitting a model. Update your info file and re-run.")))))
             )
 
         if (opt$norm_method == "spikein") {
@@ -176,16 +179,8 @@ if (load) {
             }
         }
 
-        genotype_factor = factor(experiment_info$genotype)
-        experiment_info$geno_x = as.integer(genotype_factor)
-
         replicate_factor = factor(experiment_info$rep)
         experiment_info$rep_id = as.integer(replicate_factor)
-
-        if (opt$no_beta) {
-            experiment_info = experiment_info %>%
-                filter(sample == "input")
-        }
 
         experiment_info = experiment_info %>%
             mutate(
@@ -219,7 +214,7 @@ if (load) {
 }
 
 print(paste0("Writing covariate key to ", stan_list[["expt_key_file"]]))
-jsonlite::toJSON(stan_list[["expt_key"]], auto_unbox=TRUE) %>%
+jsonlite::toJSON(stan_list[["expt_key"]]) %>%
     jsonlite::prettify() %>%
     write(stan_list[["expt_key_file"]])
 
@@ -237,7 +232,7 @@ print("Fitting model using variational inference")
 
 newlist = list()
 include_vars = c(
-    "L","S","B","A","G","Q","alpha_prior","geno_x","sample_x",
+    "L","S","B","A","G","Q","alpha_prior","geno_mat","sample_x",
     "Y", "libsize", "hs_df_beta", "hs_df_global_beta", "hs_df_slab_beta",
     "hs_df_gamma", "hs_df_global_gamma", "hs_df_slab_gamma",
     "hs_scale_global_gamma", "hs_scale_slab_gamma", 

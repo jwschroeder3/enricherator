@@ -15,6 +15,8 @@ use ndarray::prelude::*;
 use serde::{Deserialize};
 use serde_json;
 
+//use rayon::prelude::*;
+
 //use bio_anno_rs::BEDGraphData;
 //use bio_anno_rs::BEDGraphRecord;
 
@@ -223,7 +225,7 @@ mod tests {
 
         // samples array is shape (geno, strand, params, position, samples)
         let mut samples_arr = SamplesArray::zeros_by_shape(
-            (expt_key.geno_num, expt_key.strand_num, vars.len(), expt_key.pos_num, 2)
+            (expt_key.geno_num[0], expt_key.strand_num[0], vars.len(), expt_key.pos_num[0], 2)
         );
 
         fields.parse_fields(
@@ -279,7 +281,7 @@ mod tests {
         let (idx_key,fname_key,_,_,_,_) = get_index_key(&expt_key, &vars, "test_data/test_outs", None, None).unwrap();
 
         let mut samples_arr = SamplesArray::zeros_by_shape(
-            (expt_key.geno_num, expt_key.strand_num, vars.len(), expt_key.pos_num, 2)
+            (expt_key.geno_num[0], expt_key.strand_num[0], vars.len(), expt_key.pos_num[0], 2)
         );
 
         fields.parse_fields(
@@ -306,10 +308,10 @@ mod tests {
 struct ExptKey {
     geno_map: Vec<String>,
     strand_map: Vec<String>,
-    resolution: u8,
-    pos_num: usize,
-    geno_num: usize,
-    strand_num: usize,
+    resolution: Vec<u8>,
+    pos_num: Vec<usize>,
+    geno_num: Vec<usize>,
+    strand_num: Vec<usize>,
 }
 
 impl ExptKey {
@@ -503,7 +505,7 @@ impl SamplesArray {
 
                 let mut negative_numbers: f32 = 0.0;
                 for val in &vals {
-                    if *val < 0.0 {
+                    if *val < threshold {
                         negative_numbers += 1.0;
                     } else {
                         break
@@ -610,7 +612,7 @@ impl SamplesArray {
 
                     let mut negative_numbers: f32 = 0.0;
                     for val in &vals {
-                        if *val < 0.0 {
+                        if *val < strand_threshold {
                             negative_numbers += 1.0;
                         } else {
                             break
@@ -678,7 +680,7 @@ impl SamplesArray {
 
                     let mut negative_numbers: f32 = 0.0;
                     for val in &vals {
-                        if *val < 0.0 {
+                        if *val < genotype_threshold {
                             negative_numbers += 1.0;
                         } else {
                             break
@@ -1312,7 +1314,7 @@ fn main() -> BoxedResult<()> {
 
     //parser_thread.join()?;
     let mut samples_arr = SamplesArray::zeros_by_shape(
-        (expt_key.geno_num, expt_key.strand_num, vars.len(), expt_key.pos_num, SAMP_NUM)
+        (expt_key.geno_num[0], expt_key.strand_num[0], vars.len(), expt_key.pos_num[0], SAMP_NUM)
     );
     let mut retained_fields: Vec<(usize, (usize, usize, usize, usize))> = Vec::new();
     let mut retained_idx: usize = 0;

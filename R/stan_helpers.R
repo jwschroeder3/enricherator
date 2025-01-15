@@ -336,7 +336,110 @@ prep_stan_data = function(data_df, norm_method, spikein, spikein_rel_abund=0.05,
 
     pos_num = res[[1]]
     stan_list = res[[2]]
-    num_geno = length(unique(data_df$genotype))
+
+    ###################################################
+    ###################################################
+    # Need to look into how to get stan variables B, A, G, param_idx_arr correct.
+    # I think iterating over rows of data_df is going to be simplest here.
+    ###################################################
+    ###################################################
+
+    samp_num = dim(data_df)[1]
+    # geno_key will contain a separate key for each parameter
+    # Each parameter's key will allow mapping of this sample to set the proper indices of
+    #   param_idx_arr to the correct index of the given parameter array.
+    # the idx_geno_key list maps this parameter's index in its array to a given genotype
+    # For example, the array of Betas in stan has shape [G,Q], and beta's idx_geno_key
+    #  will enable mapping of each sample to the appropriate g index in the first axis of that Beta array
+    geno_key = list(
+        "alpha" = list("length" = 0, "idx_geno_key" = list()),
+        "beta" = list("length" = 0, "idx_geno_key" = list()),
+        "gamma" = list("length" = 0, "idx_geno_key" = list())
+    )
+    param_names = c("alpha", "beta", "gamma")
+    param_idx_arr = matrix(0, nrow=samp_num, ncol=3)
+
+    print(data_df)
+    print(data_df$genotype)
+    # first thing to know is how many distinct genotypes are present in a parameter?
+    for (sample_type in 0:2) {
+        par_name = param_names[sample_type+1]
+        geno_vec = unlist(data_df$genotype[data_df$sample_x == sample_type], use.names=FALSE)
+        distinct_geno = unique(geno_vec)
+        st_geno_num = length(distinct_geno)
+        geno_key[[par_name]][["length"]] = st_geno_num
+        geno_key[[par_name]][["geno_names"]] = distinct_geno
+        # pair geno name to index
+        for (i in 1:st_geno_num) {
+            geno_key[[par_name]][["idx_geno_key"]][[distinct_geno[i]]] = i
+        }
+        #print(geno_key)
+    }
+
+    for (s in 1:samp_num ) {
+        # look for ";" in any row of the gnotype column. If it's there, we handle genotype differently,
+        # as we then use the data for that row for multiple genotypes. This is useful for sharing a control
+        # across multiple datasets.
+        sample_type_s = data_df$sample_x[s]
+        geno_s = data_df$genotype[s]
+        for (sample_type in 0:2) {
+            par_name = param_names[sample_type+1]
+            # gat param info for this sample type
+            par_key = geno_key[[par_name]]
+            # search for exact matches to this genotype. If none found, search for this genotype
+            #   as a sub-string of the genotypes in the parameter key.
+            par_genos = names(par_key$idx_geno_key)
+            for (geno_s in par_genos) {
+                exact_matches = geno_s == par_genos
+                match_idx = which(exact_matches)
+                print(paste0("geno_s: ", geno_s))
+                print(paste0("par_genos: ", par_genos))
+                # too many matches should throw error and exit
+                if (length(match_idx) > 1) {
+                    stop(paste0("Error: sample in row ", s, "of your info csv had too many matches to its genotype for parameter ", par_name, ". Review your genotype and sample type assignments to ensure you've set up your info csv correctly. Exiting early."))
+                # a single exact match lets us set this sample's param index for this column
+                } else if (length(match_idx) == 1) {
+                    param_idx_arr[s,sample_type+1] = match_idx
+                # zero exact matches requires we look for a sub-string match
+                } else {
+                    matches = str_match(par_genos, geno_s)
+                    print("sub-string matches")
+                    print(matches)
+                    stop()
+                }
+            }
+        }
+        geno_s = data_df$genotype[s]
+        split_geno_s = str_split(geno_vec, ";")
+        print(split_geno_s)
+        all_genotypes = unlist(split_genos)
+        print(all_genotypes)
+        distinct_genotypes = unique(all_genotypes)
+        num_geno = length(distinct_genotypes)
+        geno_factors = factor(distinct_genotypes)
+        geno_ints = as.integer(geno_factors)
+        geno_lut = list()
+
+        for (i in 1:length(distinct_genotypes)) {
+            fact = levels(geno_factors)[i]
+            geno_lut[[fact]] = geno_ints[i]
+        }
+
+        geno_mat = matrix(0, nrow=samp_num, ncol=num_geno)
+        geno_colnames = rep(0, num_geno)
+        
+        for (i in 1:samp_num) {
+            sample_genotypes = split_genos[[i]]
+            for (j in 1:length(sample_genotypes)) {
+                col_idx = geno_lut[[sample_genotypes[j]]]
+                geno_mat[i,col_idx] = 1
+                geno_colnames[col_idx] = sample_genotypes[j]
+            }
+        }
+        #print("geno_mat:")
+        #print(geno_mat)
+    }
+    stop()
     levels = unique(data_df$sample_id)
     strand_names = NA
     distinct_strand_ids = sort(unique(data_df$strand_x))
@@ -344,11 +447,11 @@ prep_stan_data = function(data_df, norm_method, spikein, spikein_rel_abund=0.05,
         strand_names[q] = data_df$strand[data_df$strand_x == q][1]
     }
 
-    geno_names = NA
-    distinct_geno_ids = sort(unique(data_df$geno_x))
-    for (g in distinct_geno_ids) {
-        geno_names[g] = data_df$genotype[data_df$geno_x == g][1]
-    }
+    #geno_names = NA
+    #distinct_geno_ids = sort(unique(data_df$geno_x))
+    #for (g in distinct_geno_ids) {
+    #    geno_names[g] = data_df$genotype[data_df$geno_x == g][1]
+    #}
     #strand_names = unique(data_df$strand)
     #print(strand_names)
     #stop("Reached stop point")
@@ -359,10 +462,11 @@ prep_stan_data = function(data_df, norm_method, spikein, spikein_rel_abund=0.05,
     stan_list[["L"]] = pos_num
     stan_list[["S"]] = samp_num
     stan_list[["B"]] = num_geno
-    stan_list[["A"]] = num_geno
+    stan_list[["A"]] = 
     stan_list[["G"]] = num_geno
     stan_list[["Q"]] = strand_num
-    stan_list[["geno_x"]] = info_df$geno_x
+    #stan_list[["geno_x"]] = info_df$geno_x
+    stan_list[["geno_mat"]] = geno_mat
     stan_list[["sample_x"]] = info_df$sample_x
     stan_list[["strand_x"]] = strand_df$strand_x
     #print(stan_list[["strand_x"]])
@@ -370,7 +474,7 @@ prep_stan_data = function(data_df, norm_method, spikein, spikein_rel_abund=0.05,
     stan_list[["info"]] = data_df %>% select(-data)
     stan_list[["gather_log_lik"]] = log_lik
     stan_list[["expt_key"]] = list()
-    stan_list[["expt_key"]][["geno_map"]] = geno_names
+    stan_list[["expt_key"]][["geno_map"]] = geno_colnames 
     stan_list[["expt_key"]][["strand_map"]] = strand_names
 
     data_arr = base::array(0, dim=c(samp_num,strand_num,pos_num))
@@ -957,7 +1061,7 @@ write_expt_key_file = function(.direc, .stan_data) {
     out_info[["strand_num"]] = max(.stan_data$strand_x)
 }
 
-gather_vb_estimates = function(fit, stan_data, direc, interval=90, cmdstan=FALSE, params=NULL, threshold=1.0, geno_threshold=0.0, strand_threshold=0.0, geno_contrasts=NA, strand_contrasts=NA) {
+gather_vb_estimates = function(fit, stan_data, direc, interval=90, cmdstan=FALSE, params=NULL, threshold=1.0, geno_threshold=0.0, strand_threshold=0.0, geno_contrasts=NULL, strand_contrasts=NULL) {
     tail = (100-interval)/2
     quant_vec = c(tail/100, 0.5, (100-tail)/100)
 
@@ -969,7 +1073,7 @@ gather_vb_estimates = function(fit, stan_data, direc, interval=90, cmdstan=FALSE
         bin_path = file.path(exec_direc, "../rust/parse_cmdstan_csv_dev/target/release/parse_cmdstan_csv_dev")
  
         in_file = fit$output_files()
-        summary_out_file = file.path(dirname(in_file), "summaries.txt")
+        #summary_out_file = file.path(dirname(in_file), "summaries.txt")
         sample_out_file = file.path(dirname(in_file), "samples.csv")
         parse_args = c(
             "--draws-file", in_file,
@@ -980,13 +1084,13 @@ gather_vb_estimates = function(fit, stan_data, direc, interval=90, cmdstan=FALSE
             "--out-direc", direc
         )
 
-        if (!is.na(strand_contrasts)) {
+        if (!is.null(strand_contrasts)) {
             parse_args = c(parse_args,
                 "--strand-contrasts", strand_contrasts,
                 "--strand-contrast-threshold", as.character(strand_threshold)
             )
         }
-        if (!is.na(geno_contrasts)) {
+        if (!is.null(geno_contrasts)) {
             parse_args = c(parse_args,
                 "--genotype-contrasts", geno_contrasts,
                 "--genotype-contrast-threshold", as.character(geno_threshold)
@@ -1007,8 +1111,8 @@ gather_vb_estimates = function(fit, stan_data, direc, interval=90, cmdstan=FALSE
         if (res != 0) {
             stop("Error in summarizing cmdstan csv. Check err and log files. Exiting now.")
         }
-        param_summaries = read_tsv(summary_out_file)
-        write_cmdstan_summaries(param_summaries, stan_data, direc, params)
+        #param_summaries = read_tsv(summary_out_file)
+        #write_cmdstan_summaries(param_summaries, stan_data, direc, params)
     } else {
         list_of_draws = rstan::extract(fit, pars=c("Beta","prec"))
         betas = list_of_draws[["Beta"]]
