@@ -12,19 +12,19 @@ use std::str;
 use ndarray::{Array5, Axis};
 use ndarray::prelude::*;
 //use ordered_float::OrderedFloat;
-use serde::{Deserialize};
-use serde_json;
 
 //use rayon::prelude::*;
 
 //use bio_anno_rs::BEDGraphData;
 //use bio_anno_rs::BEDGraphRecord;
 
+mod config;
+use config::{Args, ExptKey, Config}; //, get_index_key, make_position_map};
+
 const BUF_SIZE: usize = 1064;
 const SAMP_NUM: usize = 501;
 
 type BoxedResult<T> = std::result::Result<T, Box<dyn Error>>;
-
 
 #[allow(dead_code)]
 #[cfg(test)]
@@ -40,8 +40,8 @@ mod tests {
         let the_rest = ".1.1,sub_Gamma.1.1.1,Alpha.1.1.1,Alpha.2.1.1,Alpha.3.1.1,Alpha.1.1.2,Alpha.2.1.2,Alpha.3.1.2\n";
         let colname_text = "lp__,log_p__,log_g__,sig_noise.1,sub_Alpha.1.1.1,sub_Beta.1.1.1,sub_Gamma.1.1.1,Alpha.1.1.1,Alpha.2.1.1,Alpha.3.1.1,Alpha.1.1.2,Alpha.2.1.2,Alpha.3.1.2\n";
         let fname = "test_data/test_parse.csv";
-        let covar_fname = "test_data/expt_key.json";
-        let contrast_covar_fname = "test_data/contrast_expt_key.json";
+        let expt_key = "test_data/expt_key.json";
+        let parse_key = "test_data/parse_key.toml";
 
         let contrast_text = "#header text \nlp__,log_p__,log_g__,sig_noise.1,sub_Alpha.1.1.1,sub_Beta.1.1.1,Alpha.1.1.1,Alpha.2.1.1,Alpha.3.1.1,Alpha.1.1.2,Alpha.2.1.2,Alpha.3.1.2,Beta.1.1.1,Beta.2.1.1,Beta.3.1.1,Beta.1.1.2,Beta.2.1.2,Beta.3.1.2,Gamma.1.1.1,Gamma.2.1.1,Gamma.3.1.1,Gamma.1.1.2,Gamma.2.1.2,Gamma.3.1.2\n#next header \n0.0,0.00,0.0,0.99999,1.0,1.2,1.0,2.0,3.0,4.0,5.0,6.0,7.0,8.0,9.0,10.0,11.0,12.0,13.0,14.0,15.0,16.0,17.0,18.0\n0.0,0.00,0.0,0.99999,1.0,1.2,1.5,2.5,3.5,4.5,5.5,6.5,7.5,8.5,9.5,10.5,11.5,12.5,13.5,14.5,15.5,16.5,17.5,18.5\n";
 
@@ -53,101 +53,9 @@ mod tests {
         hash.insert(String::from("the_rest"), the_rest);
         hash.insert(String::from("colname_text"), colname_text);
         hash.insert(String::from("fname"), fname);
-        hash.insert(String::from("covar_fname"), covar_fname);
-        hash.insert(String::from("contrast_txt"), contrast_text);
-        hash.insert(String::from("contrast_covar_fname"), contrast_covar_fname);
+        hash.insert(String::from("expt_key"), expt_key);
+        hash.insert(String::from("parse_key"), parse_key);
         hash
-    }
-
-    #[test]
-    fn assign_to_samp_arr() {
-        let idx = (0,0,0,0,0);
-
-        let mut samp_arr = SamplesArray::zeros_by_shape(
-            (2,2,2,2,2)
-        );
-        assert_eq!(samp_arr.samples[[0,0,0,0,0]], 0.0);
-        samp_arr.assign_at(1.0, idx);
-        assert_eq!(samp_arr.samples[[0,0,0,0,0]], 1.0);
-        assert_eq!(samp_arr.samples[[0,0,0,0,1]], 0.0);
-    }
-
-    #[test]
-    fn test_get_geno_contrast_keys() {
-        let expt_key = ExptKey::read_expt_key("test_data/expt_key.json").unwrap();
-        let vars = vec![String::from("Alpha"), String::from("Beta")];
-        let geno_contrasts = Some(vec![String::from("vpsR-wt")]);
-        let (
-            idx_key,
-            fname_key,
-            geno_contrast_key_opt,
-            geno_contrast_file_map_opt,
-            _,
-            _,
-        ) = get_index_key(
-            &expt_key,
-            &vars,
-            "test_data/test_outs",
-            geno_contrasts,
-            None,
-        ).unwrap();
-        // contrasts for Alpha vpsR - Alpha wt
-        let target_contrasts = vec![2,0];
-        let result_contrasts_key = geno_contrast_key_opt.unwrap();
-        assert_eq!(
-            &target_contrasts[0],
-            result_contrasts_key[0].get("numerator").unwrap()
-        );
-        assert_eq!(
-            &target_contrasts[1],
-            result_contrasts_key[0].get("denominator").unwrap()
-        );
-        // contrasts for Beta vpsR - Beta wt
-        let target_contrasts = vec![3,1];
-        assert_eq!(
-            &target_contrasts[0],
-            result_contrasts_key[1].get("numerator").unwrap()
-        );
-        assert_eq!(
-            &target_contrasts[1],
-            result_contrasts_key[1].get("denominator").unwrap()
-        );
-
-    }
-
-    #[test]
-    fn test_get_index_key() {
-        let expt_key = ExptKey::read_expt_key("test_data/expt_key.json").unwrap();
-        let vars = vec![String::from("Alpha"),String::from("Beta")];
-        let (idx_key,fname_key,contrast_key_opt,contrast_file_map_opt,_,_) = get_index_key(
-            &expt_key,
-            &vars,
-            "test_data/test_outs",
-            None,
-            None,
-        ).unwrap();
-        assert_eq!(idx_key.get(&0).unwrap().0, 0);
-        assert_eq!(idx_key.get(&0).unwrap().1, 0);
-        assert_eq!(idx_key.get(&0).unwrap().2, 0);
-        assert_eq!(idx_key.get(&1).unwrap().0, 0);
-        assert_eq!(idx_key.get(&1).unwrap().1, 0);
-        assert_eq!(idx_key.get(&1).unwrap().2, 1);
-        assert_eq!(idx_key.get(&2).unwrap().0, 1);
-        assert_eq!(idx_key.get(&2).unwrap().1, 0);
-        assert_eq!(idx_key.get(&2).unwrap().2, 0);
-        assert_eq!(idx_key.get(&3).unwrap().0, 1);
-        assert_eq!(idx_key.get(&3).unwrap().1, 0);
-        assert_eq!(idx_key.get(&3).unwrap().2, 1);
-    }
-
-    #[test]
-    fn test_read_expt_key() {
-        let hash = set_up_tests();
-        let expt_key = ExptKey::read_expt_key("test_data/expt_key.json").unwrap();
-        assert_eq!(expt_key.geno_map[0], String::from("wt"));
-        assert_eq!(expt_key.geno_map[1], String::from("vpsR"));
-        assert_eq!(expt_key.geno_map[2], String::from("vpsT"));
-        assert_eq!(expt_key.strand_map[0], String::from("both"));
     }
 
     #[test]
@@ -209,119 +117,93 @@ mod tests {
         assert_eq!("Gamma.3.2.2", fields.fields[fields.len()-1].string);
     }
 
-    #[test]
-    fn filter_fields() {
-        let hash = set_up_tests();
-        let mut col_idx = 0;
-        let bytes = hash.get("into_colname").unwrap().as_bytes();
-        let mut byter = BytesIterator::new(bytes.to_vec());
-        let mut fields = byter.field_scan(&mut col_idx).unwrap();
-        let mut retained_fields: Vec<(usize, (usize, usize, usize, usize))> = Vec::new();
-        let mut retained_idx: usize = 0;
+    //#[test]
+    //fn filter_fields() {
+    //    let hash = set_up_tests();
+    //    let mut col_idx = 0;
+    //    let bytes = hash.get("into_colname").unwrap().as_bytes();
+    //    let mut byter = BytesIterator::new(bytes.to_vec());
+    //    let mut fields = byter.field_scan(&mut col_idx).unwrap();
+    //    let mut retained_fields: Vec<(usize, (usize, usize, usize, usize))> = Vec::new();
+    //    let mut retained_idx: usize = 0;
 
-        let expt_key = ExptKey::read_expt_key("test_data/expt_key.json").unwrap();
-        let vars = vec![String::from("Alpha"),String::from("Beta"),String::from("Gamma")];
-        let (idx_key,fname_key,_,_,_,_) = get_index_key(&expt_key, &vars, "test_data/test_outs", None, None).unwrap();
+    //    let expt_key = ExptKey::read("test_data/expt_key.json").unwrap();
+    //    let vars = vec![String::from("Alpha"),String::from("Beta"),String::from("Gamma")];
 
-        // samples array is shape (geno, strand, params, position, samples)
-        let mut samples_arr = SamplesArray::zeros_by_shape(
-            (expt_key.geno_num[0], expt_key.strand_num[0], vars.len(), expt_key.pos_num[0], 2)
-        );
+    //    fields.parse_fields(
+    //        &mut retained_fields,
+    //        &mut retained_idx,
+    //        &vars,
+    //        &expt_key,
+    //        &mut samples_arr,
+    //    ).unwrap();
+    //    let target_cols = vec![7,8,9,10,11,12,13];
+    //    let target_genos = vec![0,1,2,0,1,2,2];
+    //    let target_strands = vec![0,0,0,0,0,0,1];
+    //    let target_vars = vec![0,0,0,0,0,0,2];
+    //    for (i,col) in target_cols.iter().enumerate() {
+    //        assert_eq!(col, &retained_fields[i].0);
+    //        assert_eq!(target_genos[i], retained_fields[i].1.0);
+    //        assert_eq!(target_strands[i], retained_fields[i].1.1);
+    //        assert_eq!(target_vars[i], retained_fields[i].1.2);
+    //    }
+    //    // should not be equal, so assert that
+    //    let target_cols = vec![6,7,8,9,10,11];
+    //    for (i,col) in target_cols.iter().enumerate() {
+    //        assert_ne!(col, &retained_fields[i].0);
+    //    }
 
-        fields.parse_fields(
-            &mut retained_fields,
-            &mut retained_idx,
-            &vars,
-            &expt_key,
-            &mut samples_arr,
-        ).unwrap();
-        let target_cols = vec![7,8,9,10,11,12,13];
-        let target_genos = vec![0,1,2,0,1,2,2];
-        let target_strands = vec![0,0,0,0,0,0,1];
-        let target_vars = vec![0,0,0,0,0,0,2];
-        for (i,col) in target_cols.iter().enumerate() {
-            assert_eq!(col, &retained_fields[i].0);
-            assert_eq!(target_genos[i], retained_fields[i].1.0);
-            assert_eq!(target_strands[i], retained_fields[i].1.1);
-            assert_eq!(target_vars[i], retained_fields[i].1.2);
-        }
-        // should not be equal, so assert that
-        let target_cols = vec![6,7,8,9,10,11];
-        for (i,col) in target_cols.iter().enumerate() {
-            assert_ne!(col, &retained_fields[i].0);
-        }
+    //}
 
-    }
+    //#[test]
+    //fn test_fields_into_samples() {
+    //    let hash = set_up_tests();
+    //    let mut col_idx = 0;
+    //    let bytes = hash.get("into_sample").unwrap().as_bytes();
+    //    let mut byter = BytesIterator::new(bytes.to_vec());
+    //    let mut fields = byter.field_scan(&mut col_idx).unwrap();
+    //    assert_eq!(fields.fields[fields.fields.len()-1].col_idx, 13);
+    //    assert_eq!(fields.fields[fields.fields.len()-1].linetype, PriorByteIn::Samples(0));
+    //}
 
-    #[test]
-    fn test_fields_into_samples() {
-        let hash = set_up_tests();
-        let mut col_idx = 0;
-        let bytes = hash.get("into_sample").unwrap().as_bytes();
-        let mut byter = BytesIterator::new(bytes.to_vec());
-        let mut fields = byter.field_scan(&mut col_idx).unwrap();
-        assert_eq!(fields.fields[fields.fields.len()-1].col_idx, 13);
-        assert_eq!(fields.fields[fields.fields.len()-1].linetype, PriorByteIn::Samples(0));
-    }
+    //#[test]
+    //fn test_into_samples() {
+    //    let hash = set_up_tests();
+    //    let bytes = hash.get("into_sample").unwrap().as_bytes();
+    //    let mut col_idx = 0;
+    //    let mut byter = BytesIterator::new(bytes.to_vec());
 
-    #[test]
-    fn test_into_samples() {
-        let hash = set_up_tests();
-        let bytes = hash.get("into_sample").unwrap().as_bytes();
-        let mut col_idx = 0;
-        let mut byter = BytesIterator::new(bytes.to_vec());
+    //    let mut fields = byter.field_scan(&mut col_idx).unwrap();
 
-        let mut fields = byter.field_scan(&mut col_idx).unwrap();
+    //    let mut retained_fields: Vec<(usize, (usize, usize, usize, usize))> = Vec::new();
+    //    let mut retained_idx: usize = 0;
 
-        let mut retained_fields: Vec<(usize, (usize, usize, usize, usize))> = Vec::new();
-        let mut retained_idx: usize = 0;
+    //    let expt_key = ExptKey::read("test_data/expt_key.json").unwrap();
+    //    let vars = vec![String::from("Alpha"),String::from("Beta"),String::from("Gamma")];
+    //    let (idx_key,fname_key,_,_,_,_) = get_index_key(&expt_key, &vars, "test_data/test_outs", None, None).unwrap();
 
-        let expt_key = ExptKey::read_expt_key("test_data/expt_key.json").unwrap();
-        let vars = vec![String::from("Alpha"),String::from("Beta"),String::from("Gamma")];
-        let (idx_key,fname_key,_,_,_,_) = get_index_key(&expt_key, &vars, "test_data/test_outs", None, None).unwrap();
+    //    let mut samples_arr = SamplesArray::zeros_by_shape(
+    //        (expt_key.geno_num[0], expt_key.strand_num[0], vars.len(), expt_key.pos_num[0], 2)
+    //    );
 
-        let mut samples_arr = SamplesArray::zeros_by_shape(
-            (expt_key.geno_num[0], expt_key.strand_num[0], vars.len(), expt_key.pos_num[0], 2)
-        );
+    //    fields.parse_fields(
+    //        &mut retained_fields,
+    //        &mut retained_idx,
+    //        &vars,
+    //        &expt_key,
+    //        &mut samples_arr,
+    //    ).unwrap();
 
-        fields.parse_fields(
-            &mut retained_fields,
-            &mut retained_idx,
-            &vars,
-            &expt_key,
-            &mut samples_arr,
-        ).unwrap();
-
-        assert_eq!(retained_fields[0].0, 7);
-        assert_eq!(retained_fields[retained_fields.len()-1].0, 13);
-        assert_eq!(samples_arr.samples[[0,0,0,0,0]], 1.0);
-        assert_eq!(samples_arr.samples[[1,0,0,0,0]], 2.0);
-        assert_eq!(samples_arr.samples[[2,0,0,0,0]], 3.0);
-        assert_eq!(samples_arr.samples[[0,0,0,1,0]], 4.0);
-        assert_eq!(samples_arr.samples[[1,0,0,1,0]], 5.0);
-        assert_eq!(samples_arr.samples[[2,0,0,1,0]], 6.0);
-        assert_eq!(samples_arr.samples[[2,0,2,1,0]], 7.0);
-    }
-}
-
-#[derive(Deserialize, Debug)]
-struct ExptKey {
-    geno_map: Vec<String>,
-    strand_map: Vec<String>,
-    resolution: Vec<u8>,
-    pos_num: Vec<usize>,
-    geno_num: Vec<usize>,
-    strand_num: Vec<usize>,
-}
-
-impl ExptKey {
-    fn read_expt_key(fname: &str) -> BoxedResult<ExptKey> {
-        let mut file = File::open(fname)?;
-        let mut data = String::new();
-        file.read_to_string(&mut data)?;
-        let expt_key: ExptKey = serde_json::from_str(&data)?;
-        Ok(expt_key)
-    }
+    //    assert_eq!(retained_fields[0].0, 7);
+    //    assert_eq!(retained_fields[retained_fields.len()-1].0, 13);
+    //    assert_eq!(samples_arr.samples[[0,0,0,0,0]], 1.0);
+    //    assert_eq!(samples_arr.samples[[1,0,0,0,0]], 2.0);
+    //    assert_eq!(samples_arr.samples[[2,0,0,0,0]], 3.0);
+    //    assert_eq!(samples_arr.samples[[0,0,0,1,0]], 4.0);
+    //    assert_eq!(samples_arr.samples[[1,0,0,1,0]], 5.0);
+    //    assert_eq!(samples_arr.samples[[2,0,0,1,0]], 6.0);
+    //    assert_eq!(samples_arr.samples[[2,0,2,1,0]], 7.0);
+    //}
 }
 
 /// Enumeration to handle information appropriately, depending on what we know about a line
@@ -434,6 +316,10 @@ impl ByteField {
 
 #[derive(Debug)]
 struct SamplesArray {
+    // name of each parameter
+    var_names: Vec<String>,
+    // maps the genotype (or super-genotype) names for each parameter
+    var_geno_key: Vec<Vec<String>>,
     // samples array is shape (geno, strand, params, position, samples)
     // so that for each genotype, strand, parameter combination, there is a 2D sub-array
     // of shape (positions, samples). I think that placing samples last will promote
@@ -444,8 +330,14 @@ struct SamplesArray {
 impl SamplesArray {
 
     fn zeros_by_shape(shape: (usize,usize,usize,usize,usize)) -> SamplesArray {
+        let var_names = vec![String::from("placeholder")];
+        let var_geno_key = vec![vec![String::from("placeholder")]];
         let samples = Array5::zeros(shape);
-        SamplesArray{ samples }
+        SamplesArray{
+            var_names,
+            var_geno_key,
+            samples,
+        }
     }
 
     fn assign_at(&mut self, val: f32, idx: (usize,usize,usize,usize,usize)) {
@@ -767,7 +659,7 @@ impl FieldVec {
                 // if this field is a column name, do the following
                 PriorByteIn::ColNames => {
                     // check whether the col name starts with "Alpha, Beta, Gamma, or
-                    // non_sub_ipod"
+                    // non_sub"
                     if vars.iter().any(|var| field.string.starts_with(var)) {
                         // split string on ".", unpack to position and covar_idx
                         let field_split: Vec<&str> = field.string.split('.').collect();
@@ -968,405 +860,183 @@ impl BytesIterator {
     }
 }
 
-/// returns the hashmap that will be used to map a covariate index to a position
-/// in the first three axes of the final samples array and to files to be written
-fn get_index_key(
-        expt_key: &ExptKey,
-        vars: &Vec<String>,
-        out_direc: &str,
-        genotype_contrasts: Option<Vec<String>>,
-        strand_contrasts: Option<Vec<String>>,
-) -> BoxedResult<(
-        HashMap<usize, (usize, usize, usize)>,
-        HashMap<usize, Vec<File>>,
-        Option<Vec<HashMap<String, usize>>>,
-        Option<Vec<Vec<File>>>,
-        Option<Vec<HashMap<String, usize>>>,
-        Option<Vec<Vec<File>>>,
-)> {
-    // samples array is shape (geno, strand, params, position, samples)
-    let mut arr_map: HashMap<usize, (usize, usize, usize)> = HashMap::new();
-    let mut file_map: HashMap<usize, Vec<File>> = HashMap::new();
-    let summaries: Vec<&str> = vec![
-        "lower", "upper", "median", "mean", "K_gt", "K_lt"
-    ];
-
-    let mut map_idx = 0;
-    for (geno_idx,genotype_name) in expt_key.geno_map.iter().enumerate() {
-        for (strand_idx,strand_name) in expt_key.strand_map.iter().enumerate() {
-            for (var_idx,var_name) in vars.iter().enumerate() {
-                //println!("{}, ({}, {}, {})", map_idx, geno_idx, strand_idx, var_idx);
-                let mut file_vec: Vec<File> = Vec::new();
-                arr_map.insert(map_idx, (geno_idx, strand_idx, var_idx));
-                for summary in &summaries {
-                    let fname = format!(
-                        "{}/{}_{}_{}_{}.bedgraph",
-                        out_direc,
-                        &genotype_name,
-                        &strand_name,
-                        &var_name,
-                        summary,
-                    );
-                    let mut file = File::create(&fname)?;
-                    file_vec.push(file);
-                }
-                file_map.insert(map_idx, file_vec);
-                map_idx += 1;
-            }
-        }
-    }
-
-    let (geno_contrast_key,geno_contrast_file_map) = if let Some(contrasts) = genotype_contrasts {
-
-        let mut geno_contrast_key: Vec<HashMap<String, usize>> = Vec::new();
-        let mut geno_contrast_file_map: Vec<Vec<File>> = Vec::new();
-
-        // for each contrast at cli, collect the two genotypes being
-        // contrasted, get their indices in geno_vec
-        // then iterate over values in arr_map above to store the keys
-        // in arr_map that must be stored in geno_contrast_key to map
-        // numerator and denominator to sub-arrays in final samples array
-        for (_i,contrast) in contrasts.iter().enumerate() {
-            
-            // get numerator and denominator genotype names
-            let cont_vec: Vec<&str> = contrast.split("-").collect::<Vec<&str>>()
-                .iter().map(|x| x.trim()).collect();
-            let numer_geno = cont_vec[0];
-            let denom_geno = cont_vec[1];
-
-            // get indices for each of numerator and denominator
-            let numer_geno_idx = expt_key.geno_map.iter()
-                .position(|x| x == &numer_geno).unwrap();
-            let denom_geno_idx = expt_key.geno_map.iter()
-                .position(|x| x == &denom_geno).unwrap();
-
-            for (j,strand_name) in expt_key.strand_map.iter().enumerate() {
-                for (k,var_name) in vars.iter().enumerate() {
-
-                    let mut this_contrast_key: HashMap<String, usize> = HashMap::new();
-                    let mut file_vec: Vec<File> = Vec::new();
-
-                    for summary in &summaries {
-                        let fname = format!(
-                            "{}/{}_{}_{}_{}.bedgraph",
-                            out_direc,
-                            contrast,
-                            strand_name,
-                            var_name,
-                            summary,
-                        );
-                        let mut file = File::create(&fname)?;
-                        file_vec.push(file);
-                    }
-                    geno_contrast_file_map.push(file_vec);
-
-                    // now loop over the var key above to grab keys that match the strand, var,
-                    // geno icx here
-                    for (l, (query_geno_idx, query_strand_idx, query_var_idx)) in arr_map.iter() {
-                        // if both strand and var indices match j and k, check if this is numerator
-                        // or denominator and insert into the map
-                        if query_strand_idx == &j && query_var_idx == &k {
-                            if query_geno_idx == &numer_geno_idx {
-                                this_contrast_key.insert(String::from("numerator"), *l);
-                            } else if query_geno_idx == &denom_geno_idx {
-                                this_contrast_key.insert(String::from("denominator"), *l);
-                            }
-                        }
-                    }
-                    geno_contrast_key.push(this_contrast_key);
-                }
-            }
-        }
-        (Some(geno_contrast_key),Some(geno_contrast_file_map))
-    } else {
-        (None,None)
-    };
-
-    let (strand_contrast_key,strand_contrast_file_map) = if let Some(contrasts) = strand_contrasts {
-
-        let mut strand_contrast_file_map: Vec<Vec<File>> = Vec::new();
-        let mut strand_contrast_key: Vec<HashMap<String, usize>> = Vec::new();
-
-        for (_i,contrast) in contrasts.iter().enumerate() {
-            
-            // get numerator and denominator strand names
-            let cont_vec: Vec<&str> = contrast.split("-").collect::<Vec<&str>>()
-                .iter().map(|x| x.trim()).collect();
-            let numer_strand = cont_vec[0];
-            let denom_strand = cont_vec[1];
-
-            // get indices for each of numerator and denominator
-            let numer_strand_idx = expt_key.strand_map.iter()
-                .position(|x| x == &numer_strand).unwrap();
-            let denom_strand_idx = expt_key.strand_map.iter()
-                .position(|x| x == &denom_strand).unwrap();
-
-            for (j,geno_name) in expt_key.geno_map.iter().enumerate() {
-                for (k,var_name) in vars.iter().enumerate() {
-
-                    let mut this_contrast_key: HashMap<String, usize> = HashMap::new();
-                    let mut file_vec: Vec<File> = Vec::new();
-
-                    for summary in &summaries {
-                        let fname = format!(
-                            "{}/{}_{}_{}_{}.bedgraph",
-                            out_direc,
-                            geno_name,
-                            contrast,
-                            var_name,
-                            summary,
-                        );
-                        let mut file = File::create(&fname)?;
-                        file_vec.push(file);
-                    }
-                    strand_contrast_file_map.push(file_vec);
-
-                    // now loop over the var key above to grab keys
-                    // that match the strand, var,
-                    // geno idx here
-                    for (l, (query_geno_idx, query_strand_idx, query_var_idx)) in arr_map.iter() {
-                        // if both strand and var indices match j and k,
-                        // check if this is numerator
-                        // or denominator and insert into the map
-                        if query_geno_idx == &j && query_var_idx == &k {
-                            if query_strand_idx == &numer_strand_idx {
-                                this_contrast_key.insert(String::from("numerator"), *l);
-                            } else if query_strand_idx == &denom_strand_idx {
-                                this_contrast_key.insert(String::from("denominator"), *l);
-                            }
-                        }
-                    }
-                    strand_contrast_key.push(this_contrast_key);
-                }
-            }
-        }
-        (Some(strand_contrast_key),Some(strand_contrast_file_map))
-    } else {
-        (None,None)
-    };
-
-    Ok((arr_map, file_map, geno_contrast_key, geno_contrast_file_map, strand_contrast_key, strand_contrast_file_map))
-}
-
-fn make_position_map(pos_file_name: &str) -> BoxedResult<Vec<String>> {
-    let file = File::open(pos_file_name)?;
-    let reader = BufReader::new(file);
-    let mut line_map: Vec<String> = Vec::new();
-    // Iterate over each line in the file.
-    for line_result in reader.lines() {
-        let line = line_result?;
-        let stripped = line.trim_end();
-        let split = stripped.rsplit_once('\t').unwrap();
-        line_map.push(split.0.into());
-    }
-    Ok(line_map)
-}
-
-#[derive(Parser, Debug)]
-#[command(version, about, long_about = None)]
-struct Args {
-    /// Name of the person to greet
-    #[arg(long)]
-    draws_file: String,
-    /// Comma-separated list of variables to keep
-    #[arg(long, value_parser, use_value_delimiter=true, value_delimiter=',')]
-    vars: Vec<String>,
-    /// Comma-separated list of genotype-level contrasts to perform
-    #[arg(long, value_parser, use_value_delimiter=true, value_delimiter=',')]
-    genotype_contrasts: Option<Vec<String>>,
-    /// Comma-separated list of strand-level contrasts to perform
-    #[arg(long, value_parser, use_value_delimiter=true, value_delimiter=',')]
-    strand_contrasts: Option<Vec<String>>,
-    /// File containing covariate key
-    #[arg(long)]
-    expt_key_file: String,
-    /// File containing positions to be mapped back to fit positions
-    #[arg(long)]
-    pos_file_name: String,
-    /// Threshold for gathering evidence ratios for enrichment inferences
-    #[arg(long, default_value_t = 1.0)]
-    threshold: f32,
-    /// Threshold for gathering evidence ratios for genotype contrasts
-    #[arg(long, default_value_t = 0.0)]
-    genotype_contrast_threshold: f32,
-    /// Threshold for gathering evidence ratios for strand contrasts
-    #[arg(long, default_value_t = 0.0)]
-    strand_contrast_threshold: f32,
-    /// Directory into which to write output files
-    #[arg(long)]
-    out_direc: String,
-}
-
 fn main() -> BoxedResult<()> {
 
     let args = Args::parse();
-    let infname = &args.draws_file;
-    let vars = args.vars;
-    let expt_key_file = &args.expt_key_file;
-    let pos_file_name = &args.pos_file_name;
-    let threshold: f32 = args.threshold;
-    let genotype_threshold: f32 = args.genotype_contrast_threshold;
-    let strand_threshold: f32 = args.genotype_contrast_threshold;
-    let out_direc: &str = &args.out_direc;
-    let genotype_contrast_vec: Option<Vec<String>> = args.genotype_contrasts;
-    let strand_contrast_vec: Option<Vec<String>> = args.strand_contrasts;
+    let expt_key = ExptKey::read(&args.expt_key)?;
+    let (cfg, parsers, geno_contrasts, strand_contrasts) = Config::from_file(&args.cfg_file, &expt_key)?;
+    println!("Config: {:?}", cfg);
 
-    println!("genotype_contrasts_arg: {:?}", genotype_contrast_vec);
+    //let infname = &args.draws_file;
+    //let vars = args.vars;
+    //let expt_key_file = &args.expt_key_file;
+    //let pos_file_name = &args.pos_file_name;
+    //let threshold: f32 = args.threshold;
+    //let genotype_threshold: f32 = args.genotype_contrast_threshold;
+    //let strand_threshold: f32 = args.genotype_contrast_threshold;
+    //let out_direc: &str = &args.out_direc;
+    //let genotype_contrast_vec: Option<Vec<String>> = args.genotype_contrasts;
+    //let strand_contrast_vec: Option<Vec<String>> = args.strand_contrasts;
 
-    let position_map = make_position_map(pos_file_name)?;
-    let expt_key = ExptKey::read_expt_key(expt_key_file)?;
+    //println!("genotype_contrasts_arg: {:?}", genotype_contrast_vec);
 
-    let (
-        idx_key,
-        file_map,
-        geno_contrast_key_opt,
-        geno_contrast_file_map_opt,
-        strand_contrast_key_opt,
-        strand_contrast_file_map_opt,
-    ) = get_index_key(
-        &expt_key,
-        &vars,
-        out_direc,
-        genotype_contrast_vec,
-        strand_contrast_vec,
-    )?;
+    //let position_map = make_position_map(pos_file_name)?;
+    //let expt_key = ExptKey::read(expt_key_file)?;
 
-    // channel for threads to communicate
-    let (reader_tx, reader_rx) = mpsc::sync_channel::<Vec<u8>>(1);
-    //let (reader_tx, reader_rx) = mpsc::channel::<Vec<u8>>();
-    // If parser channel is sync_channel, hangs for a long time, maybe forever
-    let (parser_tx, parser_rx) = mpsc::sync_channel(1);
-    //let (parser_tx, parser_rx) = mpsc::channel();
-    let recd: Vec<u8> = Vec::new();
-    let mut byte_iterator = BytesIterator::new(recd);
+    //let (
+    //    idx_key,
+    //    file_map,
+    //    geno_contrast_key_opt,
+    //    geno_contrast_file_map_opt,
+    //    strand_contrast_key_opt,
+    //    strand_contrast_file_map_opt,
+    //) = get_index_key(
+    //    &expt_key,
+    //    &vars,
+    //    out_direc,
+    //    genotype_contrast_vec,
+    //    strand_contrast_vec,
+    //)?;
 
-    let file = File::open(infname)?;
+    //// channel for threads to communicate
+    //let (reader_tx, reader_rx) = mpsc::sync_channel::<Vec<u8>>(1);
+    ////let (reader_tx, reader_rx) = mpsc::channel::<Vec<u8>>();
+    //// If parser channel is sync_channel, hangs for a long time, maybe forever
+    //let (parser_tx, parser_rx) = mpsc::sync_channel(1);
+    ////let (parser_tx, parser_rx) = mpsc::channel();
+    //let recd: Vec<u8> = Vec::new();
+    //let mut byte_iterator = BytesIterator::new(recd);
 
-    let mut reader = BufReader::new(file);
-    let mut buffer = [0; BUF_SIZE];
+    //let file = File::open(infname)?;
 
-    // spawn reader thread
-    // this thread is simply responsible for reading BUF_SIZE bytes at a time
-    // and passing those bytes to the next thread.
-    let _reader_thread = thread::spawn(move || -> io::Result<()> {
+    //let mut reader = BufReader::new(file);
+    //let mut buffer = [0; BUF_SIZE];
 
-        loop {
-            let num_bytes_read = reader.read(&mut buffer)?;
-            // zero bytes read indicates EOF
-            if num_bytes_read == 0 {
-                break
-            }
+    //// spawn reader thread
+    //// this thread is simply responsible for reading BUF_SIZE bytes at a time
+    //// and passing those bytes to the next thread.
+    //let _reader_thread = thread::spawn(move || -> io::Result<()> {
 
-            // send the slice of buffer as an owned vec with data to parser
-            //println!("\nnum_bytes_read: {}", &num_bytes_read);
-            let to_send = buffer[..num_bytes_read].to_vec();
-            //println!("{:?}", &to_send);
-            let send_result = reader_tx.send(to_send);
-            //println!("send_result: {:?}", &send_result);
-            send_result.unwrap();
-        }
+    //    loop {
+    //        let num_bytes_read = reader.read(&mut buffer)?;
+    //        // zero bytes read indicates EOF
+    //        if num_bytes_read == 0 {
+    //            break
+    //        }
 
-        Ok(())
-    });
+    //        // send the slice of buffer as an owned vec with data to parser
+    //        //println!("\nnum_bytes_read: {}", &num_bytes_read);
+    //        let to_send = buffer[..num_bytes_read].to_vec();
+    //        //println!("{:?}", &to_send);
+    //        let send_result = reader_tx.send(to_send);
+    //        //println!("send_result: {:?}", &send_result);
+    //        send_result.unwrap();
+    //    }
 
-    // parser thread
-    // this thread is repsonsible for splitting fields and determining what
-    // type of row the fields are in, i.e., column header vs. samples
-    // Information to pass to the handler thread is, the actual data in the field,
-    // the type of data contained (col head vs samples), and
-    // the sample number if we're in samples
-    //
-    // fields is a FieldVec, which has a single attribute, `fields`, of type Vec<StringField>
-    let mut col_idx: usize = 0;
-    let parser_thread = thread::spawn(move || -> Result<(), ByteIterError> {
-        loop {
-            let read_result = reader_rx.recv_timeout(time::Duration::from_secs(5));
-            //let read_result = reader_rx.recv();
-            let bytes_read: Vec<u8> = match read_result {
-                Ok(bytes) => bytes,
-                Err(error) => {
-                    println!("Encountered a ReceiverError or hit timeout");
-                    println!("{:?}", error);
-                    return Err(ByteIterError::ReceiverError)
-                }
-            };
+    //    Ok(())
+    //});
+
+    //// parser thread
+    //// this thread is repsonsible for splitting fields and determining what
+    //// type of row the fields are in, i.e., column header vs. samples
+    //// Information to pass to the handler thread is, the actual data in the field,
+    //// the type of data contained (col head vs samples), and
+    //// the sample number if we're in samples
+    ////
+    //// fields is a FieldVec, which has a single attribute, `fields`, of type Vec<StringField>
+    //let mut col_idx: usize = 0;
+    //let parser_thread = thread::spawn(move || -> Result<(), ByteIterError> {
+    //    loop {
+    //        let read_result = reader_rx.recv_timeout(time::Duration::from_secs(5));
+    //        //let read_result = reader_rx.recv();
+    //        let bytes_read: Vec<u8> = match read_result {
+    //            Ok(bytes) => bytes,
+    //            Err(error) => {
+    //                println!("Encountered a ReceiverError or hit timeout");
+    //                println!("{:?}", error);
+    //                return Err(ByteIterError::ReceiverError)
+    //            }
+    //        };
  
-            //let bytes_read = read_result.unwrap();
-            //println!("bytes read by reader_tx: {:?}", &bytes_read);
-            byte_iterator.update(bytes_read);
-            // fields is a FieldVec
-            let fields = byte_iterator.field_scan(&mut col_idx)?;
-            if !fields.fields.is_empty() {
-                //println!("fields sent by parser tx: {:?}", &fields);
-                //let copy = fields.fields.to_vec();
-                let parser_send_result = parser_tx.send(fields);
-                let _ = match parser_send_result {
-                    Ok(send) => send,
-                    Err(error) => {
-                        println!("parser_send_error: {:?}", error);
-                        break
-                    }
-                };
-            }
-        }
-        Ok(())
-    });
+    //        //let bytes_read = read_result.unwrap();
+    //        //println!("bytes read by reader_tx: {:?}", &bytes_read);
+    //        byte_iterator.update(bytes_read);
+    //        // fields is a FieldVec
+    //        let fields = byte_iterator.field_scan(&mut col_idx)?;
+    //        if !fields.fields.is_empty() {
+    //            //println!("fields sent by parser tx: {:?}", &fields);
+    //            //let copy = fields.fields.to_vec();
+    //            let parser_send_result = parser_tx.send(fields);
+    //            let _ = match parser_send_result {
+    //                Ok(send) => send,
+    //                Err(error) => {
+    //                    println!("parser_send_error: {:?}", error);
+    //                    break
+    //                }
+    //            };
+    //        }
+    //    }
+    //    Ok(())
+    //});
 
-    //parser_thread.join()?;
-    let mut samples_arr = SamplesArray::zeros_by_shape(
-        (expt_key.geno_num[0], expt_key.strand_num[0], vars.len(), expt_key.pos_num[0], SAMP_NUM)
-    );
-    let mut retained_fields: Vec<(usize, (usize, usize, usize, usize))> = Vec::new();
-    let mut retained_idx: usize = 0;
+    //// TODO: change samples array so that instead of one array of (G, Q, V, P, S),
+    //// it will not be Vec<Array<(Gv, Q, P, S)>>, where length of Vec is V, and Gv for each
+    //// parameter, v (alpha, beta, gamma), will be the number of genotypes for that given
+    //// paramters. This is necessary for shared parameters across genotypes.
+    //let mut samples_arr = SamplesArray::zeros_by_shape(
+    //    (expt_key.geno_num[0], expt_key.strand_num[0], vars.len(), expt_key.pos_num[0], SAMP_NUM)
+    //);
+    //let mut retained_fields: Vec<(usize, (usize, usize, usize, usize))> = Vec::new();
+    //let mut retained_idx: usize = 0;
 
-    // field handler
-    // Responsible for accepting the FieldVec passed by parser thread
-    // either assigning each field as retained or not, or assigning each value to
-    // its proper position in the samples array.
-    //
-    // Tasks it must perform
-    // 1) When in colname line, get vec of column indices and info
-    //      Place the col index into retained_fields
-    // 2) When in data, determine whether we're keeping each datum
-    //      Place into appropriate cell in array.
-    loop {
-        let parse_result = parser_rx.recv_timeout(time::Duration::from_secs(5));
-        let _ = match parse_result {
-            Ok(mut fields) => {
-                fields.parse_fields(
-                    &mut retained_fields,
-                    &mut retained_idx,
-                    &vars,
-                    &expt_key,
-                    &mut samples_arr,
-                ).unwrap();
-            },
-            Err(error) => {
-                println!("{:?}", error);
-                break
-            }
-        };
+    //// field handler
+    //// Responsible for accepting the FieldVec passed by parser thread
+    //// either assigning each field as retained or not, or assigning each value to
+    //// its proper position in the samples array.
+    ////
+    //// Tasks it must perform
+    //// 1) When in colname line, get vec of column indices and info
+    ////      Place the col index into retained_fields
+    //// 2) When in data, determine whether we're keeping each datum
+    ////      Place into appropriate cell in array.
+    //loop {
+    //    let parse_result = parser_rx.recv_timeout(time::Duration::from_secs(5));
+    //    let _ = match parse_result {
+    //        Ok(mut fields) => {
+    //            fields.parse_fields(
+    //                &mut retained_fields,
+    //                &mut retained_idx,
+    //                &vars,
+    //                &expt_key,
+    //                &mut samples_arr,
+    //            ).unwrap();
+    //        },
+    //        Err(error) => {
+    //            println!("{:?}", error);
+    //            break
+    //        }
+    //    };
 
-    }
+    //}
 
-    println!("Finished parsing file, summarizing samples and writing output files.");
-    samples_arr.fetch_summaries(
-        &idx_key,
-        file_map,
-        &position_map,
-        threshold,
-    )?;
+    //println!("Finished parsing file, summarizing samples and writing output files.");
+    //samples_arr.fetch_summaries(
+    //    &idx_key,
+    //    file_map,
+    //    &position_map,
+    //    threshold,
+    //)?;
 
-    samples_arr.fetch_contrasts(
-        &idx_key,
-        geno_contrast_key_opt,
-        geno_contrast_file_map_opt,
-        strand_contrast_key_opt,
-        strand_contrast_file_map_opt,
-        &position_map,
-        genotype_threshold,
-        strand_threshold,
-    )?;
+    //samples_arr.fetch_contrasts(
+    //    &idx_key,
+    //    geno_contrast_key_opt,
+    //    geno_contrast_file_map_opt,
+    //    strand_contrast_key_opt,
+    //    strand_contrast_file_map_opt,
+    //    &position_map,
+    //    genotype_threshold,
+    //    strand_threshold,
+    //)?;
 
     Ok(())
 }

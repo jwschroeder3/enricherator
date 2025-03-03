@@ -1,23 +1,36 @@
 {
-    "geno_map": [
-        "wt",
-        "vpsR",
-        "vpsT"
-    ],
+    "var_map": {
+        "Alpha": [
+            "wt",
+            "vpsR",
+            "vpsT"
+        ],
+        "Beta": [
+            "wt",
+            "vpsR",
+            "vpsT"
+        ],
+        "Gamma": [
+            "wt",
+            "vpsR",
+            "vpsT"
+        ]
+    },
     "strand_map": [
-        "both"
+        "plus",
+        "minus"
     ],
     "resolution": [
         5
     ],
     "pos_num": [
-        3
-    ],
-    "geno_num": [
-        3
+        50
     ],
     "strand_num": [
         1
+    ],
+    "sample_num": [
+        500
     ]
 }
 

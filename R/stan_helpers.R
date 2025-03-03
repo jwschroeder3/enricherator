@@ -35,14 +35,7 @@ read_file = function(fname, ignores, debug=FALSE) {
     }
 
     if (debug) {
-        tmp_tib = tmp_tib %>%
-            #filter(
-            #    ((seqname == "CP006881.1" & start > 1180500 & end < 1185500)
-            #    | seqname == "NC_011916.1")
-            #)
-            filter(
-                (seqname == "gi|545778205|gb|U00096.3|" & start > 655000 & end < 660000)
-            )
+        tmp_tib = tmp_tib %>% head(50)
     }
 
     print(tmp_tib %>% head)
@@ -312,8 +305,9 @@ insert_data = function(data, spike_name, spikein_rel_abund) {
 }
 
 
-prep_stan_data = function(data_df, norm_method, spikein, spikein_rel_abund=0.05, input_subsample_dist_bp=50, input_frag_len_bp=125, ext_subsample_dist_bp=50, ext_frag_len_bp=50, ipod_subsample_dist_bp=50, ipod_frag_len_bp=50, log_lik=FALSE, frac_genome_enriched=NULL) {
-    # this sort step is VERY USEFUL for arranging data later on to keep size factors
+prep_stan_data = function(data_df, norm_method, spikein, spikein_rel_abund=0.05, input_subsample_dist_bp=50, input_frag_len_bp=125, ext_subsample_dist_bp=50, ext_frag_len_bp=50, ipod_subsample_dist_bp=50, ipod_frag_len_bp=50, log_lik=FALSE, frac_genome_enriched=NULL, debug=FALSE, debug_outdir=NULL) {
+    # this sort step is VERY USEFUL for arranging data
+    # later on to keep size factors
     # associated with correct samples
     data_df = data_df %>% arrange(sample_id)
 
@@ -334,6 +328,10 @@ prep_stan_data = function(data_df, norm_method, spikein, spikein_rel_abund=0.05,
         stop(paste0("--norm_method must be either 'libsize' or 'spikein', but it is currently set to ", norm_method, ". Exiting now."))
     }
 
+    if (debug) {
+        write_csv(data_df %>% dplyr::select(-data), file=file.path(debug_outdir, "debug_data_df.csv"))
+    }
+
     pos_num = res[[1]]
     stan_list = res[[2]]
 
@@ -345,101 +343,101 @@ prep_stan_data = function(data_df, norm_method, spikein, spikein_rel_abund=0.05,
     ###################################################
 
     samp_num = dim(data_df)[1]
-    # geno_key will contain a separate key for each parameter
-    # Each parameter's key will allow mapping of this sample to set the proper indices of
-    #   param_idx_arr to the correct index of the given parameter array.
-    # the idx_geno_key list maps this parameter's index in its array to a given genotype
-    # For example, the array of Betas in stan has shape [G,Q], and beta's idx_geno_key
-    #  will enable mapping of each sample to the appropriate g index in the first axis of that Beta array
-    geno_key = list(
-        "alpha" = list("length" = 0, "idx_geno_key" = list()),
-        "beta" = list("length" = 0, "idx_geno_key" = list()),
-        "gamma" = list("length" = 0, "idx_geno_key" = list())
-    )
     param_names = c("alpha", "beta", "gamma")
-    param_idx_arr = matrix(0, nrow=samp_num, ncol=3)
 
     print(data_df)
     print(data_df$genotype)
-    # first thing to know is how many distinct genotypes are present in a parameter?
-    for (sample_type in 0:2) {
-        par_name = param_names[sample_type+1]
-        geno_vec = unlist(data_df$genotype[data_df$sample_x == sample_type], use.names=FALSE)
-        distinct_geno = unique(geno_vec)
-        st_geno_num = length(distinct_geno)
-        geno_key[[par_name]][["length"]] = st_geno_num
-        geno_key[[par_name]][["geno_names"]] = distinct_geno
-        # pair geno name to index
-        for (i in 1:st_geno_num) {
-            geno_key[[par_name]][["idx_geno_key"]][[distinct_geno[i]]] = i
-        }
-        #print(geno_key)
+
+    # make design matrix and fill param_idx_arr
+    # how many of each param?
+    A = max(data_df$input_group)
+    B = max(data_df$control_group[!is.na(data_df$control_group)])
+    G = max(data_df$extract_group[!is.na(data_df$extract_group)])
+    unique_inp_genos = unique(data_df$genotype[data_df$sample == "input"])
+    unique_cont_genos = unique(data_df$genotype[data_df$sample == "control"])
+    unique_ext_genos = unique(data_df$genotype[data_df$sample == "extract"])
+    A_geno_lut = list()
+    for (i in 1:A) {
+        A_geno_lut[[unique_inp_genos[i]]] = i
+    }
+    B_geno_lut = list()
+    for (i in 1:B) {
+        B_geno_lut[[unique_cont_genos[i]]] = i
+    }
+    G_geno_lut = list()
+    for (i in 1:G) {
+        G_geno_lut[[unique_ext_genos[i]]] = i
+    }
+    if (debug) {
+        nums = toJSON(list("alpha"=A, "gamma"=G, "beta"=B), auto_unbox=TRUE)
+        write(nums, file = file.path(debug_outdir, "nums.json"))
     }
 
+    param_idx_arr = matrix(0, nrow=samp_num, ncol=3)
+    var_map = list("Alpha"=c(), "Beta"=c(), "Gamma"=c())
+
     for (s in 1:samp_num ) {
-        # look for ";" in any row of the gnotype column. If it's there, we handle genotype differently,
-        # as we then use the data for that row for multiple genotypes. This is useful for sharing a control
-        # across multiple datasets.
-        sample_type_s = data_df$sample_x[s]
-        geno_s = data_df$genotype[s]
-        for (sample_type in 0:2) {
-            par_name = param_names[sample_type+1]
-            # gat param info for this sample type
-            par_key = geno_key[[par_name]]
-            # search for exact matches to this genotype. If none found, search for this genotype
-            #   as a sub-string of the genotypes in the parameter key.
-            par_genos = names(par_key$idx_geno_key)
-            for (geno_s in par_genos) {
-                exact_matches = geno_s == par_genos
-                match_idx = which(exact_matches)
-                print(paste0("geno_s: ", geno_s))
-                print(paste0("par_genos: ", par_genos))
-                # too many matches should throw error and exit
-                if (length(match_idx) > 1) {
-                    stop(paste0("Error: sample in row ", s, "of your info csv had too many matches to its genotype for parameter ", par_name, ". Review your genotype and sample type assignments to ensure you've set up your info csv correctly. Exiting early."))
-                # a single exact match lets us set this sample's param index for this column
-                } else if (length(match_idx) == 1) {
-                    param_idx_arr[s,sample_type+1] = match_idx
-                # zero exact matches requires we look for a sub-string match
+        stype = data_df$sample[s]
+        geno = data_df$genotype[s]
+
+        alpha_idx = data_df$input_group[s]
+        beta_idx = data_df$control_group[s]
+        gamma_ind = data_df$extract_group[s]
+
+        if (stype == "extract") {
+            param_idx_arr[s,3] = gamma_ind
+            if (is.null(var_map[["Gamma"]][gamma_ind]) || is.na(var_map[["Gamma"]][gamma_ind])) {
+                var_map[["Gamma"]][gamma_ind] = geno
+            } else {
+                var_map[["Gamma"]][gamma_ind] = paste(var_map[["Gamma"]][gamma_ind], geno, sep="_AND_")
+            }
+        } else {
+            if (stype == "control") {
+                if (is.null(var_map[["Beta"]][beta_idx]) || is.na(var_map[["Beta"]][beta_idx])) {
+                    var_map[["Beta"]][beta_idx] = geno
                 } else {
-                    matches = str_match(par_genos, geno_s)
-                    print("sub-string matches")
-                    print(matches)
-                    stop()
+                    var_map[["Beta"]][beta_idx] = paste(var_map[["Beta"]][beta_idx], geno, sep="_AND_")
+                }
+            } else {
+                if (stype == "input") {
+                    if (is.null(var_map[["Alpha"]][alpha_idx]) || is.na(var_map[["Alpha"]][alpha_idx])) {
+                        var_map[["Alpha"]][alpha_idx] = geno
+                    } else {
+                        var_map[["Alpha"]][alpha_idx] = paste(var_map[["Alpha"]][alpha_idx], geno, sep="_AND_")
+                    }
+                } else {
+                    stop(paste0("Encountered a sample type that was none of the required samples types. Required sample types are 'control', 'extract', and 'input'. The incorrect type was ", stype))
                 }
             }
         }
-        geno_s = data_df$genotype[s]
-        split_geno_s = str_split(geno_vec, ";")
-        print(split_geno_s)
-        all_genotypes = unlist(split_genos)
-        print(all_genotypes)
-        distinct_genotypes = unique(all_genotypes)
-        num_geno = length(distinct_genotypes)
-        geno_factors = factor(distinct_genotypes)
-        geno_ints = as.integer(geno_factors)
-        geno_lut = list()
-
-        for (i in 1:length(distinct_genotypes)) {
-            fact = levels(geno_factors)[i]
-            geno_lut[[fact]] = geno_ints[i]
+        if (stype == "control" || stype == "extract") {
+            param_idx_arr[s,2] = beta_idx
         }
+        param_idx_arr[s,1] = alpha_idx
 
-        geno_mat = matrix(0, nrow=samp_num, ncol=num_geno)
-        geno_colnames = rep(0, num_geno)
-        
-        for (i in 1:samp_num) {
-            sample_genotypes = split_genos[[i]]
-            for (j in 1:length(sample_genotypes)) {
-                col_idx = geno_lut[[sample_genotypes[j]]]
-                geno_mat[i,col_idx] = 1
-                geno_colnames[col_idx] = sample_genotypes[j]
-            }
-        }
-        #print("geno_mat:")
-        #print(geno_mat)
     }
-    stop()
+
+    # to track which gammas to subtract a given beta from
+    gamma_idx = matrix(0, nrow=B, ncol=G)
+    
+    for (s in 1:samp_num) {
+        # if this sample is an extract sample, the gamma column
+        # will be greater than zero and the correct indices of 
+        # gamma_idx must be set to 1.
+        if (param_idx_arr[s,3] > 0) {
+            gamma_idx[param_idx_arr[s,2], param_idx_arr[s,3]] = 1
+        }
+    }
+
+    if (debug) {
+        fname = file.path(debug_outdir, "param_idx_arr.csv")
+        print(paste0("Writing param_idx_arr to ", fname))
+        write(t(param_idx_arr), file=fname, sep=",", ncolumns=ncol(param_idx_arr))
+        fname = file.path(debug_outdir, "gamma_idx.csv")
+        print(paste0("Writing gamma_idx to ", fname))
+        write(t(gamma_idx), file=fname, sep=",", ncolumns=ncol(gamma_idx))
+    }
+
     levels = unique(data_df$sample_id)
     strand_names = NA
     distinct_strand_ids = sort(unique(data_df$strand_x))
@@ -461,20 +459,22 @@ prep_stan_data = function(data_df, norm_method, spikein, spikein_rel_abund=0.05,
     info_df = strand_df %>% filter(!duplicated(sample_id))
     stan_list[["L"]] = pos_num
     stan_list[["S"]] = samp_num
-    stan_list[["B"]] = num_geno
-    stan_list[["A"]] = 
-    stan_list[["G"]] = num_geno
+    stan_list[["B"]] = B
+    stan_list[["A"]] = A
+    stan_list[["G"]] = G
     stan_list[["Q"]] = strand_num
     #stan_list[["geno_x"]] = info_df$geno_x
-    stan_list[["geno_mat"]] = geno_mat
+    #stan_list[["geno_mat"]] = geno_mat
     stan_list[["sample_x"]] = info_df$sample_x
     stan_list[["strand_x"]] = strand_df$strand_x
     #print(stan_list[["strand_x"]])
     #print(stan_list[["Q"]])
     stan_list[["info"]] = data_df %>% select(-data)
     stan_list[["gather_log_lik"]] = log_lik
+    stan_list[["gamma_idx"]] = gamma_idx
+    stan_list[["param_idx_arr"]] = param_idx_arr 
     stan_list[["expt_key"]] = list()
-    stan_list[["expt_key"]][["geno_map"]] = geno_colnames 
+    stan_list[["expt_key"]][["var_map"]] = var_map
     stan_list[["expt_key"]][["strand_map"]] = strand_names
 
     data_arr = base::array(0, dim=c(samp_num,strand_num,pos_num))
@@ -483,12 +483,14 @@ prep_stan_data = function(data_df, norm_method, spikein, spikein_rel_abund=0.05,
         #print(paste0("level: ", level))
         for (q in 1:strand_num) {
             strand_name = strand_names[q]
+            #print(data_df)
+            #print(paste0("s: ", s))
+            #print(paste0("levels: ", levels))
+            #print(paste0("level: ", level))
             #print(paste0("strand idx: ", q))
             #print(paste0("strand: ", strand_name))
-            #stop()
             which_row = which(data_df$sample_id == level & data_df$strand == strand_name)
-            #print(unique(data_df$strand))
-            #print(unique(data_df$sample_id))
+            #print(which_row)
             sq_data  = unlist(data_df$data[[which_row]] %>%
                 filter(seqname != spikein) %>%
                 select(score)) %>%
@@ -504,7 +506,7 @@ prep_stan_data = function(data_df, norm_method, spikein, spikein_rel_abund=0.05,
     resolution = median(diff(stan_list[["position_mapper"]]$start))
     stan_list[["expt_key"]][["resolution"]] = resolution
     stan_list[["expt_key"]][["pos_num"]] = pos_num
-    stan_list[["expt_key"]][["geno_num"]] = num_geno
+    #stan_list[["expt_key"]][["geno_num"]] = num_geno
     stan_list[["expt_key"]][["strand_num"]] = strand_num
 
 

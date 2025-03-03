@@ -85,18 +85,25 @@ data {
 
 transformed data {
     array[S] real cent_loglibsize;
+    array[S] int int_cent_libsize;
     int N = L*Q*S;
     int b_num_hs = b_sub_L*B*Q;
-    int g_num_hs = g_sub_L*B*Q;
+    int g_num_hs = g_sub_L*G*Q;
     {
         array[S] real log_libsize;
         real mean_loglib;
+        int cent_libsize;
         for (s in 1:S) {
             log_libsize[s] = log(libsize[s]);
         }
         mean_loglib = mean(log_libsize);
         for (s in 1:S) {
             cent_loglibsize[s] = log_libsize[s] - mean_loglib;
+            cent_libsize = 0;
+            while (cent_libsize < exp(cent_loglibsize[s]) / 100.0) {
+                cent_libsize += 1;
+            }
+            int_cent_libsize[s] = cent_libsize;
         }
     }
 }
@@ -143,7 +150,7 @@ transformed parameters {
     array[B,Q] vector[L] Beta;
     array[A,Q] vector[L] Alpha; // one intercept for each genotype/position combination
     array[G,Q] vector[L] Gamma;
-    array[G,Q] vector[L] non_sub_ipod;
+    array[G,Q] vector[L] non_sub;
 
     real lprior = 0.0;
 
@@ -220,14 +227,14 @@ transformed parameters {
                         // iff beta is greater than zero, do chipsub
                         // here there may be missed parameters in the cubic fit,
                         // but they'll just be ignored by the likelihood and so won't affect inference.
-                        non_sub_ipod[g,q] = (a_cubic[b,g]*tmp_Beta
+                        non_sub[g,q] = (a_cubic[b,g]*tmp_Beta
                             + b_cubic[b,g]*tmp_Beta^2
                             + c_cubic[b,g]*tmp_Beta^3) .* gr_zero
                             + tmp_Gamma;
                         // Gamma represents the chip-subbed estimates
                         Gamma[g,q] = tmp_Gamma;// + Eta[b];
                         // Beta represents control for ChIP-seq or RNAP ChIP for IPOD-HR
-                        //non_sub_ipod[b,q] = (a_cubic[b]*tmp_Beta_plus
+                        //non_sub[b,q] = (a_cubic[b]*tmp_Beta_plus
                         //    + b_cubic[b]*tmp_Beta_plus^2
                         //    + c_cubic[b]*tmp_Beta_plus^3) .* gr_zero
                         //    + Gamma[b,q];
@@ -291,7 +298,10 @@ transformed parameters {
     lprior += lognormal_lpdf(prec | 0, 1);
     //lprior += cauchy_lpdf(overdisp_a | 0.0, 1.0);
     //lprior += inv_gamma_lpdf(overdisp_b | 0.65, 5.0);
-    lprior += gamma_lpdf(psi | 3.0, 1.0);
+    //lprior += gamma_lpdf(psi | 3.0, 1.0);
+    for (s in 1:S) {
+        lprior += poisson_log_lpmf(int_cent_libsize[s] | psi[s]);
+    }
 
     //lprior += student_t_lpdf(Delta | 3, 0, 5);
     //lprior += student_t_lpdf(Eta | 3, 0, 5);
@@ -314,7 +324,6 @@ model {
     //real Y_hat_noise;
     //real wsh_s;
     real libsize_s;
-    real psi_s;
     //real log_signoise_s;
     //real log_comp_signoise_s;
     //vector[S] log_signoise = log(sig_noise);
@@ -330,7 +339,6 @@ model {
         sample_type = sample_x[s];
         param_idxs = param_idx_arr[s];
         //genotype_row = geno_mat[s]';
-        psi_s = psi[s];
         //wsh_s = wsh[s];
         libsize_s = cent_loglibsize[s];
         //log_signoise_s = log_signoise[s];
@@ -364,9 +372,9 @@ model {
                 //Y_hat_signal = Alpha[genotype,q] + Beta[genotype,q] + libsize_s;
                 //Y_hat_signal = (exp(Alpha[genotype,q] + Beta[genotype,q]) - psi_s) * libsize_s;
             } else {
-                Y_hat_signal = Alpha[param_idxs[1],q] + non_sub_ipod[param_idxs[3],q] + libsize_s;
-                //Y_hat_signal = Alpha[genotype,q] + non_sub_ipod[genotype,q] + libsize_s;
-                //Y_hat_signal = (exp(Alpha[genotype,q] + non_sub_ipod[genotype,q]) - psi_s) * libsize_s;
+                Y_hat_signal = Alpha[param_idxs[1],q] + non_sub[param_idxs[3],q] + libsize_s;
+                //Y_hat_signal = Alpha[genotype,q] + non_sub[genotype,q] + libsize_s;
+                //Y_hat_signal = (exp(Alpha[genotype,q] + non_sub[genotype,q]) - psi_s) * libsize_s;
             }
 
             // lower counts get lower signal-to-noise
@@ -374,6 +382,12 @@ model {
             //log_signoise_s = log(signoise_s);
             //log_comp_signoise_s = log1m(signoise_s);
             //overdispersion_s = overdisp_f(Y_hat_signal, overdisp_a[s], overdisp_b[s]);
+
+
+            //////////////////
+            // set psi_s as poission with libsize_s as exposure
+            //////////////////
+
             for (l in 1:L) {
                
                 // allocates counts proportionally to signal/noise,
@@ -383,14 +397,14 @@ model {
                 //print("exp(Y_hat_signal[l]): ", exp(Y_hat_signal[l]));
                 //print("sig_noise_s[l]: ", signoise_s[l]);
                 //print("");
-                if (Y[s,q,l] <= psi_s) {
-                    target += log_sum_exp(
-                        poisson_lpmf(Y[s,q,l] | psi_s),
-                        neg_binomial_2_log_lpmf(Y[s,q,l] | Y_hat_signal[l], prec[sample_type+1])
-                    );
-                } else {
-                    target += neg_binomial_2_log_lpmf(Y[s,q,l] | Y_hat_signal[l], prec[sample_type+1]);
-                }
+                //if (Y[s,q,l] <= psi_s) {
+                target += log_sum_exp(
+                    poisson_log_lpmf(Y[s,q,l] | psi[s]),
+                    neg_binomial_2_log_lpmf(Y[s,q,l] | Y_hat_signal[l], prec[sample_type+1])
+                );
+                //} else {
+                //    target += neg_binomial_2_log_lpmf(Y[s,q,l] | Y_hat_signal[l], prec[sample_type+1]);
+                //}
                 //target += log_sum_exp(
                 //    log_signoise_s[l] + neg_binomial_2_log_lpmf(Y[s,q,l] | Y_hat_signal[l], prec[sample_type+1]),
                 //    log_comp_signoise_s[l] + poisson_log_lpmf(Y[s,q,l] | libsize_s)

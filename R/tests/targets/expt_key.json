@@ -1,0 +1,30 @@
+{
+    "var_map": {
+        "Alpha": [
+            "H_mNG_S_mCh_wHNS_wSTPA_wHHA_wYDG_exp",
+            "H_mNG_No_mCh_wHNS_wSTPA_wHHA_wYDG_exp",
+            "No_mNG_S_mCh_wHNS_wSTPA_wHHA_wYDG_exp",
+            "H_mNG_S_mCh_wHNS_wSTPA_Dhha_Dydg_exp"
+        ],
+        "Beta": [
+            "H_mNG_No_mCh_wHNS_wSTPA_wHHA_wYDG_exp"
+        ],
+        "Gamma": [
+            "H_mNG_S_mCh_wHNS_wSTPA_wHHA_wYDG_exp_AND_No_mNG_S_mCh_wHNS_wSTPA_wHHA_wYDG_exp",
+            "H_mNG_S_mCh_wHNS_wSTPA_Dhha_Dydg_exp"
+        ]
+    },
+    "strand_map": [
+        "both"
+    ],
+    "resolution": [
+        5
+    ],
+    "pos_num": [
+        50
+    ],
+    "strand_num": [
+        1
+    ]
+}
+
