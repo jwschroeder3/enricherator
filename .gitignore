@@ -4,3 +4,4 @@ rust/parse_cmdstan_csv_dev/test_data/test_outs
 R/tests/__pycache__
 R/tests/results
 R/tests/data
+singularity
