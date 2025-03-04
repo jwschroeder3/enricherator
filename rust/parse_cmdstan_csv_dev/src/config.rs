@@ -1,10 +1,12 @@
+use std::str::FromStr;
+use strum_macros::EnumString;
 use clap::Parser;
 use serde::{Deserialize};
 use serde_json;
 use toml;
 use std::fmt;
 use std::fs::File;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::io::{self, Write, BufRead, BufReader, Read};
 use std::error::Error;
 use ndarray::{Array1, Array2};
@@ -274,8 +276,42 @@ struct ParserConfig {
     threshold: f64,
 }
 
+impl ParserConfig {
+    fn get_parse_instances(&self, expt_key: &ExptKey) -> BoxedResult<(HashSet<ParamID>, Vec<Parse>)> {
+        let mut hs: HashSet<ParamID> = HashSet::new();
+        let strand_vec = expt_key.get("strand_map").unwrap();
+        // go through each parameter listed in expt_key to see whether we're keeping it.
+        for (param_name, param_geno_vec) in ext_key.get("var_map").unwrap().iter() {
+            // if the ParserConfig indicates we keep this parameter, go through its genotypes
+            // and strands to set up the necessary Parse instances.
+            if self.vars.contains(param_name) {
+                let param = Parameter::from_str(param_name)?;
+                for (geno_idx, geno_name) in self.vars.iter().enumerate() {
+                    for (strand_idx, strand_name) in strand_vec.iter().enumerate() {
+                        let param_id = ParamID::new(
+                            param.clone(),
+                            geno_idx.clone(),
+                            strand_idx.clone(),
+                        )
+                        // a HashSet returns bool, true if inserted, false if not.
+                        let _inserted = hs.insert(param_id);
+                    }
+                }
+            }
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct Parse {
+    parameter: Parameter,
+    string: String,
+    param_effect_key: HashMap<>
+    numerators: Vec<usize>,
+    denominators: Vec<usize>,
+    cl_array: Vec<Vec<f64>>,
+    sum_array: Vec<f64>,
+    sample_num: usize,
 }
 
 #[derive(Deserialize, Debug, Clone)]
@@ -287,7 +323,7 @@ struct ContrastsConfig {
     threshold: Option<f64>,
 }
 
-#[derive(Hash, Eq, PartialEq, Debug, Clone)]
+#[derive(Hash, Eq, PartialEq, Debug, Clone, EnumString)]
 enum Parameter {
     Alpha,
     Beta,
@@ -296,10 +332,20 @@ enum Parameter {
 }
 
 #[derive(Hash, Eq, PartialEq, Debug, Clone)]
-struct Param_ID {
+struct ParamID {
     param: Parameter,
     geno_idx: usize,
     strand_idx: usize,
+}
+
+impl ParamID {
+    fn new(param: Parameter, geno_idx: usize, strand_idx: usize) -> Self {
+        Self {
+            param,
+            geno_idx,
+            strand_idx,
+        }
+    }
 }
 
 /// A struct to allow tracking of each Parser or Genotype (anything implementing Tracker, really)
@@ -310,33 +356,76 @@ struct Param_ID {
 ///
 /// Attributes:
 ///
-/// key: HashMap<Param_ID, Vec<Rc<impl Tracker>>>
-///     Allows tracking of which Contrasts and Parsers make use of the Param_ID.
-///     Wrapping each Tracker in a reference counter (Rc) allows each Tracker
-///     to be placed into potentially multiple Param_IDs.
+/// key: HashMap<ParamID, Vec<Rc<impl Tracker>>>
+///     Allows tracking of which Contrasts and Parsers make use of the ParamID.
+///     Wrapping each Tracker in a Rc allows each Tracker
+///     to be placed into potentially multiple ParamIDs.
 #[derive(Debug, Clone)]
 struct Trackers {
-    var_key: HashMap<Param_ID, Vec<Rc<impl Tracker>>>,
+    var_key: HashMap<ParamID, Vec<Rc<impl Tracker>>>,
 }
 
-/// A struct for containing genotype contrast information
-///
-/// Attributes:
-///
-/// var_key: HashMap<Parameter, Vec<GenoContrast>>
-/// threshold: f64
-///     Threshold for calculating evidence ratios. This threshold appies over
-///     all contrasts
+impl Trackers {
+    fn new() -> Self {
+        let hm: HashMap<ParamID, Vec<Rc<impl Tracker>>> = HashMap::new();
+        Self{ var_key: hm }
+    }
+
+    fn insert(&mut self, param_id: ParamID, tracker: Rc<impl Tracker>) {
+        if let Some(&mut current_tracker_list) = self.var_key.get_mut(&param_id) {
+            current_tracker_list.push(Rc::clone(tracker));
+        } else {
+            let new_tracker_list: Vec<Rec<impl Tracker>> = vec![tracker];
+            self.var_key.insert(param_id, new_tracker_list);
+        }
+    }
+
+    fn contains_id(&self, param_id: &ParamID) -> bool {
+        self.var_key.contains_key(param_id)
+    }
+}
+
+trait Tracker {
+    pub fn update_cl(&mut self) {}
+    pub fn update_sum(&mut self) {}
+}
+
+/// A struct for building genotype contrast information
 #[derive(Debug, Clone)]
-struct GenoContrasts {
-    var_key: HashMap<Parameter, Vec<GenoContrast>>,
-    threshold: f64,
-}
+struct GenoContrastsBuilder {}
 
-impl GenoContrasts {
+impl GenoContrastsBuilder {
     fn new(cfg: &ContrastsConfig, expt_key: &ExptKey) -> BoxedResult<Self> {
-        let mut var_key: HashMap<Parameter, Vec<GenoContrast>>
-            = HashMap::new();
+
+        // instantiate a new mutable Trackers
+        let mut trackers = Trackers::new();
+
+        // one pass over parse, geno_contrasts, and strand_contrasts sections
+        // to build set of ParamIDs.
+        let mut param_id_set: HashSet<ParamID> = HashSet::new();
+        
+
+        // Build valid ParamID for each genotype/strand
+        // if user wants alpha contrasts, build for alpha.
+        if let Some(alpha) = &cfg.Alpha {
+            // fetch alpha parameter's genotypes
+            let param_genos = expt_key.get("var_map").unwrap()
+            // for each genotype and strand, set up the ParamID, contrast, and place
+            // ParamID into appropriate maps
+            for (geno_idx, geno_name) in param_genos.iter().enumerate() {
+                for (strand_idx, strand_name) in expt_key.get("strand_map").unwrap().iter().enumerate() {
+                    let param_id = ParamID::new(Parameter::Alpha, *geno_idx, *strand_idx);
+                    // is this param_id in those that we're using for any Parse or Contrast?
+                    // if not, continue.
+                    if param_id in 
+                    // insert this tracker to associate it with its param_id.
+                    trackers.insert(param_id, tracker);
+                }
+            }
+        }
+
+
+
 
         let mut param_idx = 0;
         let pos_num = expt_key.pos_num[0];
@@ -863,21 +952,6 @@ impl GenoContrast {
     }
 }
 
-//#[derive(Deserialize, Debug, Clone)]
-//struct StrandContrastsConfig {
-//    Alpha: Option<Vec<String>>,
-//    Beta: Option<Vec<String>>,
-//    Gamma: Option<Vec<String>>,
-//    non_sub: Option<Vec<String>>,
-//    threshold: Option<f64>,
-//}
-//
-//#[derive(Debug, Clone)]
-//struct StrandContrasts {
-//    var_key: HashMap<(String, usize), HashMap<String, (Vec<usize>, Vec<usize>)>>,
-//    threshold: f64,
-//}
-
 #[derive(Deserialize, Debug, Clone)]
 struct ConfigFile {
     input: InputConfig,
@@ -901,13 +975,6 @@ impl ConfigFile {
 pub struct Config {
     pub input: InputConfig,
     pub output: OutputConfig,
-    pub parsers: Parsers,
-    pub geno_contrasts: Option<GenoContrasts>,
-    pub strand_contrasts: Option<StrandContrasts>,
-}
-
-#[derive(Debug)]
-pub struct Parsers {
 }
 
 impl Config {
@@ -924,9 +991,11 @@ impl Config {
     pub fn from_file(fname: &str, expt_key: &ExptKey) -> BoxedResult<Config> {
         let cfg_file = ConfigFile::read(&fname)?;
 
+        let mut trackers = 
+
         // if there are geno_contrasts, fetch indices and construct Contrasts
         let geno_contrasts = if let Some(geno_cont) = cfg_file.geno_contrasts {
-            let geno_con = GenoContrasts::new(&geno_cont, expt_key)?;
+            let geno_con = GenoContrastsBuilder::new(&geno_cont, expt_key)?;
             Some(geno_con)
         } else {
             None
@@ -938,7 +1007,7 @@ impl Config {
             None
         };
 
-        let parsers: Parsers = ;
+        let parsers = Par ;
 
         let cfg = Config {
             input: cfg_file.input,
