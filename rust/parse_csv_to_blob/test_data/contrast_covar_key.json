@@ -1,0 +1,54 @@
+{
+    "map": [
+        {
+            "var_name": "Alpha",
+            "strand_name": "both",
+            "genotype_name": "vpsR"
+        },
+        {
+            "var_name": "Beta",
+            "strand_name": "both",
+            "genotype_name": "vpsR"
+        },
+        {
+            "var_name": "Gamma",
+            "strand_name": "both",
+            "genotype_name": "vpsR"
+        },
+        {
+            "var_name": "Alpha",
+            "strand_name": "both",
+            "genotype_name": "vpsT"
+        },
+        {
+            "var_name": "Beta",
+            "strand_name": "both",
+            "genotype_name": "vpsT"
+        },
+        {
+            "var_name": "Gamma",
+            "strand_name": "both",
+            "genotype_name": "vpsT"
+        },
+        {
+            "var_name": "Alpha",
+            "strand_name": "both",
+            "genotype_name": "wt"
+        },
+        {
+            "var_name": "Beta",
+            "strand_name": "both",
+            "genotype_name": "wt"
+        },
+        {
+            "var_name": "Gamma",
+            "strand_name": "both",
+            "genotype_name": "wt"
+        }
+    ],
+    "resolution": 5,
+    "pos_num": 3,
+    "geno_num": 3,
+    "strand_num": 1
+}
+
