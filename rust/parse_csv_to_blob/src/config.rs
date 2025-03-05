@@ -7,8 +7,7 @@ use std::fs::File;
 use std::collections::{HashMap, HashSet};
 use std::io::{self, Write, BufRead, BufReader, Read};
 use std::error::Error;
-
-type BoxedResult<T> = std::result::Result<T, Box<dyn Error>>;
+use crate::BoxedResult;
 
 #[allow(dead_code)]
 #[cfg(test)]

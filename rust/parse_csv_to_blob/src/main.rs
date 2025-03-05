@@ -583,6 +583,17 @@ fn main() -> BoxedResult<()> {
     let infname = &cfg.input.draws_file;
     let out_direc: &str = &cfg.output.out_direc;
 
+    ///////////////////////////////////////////////////
+    ///////////////////////////////////////////////////
+    // At this point I need to: 
+    // 1. figure out how many bytes my blob is,
+    // 2. write zeros to that blob,
+    // 3. write my index file with the offsets necessary to do the math to calculate pointer
+    //     positions
+    // 4. parse csv column names to assign each column index to its pointer position in blob
+    ///////////////////////////////////////////////////
+    ///////////////////////////////////////////////////
+
     //let (
     //    idx_key,
     //    file_map,
