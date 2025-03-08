@@ -1,0 +1,270 @@
+{
+  "offsets": {
+    "Gamma.0.1": {
+      "param_id": {
+        "parameter": "Gamma",
+        "geno_idx": 0,
+        "strand_idx": 1
+      },
+      "offset": 1300000
+    },
+    "Beta.1.0": {
+      "param_id": {
+        "parameter": "Beta",
+        "geno_idx": 1,
+        "strand_idx": 0
+      },
+      "offset": 800000
+    },
+    "b_cubic.0": {
+      "param_id": {
+        "parameter": "b_cubic",
+        "geno_idx": 0,
+        "strand_idx": null
+      },
+      "offset": 2401800
+    },
+    "Alpha.0.1": {
+      "param_id": {
+        "parameter": "Alpha",
+        "geno_idx": 0,
+        "strand_idx": 1
+      },
+      "offset": 100000
+    },
+    "Gamma.2.0": {
+      "param_id": {
+        "parameter": "Gamma",
+        "geno_idx": 2,
+        "strand_idx": 0
+      },
+      "offset": 1600000
+    },
+    "non_sub.0.0": {
+      "param_id": {
+        "parameter": "non_sub",
+        "geno_idx": 0,
+        "strand_idx": 0
+      },
+      "offset": 1800000
+    },
+    "Gamma.0.0": {
+      "param_id": {
+        "parameter": "Gamma",
+        "geno_idx": 0,
+        "strand_idx": 0
+      },
+      "offset": 1200000
+    },
+    "Beta.1.1": {
+      "param_id": {
+        "parameter": "Beta",
+        "geno_idx": 1,
+        "strand_idx": 1
+      },
+      "offset": 900000
+    },
+    "non_sub.1.0": {
+      "param_id": {
+        "parameter": "non_sub",
+        "geno_idx": 1,
+        "strand_idx": 0
+      },
+      "offset": 2000000
+    },
+    "a_cubic.0": {
+      "param_id": {
+        "parameter": "a_cubic",
+        "geno_idx": 0,
+        "strand_idx": null
+      },
+      "offset": 2399800
+    },
+    "Alpha.2.0": {
+      "param_id": {
+        "parameter": "Alpha",
+        "geno_idx": 2,
+        "strand_idx": 0
+      },
+      "offset": 400000
+    },
+    "Beta.0.0": {
+      "param_id": {
+        "parameter": "Beta",
+        "geno_idx": 0,
+        "strand_idx": 0
+      },
+      "offset": 600000
+    },
+    "non_sub.2.1": {
+      "param_id": {
+        "parameter": "non_sub",
+        "geno_idx": 2,
+        "strand_idx": 1
+      },
+      "offset": 2300000
+    },
+    "c_cubic.0": {
+      "param_id": {
+        "parameter": "c_cubic",
+        "geno_idx": 0,
+        "strand_idx": null
+      },
+      "offset": 2403800
+    },
+    "a_cubic.1": {
+      "param_id": {
+        "parameter": "a_cubic",
+        "geno_idx": 1,
+        "strand_idx": null
+      },
+      "offset": 2405800
+    },
+    "b_cubic.1": {
+      "param_id": {
+        "parameter": "b_cubic",
+        "geno_idx": 1,
+        "strand_idx": null
+      },
+      "offset": 2407800
+    },
+    "Alpha.1.1": {
+      "param_id": {
+        "parameter": "Alpha",
+        "geno_idx": 1,
+        "strand_idx": 1
+      },
+      "offset": 300000
+    },
+    "Beta.2.0": {
+      "param_id": {
+        "parameter": "Beta",
+        "geno_idx": 2,
+        "strand_idx": 0
+      },
+      "offset": 1000000
+    },
+    "c_cubic.1": {
+      "param_id": {
+        "parameter": "c_cubic",
+        "geno_idx": 1,
+        "strand_idx": null
+      },
+      "offset": 2409800
+    },
+    "Beta.0.1": {
+      "param_id": {
+        "parameter": "Beta",
+        "geno_idx": 0,
+        "strand_idx": 1
+      },
+      "offset": 700000
+    },
+    "Gamma.1.1": {
+      "param_id": {
+        "parameter": "Gamma",
+        "geno_idx": 1,
+        "strand_idx": 1
+      },
+      "offset": 1500000
+    },
+    "Alpha.0.0": {
+      "param_id": {
+        "parameter": "Alpha",
+        "geno_idx": 0,
+        "strand_idx": 0
+      },
+      "offset": 0
+    },
+    "non_sub.2.0": {
+      "param_id": {
+        "parameter": "non_sub",
+        "geno_idx": 2,
+        "strand_idx": 0
+      },
+      "offset": 2200000
+    },
+    "non_sub.1.1": {
+      "param_id": {
+        "parameter": "non_sub",
+        "geno_idx": 1,
+        "strand_idx": 1
+      },
+      "offset": 2100000
+    },
+    "a_cubic.2": {
+      "param_id": {
+        "parameter": "a_cubic",
+        "geno_idx": 2,
+        "strand_idx": null
+      },
+      "offset": 2411800
+    },
+    "Alpha.1.0": {
+      "param_id": {
+        "parameter": "Alpha",
+        "geno_idx": 1,
+        "strand_idx": 0
+      },
+      "offset": 200000
+    },
+    "Gamma.1.0": {
+      "param_id": {
+        "parameter": "Gamma",
+        "geno_idx": 1,
+        "strand_idx": 0
+      },
+      "offset": 1400000
+    },
+    "Gamma.2.1": {
+      "param_id": {
+        "parameter": "Gamma",
+        "geno_idx": 2,
+        "strand_idx": 1
+      },
+      "offset": 1700000
+    },
+    "Alpha.2.1": {
+      "param_id": {
+        "parameter": "Alpha",
+        "geno_idx": 2,
+        "strand_idx": 1
+      },
+      "offset": 500000
+    },
+    "Beta.2.1": {
+      "param_id": {
+        "parameter": "Beta",
+        "geno_idx": 2,
+        "strand_idx": 1
+      },
+      "offset": 1100000
+    },
+    "non_sub.0.1": {
+      "param_id": {
+        "parameter": "non_sub",
+        "geno_idx": 0,
+        "strand_idx": 1
+      },
+      "offset": 1900000
+    },
+    "b_cubic.2": {
+      "param_id": {
+        "parameter": "b_cubic",
+        "geno_idx": 2,
+        "strand_idx": null
+      },
+      "offset": 2413800
+    },
+    "c_cubic.2": {
+      "param_id": {
+        "parameter": "c_cubic",
+        "geno_idx": 2,
+        "strand_idx": null
+      },
+      "offset": 2415800
+    }
+  },
+  "total_bytes": 2417800,
+  "buffer_size": 2000
+}

@@ -388,8 +388,10 @@ prep_stan_data = function(data_df, norm_method, spikein, spikein_rel_abund=0.05,
             param_idx_arr[s,3] = gamma_ind
             if (is.null(var_map[["Gamma"]][gamma_ind]) || is.na(var_map[["Gamma"]][gamma_ind])) {
                 var_map[["Gamma"]][gamma_ind] = geno
+                var_map[["non_sub"]][gamma_ind] = geno
             } else {
                 var_map[["Gamma"]][gamma_ind] = paste(var_map[["Gamma"]][gamma_ind], geno, sep="_AND_")
+                var_map[["non_sub"]][gamma_ind] = paste(var_map[["non_sub"]][gamma_ind], geno, sep="_AND_")
             }
         } else {
             if (stype == "control") {

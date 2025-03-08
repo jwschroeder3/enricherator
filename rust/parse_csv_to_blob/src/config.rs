@@ -7,7 +7,7 @@ use std::fs::File;
 use std::collections::{HashMap, HashSet};
 use std::io::{self, Write, BufRead, BufReader, Read};
 use std::error::Error;
-use crate::BoxedResult;
+use crate::{BoxedResult, Parameter};
 
 #[allow(dead_code)]
 #[cfg(test)]
@@ -53,7 +53,7 @@ mod tests {
         assert_eq!(cfg.input.expt_key_file, String::from("expt_key.json"));
         assert_eq!(cfg.input.draws_file, String::from("draws.csv"));
         assert_eq!(cfg.input.pos_file_name, String::from("position_map.tsv"));
-        assert_eq!(cfg.output.out_direc, String::from("out_direc"));
+        assert_eq!(cfg.output.out_direc, String::from("test_data/out_direc"));
     }
 
     #[test]
@@ -62,9 +62,7 @@ mod tests {
         let expt_key = ExptKey::read(
             hash.get("expt_key").unwrap()
         ).unwrap();
-        assert_eq!(expt_key.var_map.get("Alpha").unwrap()[0], String::from("wt"));
-        assert_eq!(expt_key.var_map.get("Alpha").unwrap()[1], String::from("vpsR"));
-        assert_eq!(expt_key.var_map.get("Alpha").unwrap()[2], String::from("vpsT"));
+        assert_eq!(expt_key.var_map[0], "Alpha".to_string());
         assert_eq!(expt_key.strand_map[0], String::from("plus"));
         assert_eq!(expt_key.strand_map[1], String::from("minus"));
     }
@@ -86,14 +84,6 @@ pub struct Args {
 struct ParserConfig {
     vars: Vec<String>,
     threshold: f64,
-}
-
-#[derive(Hash, Eq, PartialEq, Debug, Clone)]
-enum Parameter {
-    Alpha,
-    Beta,
-    Gamma,
-    non_sub,
 }
 
 #[derive(Deserialize, Debug, Clone)]
@@ -126,7 +116,8 @@ pub struct OutputConfig {
 
 #[derive(Deserialize, Debug)]
 pub struct ExptKey {
-    pub var_map: HashMap<String, Vec<String>>,
+    pub var_map: Vec<String>,
+    pub geno_map: Vec<Vec<String>>,
     pub strand_map: Vec<String>,
     pub resolution: Vec<u8>,
     pub pos_num: Vec<usize>,

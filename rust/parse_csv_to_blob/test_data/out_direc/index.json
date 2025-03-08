@@ -1,0 +1,150 @@
+{
+  "offsets": [
+    {
+      "param_id": {
+        "parameter": "Alpha",
+        "genotype": "wt",
+        "strand": "plus"
+      },
+      "offset": 0
+    },
+    {
+      "param_id": {
+        "parameter": "Alpha",
+        "genotype": "wt",
+        "strand": "minus"
+      },
+      "offset": 100000
+    },
+    {
+      "param_id": {
+        "parameter": "Alpha",
+        "genotype": "vpsR",
+        "strand": "plus"
+      },
+      "offset": 200000
+    },
+    {
+      "param_id": {
+        "parameter": "Alpha",
+        "genotype": "vpsR",
+        "strand": "minus"
+      },
+      "offset": 300000
+    },
+    {
+      "param_id": {
+        "parameter": "Alpha",
+        "genotype": "vpsT",
+        "strand": "plus"
+      },
+      "offset": 400000
+    },
+    {
+      "param_id": {
+        "parameter": "Alpha",
+        "genotype": "vpsT",
+        "strand": "minus"
+      },
+      "offset": 500000
+    },
+    {
+      "param_id": {
+        "parameter": "Gamma",
+        "genotype": "wt",
+        "strand": "plus"
+      },
+      "offset": 600000
+    },
+    {
+      "param_id": {
+        "parameter": "Gamma",
+        "genotype": "wt",
+        "strand": "minus"
+      },
+      "offset": 700000
+    },
+    {
+      "param_id": {
+        "parameter": "Gamma",
+        "genotype": "vpsR",
+        "strand": "plus"
+      },
+      "offset": 800000
+    },
+    {
+      "param_id": {
+        "parameter": "Gamma",
+        "genotype": "vpsR",
+        "strand": "minus"
+      },
+      "offset": 900000
+    },
+    {
+      "param_id": {
+        "parameter": "Gamma",
+        "genotype": "vpsT",
+        "strand": "plus"
+      },
+      "offset": 1000000
+    },
+    {
+      "param_id": {
+        "parameter": "Gamma",
+        "genotype": "vpsT",
+        "strand": "minus"
+      },
+      "offset": 1100000
+    },
+    {
+      "param_id": {
+        "parameter": "Beta",
+        "genotype": "wt",
+        "strand": "plus"
+      },
+      "offset": 1200000
+    },
+    {
+      "param_id": {
+        "parameter": "Beta",
+        "genotype": "wt",
+        "strand": "minus"
+      },
+      "offset": 1300000
+    },
+    {
+      "param_id": {
+        "parameter": "Beta",
+        "genotype": "vpsR",
+        "strand": "plus"
+      },
+      "offset": 1400000
+    },
+    {
+      "param_id": {
+        "parameter": "Beta",
+        "genotype": "vpsR",
+        "strand": "minus"
+      },
+      "offset": 1500000
+    },
+    {
+      "param_id": {
+        "parameter": "Beta",
+        "genotype": "vpsT",
+        "strand": "plus"
+      },
+      "offset": 1600000
+    },
+    {
+      "param_id": {
+        "parameter": "Beta",
+        "genotype": "vpsT",
+        "strand": "minus"
+      },
+      "offset": 1700000
+    }
+  ],
+  "total_bytes": 1800000,
+  "buffer_size": 2000
+}
