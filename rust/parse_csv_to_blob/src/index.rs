@@ -137,9 +137,6 @@ impl Index {
             }
         }
 
-        // take offset back by pos_num, since each of a_cubic, b_cubic, and c_cubic
-        // only need samp_num*4 bytes
-        offset_bytes -= pos_num*4;
         // each Gamma genotype will have an a_cubic, b_cubic, and c_cubic associated
         // with it, so set the offsets for those here. Strand is None, because
         // we don't 
@@ -156,6 +153,7 @@ impl Index {
                         //offset_vec.push(offset);
                         offset_map.insert(param_id.to_string(), offset);
                         // increment offset by number of samples times 4 bytes for f32
+                        // no pos_num on RHS here
                         offset_bytes += samp_num * 4;
                     }
                 }

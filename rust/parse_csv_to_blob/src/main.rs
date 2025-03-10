@@ -9,33 +9,19 @@ use std::fmt;
 use std::sync::mpsc;
 use std::thread;
 
-mod config;
-use config::{Args, ExptKey, ConfigFile};
-
-mod index;
-use index::Index;
-
-mod blob;
-use blob::Blob;
-
-mod parser;
-use parser::{
-    ByteIterError,
-    BytesIterator,
+use parse_csv_to_blob::{
+    config::{Args, ExptKey, ConfigFile},
+    index::Index,
+    blob::Blob,
+    parser::{
+        ByteIterError,
+        BytesIterator,
+    },
+    BoxedResult,
 };
 
 const BUF_SIZE: usize = 1064;
 const SAMP_NUM: usize = 501;
-
-type BoxedResult<T> = std::result::Result<T, Box<dyn Error>>;
-
-#[derive(Hash, Eq, PartialEq, Debug, Clone)]
-enum Parameter {
-    Alpha,
-    Beta,
-    Gamma,
-    non_sub,
-}
 
 fn main() -> BoxedResult<()> {
 
@@ -160,10 +146,10 @@ fn main() -> BoxedResult<()> {
     // its proper position in the samples array.
     //
     // Tasks it must perform
-    // 1) When in colname line, get vec of column indices and info
+    // 1) When in colname line, get vec of column indices and offsets
     //      Place the col index into retained_fields
     // 2) When in data, determine whether we're keeping each datum
-    //      Place into appropriate cell in blob.
+    //      Place bytes into appropriate cell in blob.
     loop {
         let parse_result = parser_rx.recv_timeout(time::Duration::from_secs(5));
         let _ = match parse_result {
