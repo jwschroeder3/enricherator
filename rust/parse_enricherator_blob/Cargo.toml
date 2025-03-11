@@ -1,0 +1,7 @@
+[package]
+name = "parse_enricherator_blob"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+parse_csv_to_blob = { path = "../parse_csv_to_blob" }

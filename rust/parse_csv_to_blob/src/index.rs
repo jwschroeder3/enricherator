@@ -1,7 +1,7 @@
 use clap::Parser;
 use std::path::Path;
 use std::fs::File;
-use std::io::Write;
+use std::io::{Write, Read};
 use std::error::Error;
 use std::collections::HashMap;
 use std::fmt;
@@ -9,12 +9,6 @@ use serde_json;
 use serde::{Serialize, Deserialize};
 use crate::{BoxedResult, Parameter};
 use crate::config::ExptKey;
-
-#[allow(dead_code)]
-#[cfg(test)]
-mod tests {
-    use super::*;
-}
 
 /// Contains information for serializing/deserializing an index to
 /// quickly access the blob.
@@ -58,18 +52,18 @@ pub struct Offset {
 #[derive(Serialize, Deserialize, Hash, Ord, PartialOrd, Eq, PartialEq, Clone)]
 pub struct ParamID {
     pub parameter: String,
-    pub geno_idx: usize,
-    pub strand_idx: Option<usize>,
+    pub geno: String,
+    pub strand: Option<String>,
 }
 
 // Implement the `fmt::Debug` trait for the `ParamID` struct
 impl fmt::Debug for ParamID {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         // You can use the `write!` macro to format and write output
-        if let Some(strand_idx) = self.strand_idx {
-            write!(f, "ParamID {{ parameter: {}, genotype: {}, strand: {} }}", self.parameter, self.geno_idx, strand_idx)
+        if let Some(strand) = &self.strand {
+            write!(f, "ParamID {{ parameter: {}, genotype: {}, strand: {} }}", self.parameter, self.geno, strand)
         } else {
-            write!(f, "ParamID {{ parameter: {}, genotype: {} }}", self.parameter, self.geno_idx)
+            write!(f, "ParamID {{ parameter: {}, genotype: {} }}", self.parameter, self.geno)
         }
     }
 }
@@ -77,20 +71,20 @@ impl fmt::Debug for ParamID {
 // Implement the `fmt::Display` trait for the `ParamID` struct
 impl fmt::Display for ParamID {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        if let Some(strand_idx) = self.strand_idx {
-            write!(f, "{}_{}_{}", self.parameter, self.geno_idx, strand_idx)
+        if let Some(strand) = &self.strand {
+            write!(f, "{}_{}_{}", self.parameter, self.geno, strand)
         } else {
-            write!(f, "{}_{}", self.parameter, self.geno_idx)
+            write!(f, "{}_{}", self.parameter, self.geno)
         }
     }
 }
 
 impl ParamID {
     pub fn to_string(&self) -> String {
-        if let Some(strand_idx) = self.strand_idx {
-           format!("{}.{}.{}", self.parameter, self.geno_idx, strand_idx)
+        if let Some(strand) = &self.strand {
+           format!("{}.{}.{}", self.parameter, self.geno, strand)
         } else {
-            format!("{}.{}", self.parameter, self.geno_idx)
+            format!("{}.{}", self.parameter, self.geno)
         }
     }
 }
@@ -122,8 +116,8 @@ impl Index {
                 for (strand_idx, strand_name) in strand_names.iter().enumerate() {
                     let param_id = ParamID{
                         parameter: param_name.to_string(),
-                        geno_idx: geno_idx,
-                        strand_idx: Some(strand_idx),
+                        geno: geno_name.to_string(),
+                        strand: Some(strand_name.to_string()),
                     };
                     let offset = Offset::new(param_id.clone(), offset_bytes.clone());
                     //offset_vec.push(offset);
@@ -146,8 +140,8 @@ impl Index {
                     for var in ["a_cubic", "b_cubic", "c_cubic"] {
                         let param_id = ParamID{
                             parameter: var.to_string(),
-                            geno_idx: geno_idx,
-                            strand_idx: None,
+                            geno: geno_name.to_string(),
+                            strand: None,
                         };
                         let offset = Offset::new(param_id.clone(), offset_bytes.clone());
                         //offset_vec.push(offset);
@@ -163,6 +157,15 @@ impl Index {
         let total_bytes = offset_bytes.try_into()?;
 
         Ok(Self{offsets: offset_map, total_bytes: total_bytes, buffer_size: buffer_size})
+    }
+
+    pub fn read(direc: &str) -> BoxedResult<Self> {
+        let fname = Path::new(direc).join("index.json");
+        let mut file = File::open(fname)?;
+        let mut data = String::new();
+        file.read_to_string(&mut data)?;
+        let index: Index = serde_json::from_str(&data)?;
+        Ok(index)
     }
 
     pub fn to_file(&self, outdir: &str) -> BoxedResult<()> {

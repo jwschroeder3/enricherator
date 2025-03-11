@@ -156,6 +156,7 @@ fn main() -> BoxedResult<()> {
             Ok(mut fields) => {
                 fields.parse_fields(
                     &offset_idx,
+                    &expt_key,
                     &mut blob_file,
                     &sample_num,
                     &mut retained_fields,

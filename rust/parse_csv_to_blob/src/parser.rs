@@ -129,6 +129,7 @@ mod tests {
 
         fields.parse_fields(
             &index,
+            &expt_key,
             &mut blob_file,
             &500,
             &mut retained_fields,
@@ -195,6 +196,7 @@ mod tests {
 
         fields.parse_fields(
             &index,
+            &expt_key,
             &mut blob_file,
             &500,
             &mut retained_fields,
@@ -396,6 +398,7 @@ impl FieldVec {
     pub fn parse_fields(
             &mut self,
             index: &Index,
+            expt_key: &ExptKey,
             blob: &mut Blob,
             sample_num: &u64,
             retained_fields: &mut Vec<(usize, u64)>,
@@ -420,27 +423,34 @@ impl FieldVec {
                         // zero below, and thus this pseudo-position index won't influence their
                         // offsets
                         let (param_id, position_idx) = if cubic_vars.iter().any(|var| field.string.starts_with(var)) {
+                            // use Gamma for param_idx here so we extract the right geno_name from
+                            // geno_map
+                            let param_idx = expt_key.var_map.iter().position(|s| *s == "Gamma").unwrap();
                             let geno_idx = field_split[1].parse::<usize>().unwrap() - 1;
+                            let geno_name = &expt_key.geno_map[param_idx][geno_idx];
                             // set the ParamID for this parameter
                             let param_id = ParamID {
                                 parameter: param_name,
-                                geno_idx: geno_idx,
-                                strand_idx: None,
+                                geno: geno_name.to_string(),
+                                strand: None,
                             };
                             (param_id, 0)
                         } else {
+                            let param_idx = expt_key.var_map.iter().position(|s| *s == param_name).unwrap();
                             // toss out the first element, keeping final two, converting to usize
                             let field_usize: Vec<usize> = field_split[1..4].iter().map(|x| {
                                 x.parse::<usize>().unwrap()
                             }).collect();
                             let geno_idx = field_usize[0] - 1;
+                            let geno_name = &expt_key.geno_map[param_idx][geno_idx];
                             let strand_idx = field_usize[1] - 1;
+                            let strand_name = &expt_key.strand_map[strand_idx];
                             let position_idx: u64 = (field_usize[2] - 1).try_into()?;
                             // set the ParamID for this parameter
                             let param_id = ParamID {
                                 parameter: param_name,
-                                geno_idx: geno_idx,
-                                strand_idx: Some(strand_idx),
+                                geno: geno_name.to_string(),
+                                strand: Some(strand_name.to_string()),
                             };
                             (param_id, position_idx)
                         };

@@ -7,7 +7,7 @@ use std::fs::File;
 use std::collections::{HashMap, HashSet};
 use std::io::{self, Write, BufRead, BufReader, Read};
 use std::error::Error;
-use crate::{BoxedResult, Parameter};
+use crate::{BoxedResult, Parameter, index::ParamID};
 
 #[allow(dead_code)]
 #[cfg(test)]
@@ -45,6 +45,86 @@ mod tests {
     }
 
     #[test]
+    fn test_prep_config() {
+        let hash = set_up_tests();
+        let expt_key = ExptKey::read(
+            hash.get("expt_key").unwrap()
+        ).unwrap();
+        let cfg = Config::from_file(
+            hash.get("config").unwrap(),
+            &expt_key,
+        ).unwrap();
+        assert_eq!(cfg.input.expt_key_file, String::from("expt_key.json"));
+        assert_eq!(cfg.input.draws_file, String::from("draws.csv"));
+        assert_eq!(cfg.input.pos_file_name, String::from("position_map.tsv"));
+        assert_eq!(cfg.output.out_direc, String::from("test_data/out_direc"));
+        assert_eq!(cfg.parse.param_ids.len(), 24);
+        assert_eq!(
+            cfg.parse.param_ids[0],
+            ParamID{
+                parameter: "Alpha".to_string(),
+                geno: "wt".to_string(),
+                strand: Some("plus".to_string()),
+            }
+        );
+        assert_eq!(
+            cfg.parse.param_ids[3],
+            ParamID{
+                parameter: "Alpha".to_string(),
+                geno: "vpsR".to_string(),
+                strand: Some("minus".to_string()),
+            }
+        );
+        assert_eq!(cfg.parse.threshold, 1.0);
+
+        let geno_contrasts = cfg.geno_contrasts.clone().unwrap();
+        let strand_contrasts = cfg.strand_contrasts.clone().unwrap();
+        assert_eq!(geno_contrasts.threshold, 1.0);
+        assert_eq!(strand_contrasts.threshold, 0.0);
+        assert_eq!(
+            geno_contrasts
+                .contrasts[0]
+                .numerators[0],
+            ParamID{
+                parameter: "Beta".to_string(),
+                geno: "vpsR".to_string(),
+                strand: Some("plus".to_string()),
+            }
+        );
+        assert_eq!(
+            geno_contrasts
+                .contrasts[0]
+                .denominators[0],
+            ParamID{
+                parameter: "Beta".to_string(),
+                geno: "wt".to_string(),
+                strand: Some("plus".to_string()),
+            }
+        );
+        assert_eq!(
+            geno_contrasts
+                .contrasts[9]
+                .numerators[0],
+            ParamID{
+                parameter: "Gamma".to_string(),
+                geno: "vpsT".to_string(),
+                strand: Some("minus".to_string()),
+            }
+        );
+        assert_eq!(
+            geno_contrasts
+                .contrasts[9]
+                .denominators[0],
+            ParamID{
+                parameter: "Gamma".to_string(),
+                geno: "wt".to_string(),
+                strand: Some("minus".to_string()),
+            }
+        );
+
+    }
+
+    #[test]
     fn test_read_config_file() {
         let hash = set_up_tests();
         let cfg = ConfigFile::read(
@@ -54,6 +134,16 @@ mod tests {
         assert_eq!(cfg.input.draws_file, String::from("draws.csv"));
         assert_eq!(cfg.input.pos_file_name, String::from("position_map.tsv"));
         assert_eq!(cfg.output.out_direc, String::from("test_data/out_direc"));
+        assert_eq!(cfg.parse.vars[0], String::from("Alpha"));
+        assert_eq!(cfg.parse.vars[3], String::from("non_sub"));
+        assert_eq!(cfg.parse.threshold, Some(1.0));
+        assert_eq!(cfg.geno_contrasts.clone().unwrap().Beta.unwrap()[0], String::from("vpsR-wt"));
+        assert_eq!(cfg.geno_contrasts.clone().unwrap().Beta.unwrap()[2], String::from("vpsR - wt -vpsT + wt"));
+        assert_eq!(cfg.geno_contrasts.clone().unwrap().Gamma.unwrap()[0], String::from("vpsR-wt"));
+        assert_eq!(cfg.geno_contrasts.clone().unwrap().threshold, Some(1.0));
+        assert_eq!(cfg.strand_contrasts.clone().unwrap().Gamma.unwrap()[0], String::from("plus-minus"));
+        assert_eq!(cfg.strand_contrasts.clone().unwrap().Gamma.unwrap()[1], String::from("minus-plus"));
+        assert!(cfg.strand_contrasts.clone().unwrap().threshold.is_none());
     }
 
     #[test]
@@ -65,6 +155,78 @@ mod tests {
         assert_eq!(expt_key.var_map[0], "Alpha".to_string());
         assert_eq!(expt_key.strand_map[0], String::from("plus"));
         assert_eq!(expt_key.strand_map[1], String::from("minus"));
+    }
+
+    #[test]
+    fn test_strand_contrast_parser() {
+        let hash = set_up_tests();
+        let expt_key = ExptKey::read(hash.get("expt_key").unwrap()).unwrap();
+        let mut contrasts: Vec<Contrast> = Contrast::new(
+            "plus - minus",
+            Parameter::Alpha,
+            "Alpha",
+            &expt_key,
+            ContrastType::Strand,
+        ).unwrap();
+
+        assert_eq!(contrasts[0].parameter, Parameter::Alpha);
+        assert_eq!(contrasts[0].text, "plus - minus".to_string());
+        assert_eq!(contrasts[0].contrast_str, "plus-minus".to_string());
+        assert_eq!(
+            ParamID{
+                parameter: "Alpha".to_string(),
+                geno: "wt".to_string(),
+                strand: Some("plus".to_string()),
+            },
+            contrasts[0].numerators.clone()[0],
+        );
+
+        let mut contrasts = Contrast::new(
+            "minus - plus",
+            Parameter::Alpha,
+            "Alpha",
+            &expt_key,
+            ContrastType::Strand,
+        ).unwrap();
+
+        assert_eq!(contrasts[0].parameter, Parameter::Alpha);
+        assert_eq!(contrasts[0].text, "minus - plus");
+        assert_eq!(contrasts[0].contrast_str, "minus-plus".to_string());
+        assert_eq!(
+            ParamID{
+                parameter: "Alpha".to_string(),
+                geno: "wt".to_string(),
+                strand: Some("plus".to_string()),
+            },
+            contrasts[0].denominators.clone()[0],
+        );
+    }
+
+    #[test]
+    fn test_geno_contrast_parser() {
+        let hash = set_up_tests();
+        let expt_key = ExptKey::read(hash.get("expt_key").unwrap()).unwrap();
+        let pos_num = expt_key.pos_num[0];
+        let mut contrasts = Contrast::new(
+            "-wt - vpsR+vpsT - wt",
+            Parameter::Gamma,
+            "Gamma",
+            &expt_key,
+            ContrastType::Genotype,
+        ).unwrap();
+        println!("contrasts: {:?}", &contrasts);
+
+        assert_eq!(contrasts[0].parameter, Parameter::Gamma);
+        assert_eq!(contrasts[0].text, "-wt - vpsR+vpsT - wt".to_string());
+        assert_eq!(contrasts[0].contrast_str, "-wt-vpsR+vpsT-wt".to_string());
+        assert_eq!(
+            ParamID{
+                parameter: "Gamma".to_string(),
+                geno: "wt".to_string(),
+                strand: Some("plus".to_string()),
+            },
+            contrasts[0].denominators.clone()[0],
+        );
     }
 }
 
@@ -81,15 +243,12 @@ pub struct Args {
 }
 
 #[derive(Deserialize, Debug, Clone)]
-struct ParserConfig {
-    vars: Vec<String>,
-    threshold: f64,
-}
-
-#[derive(Deserialize, Debug, Clone)]
 pub struct ConfigFile {
     pub input: InputConfig,
     pub output: OutputConfig,
+    pub parse: ParserConfig,
+    pub geno_contrasts: Option<ContrastsConfig>,
+    pub strand_contrasts: Option<ContrastsConfig>,
 }
 
 impl ConfigFile {
@@ -101,6 +260,540 @@ impl ConfigFile {
         Ok(cfg_file)
     }
 }
+
+#[derive(Debug, Clone)]
+pub struct Config {
+    pub input: InputConfig,
+    pub output: OutputConfig,
+    pub parse: ParamParsers,
+    pub geno_contrasts: Option<Contrasts>,
+    pub strand_contrasts: Option<Contrasts>,
+}
+
+#[derive(Debug, Clone)]
+pub struct Contrasts {
+    pub contrasts: Vec<Contrast>,
+    pub threshold: f32,
+}
+
+#[derive(Debug, Clone)]
+pub struct ParamParsers {
+    pub param_ids: Vec<ParamID>,
+    pub threshold: f32,
+}
+
+impl ParamParsers {
+    fn new(parse_cfg: &ParserConfig, expt_key: &ExptKey) -> BoxedResult<Self> {
+        let mut parsers: Vec<ParamID> = Vec::new();
+        for (param_idx, param_name) in parse_cfg.vars.iter().enumerate() {
+            for geno_name in &expt_key.geno_map[param_idx] {
+                for strand_name in &expt_key.strand_map {
+                    let param_id = ParamID{
+                        parameter: param_name.to_string(),
+                        geno: geno_name.to_string(),
+                        strand: Some(strand_name.to_string()),
+                    };
+                    parsers.push(param_id);
+                }
+            }
+        }
+
+        let threshold = if let Some(thresh) = parse_cfg.threshold {
+            thresh
+        } else {
+            0.0
+        };
+
+        Ok(Self{param_ids: parsers, threshold: threshold})
+    }
+}
+
+impl Config {
+    pub fn from_file(fname: &str, expt_key: &ExptKey) -> BoxedResult<Config> {
+        let cfg_file = ConfigFile::read(fname)?;
+
+        // if there are geno_contrasts, fetch indices and construct Contrasts
+        let geno_contrasts = if let Some(geno_cont) = cfg_file.geno_contrasts {
+            let geno_con = GenoContrastsBuilder::new(&geno_cont, expt_key)?;
+            Some(geno_con)
+        } else {
+            None
+        };
+        let strand_contrasts = if let Some(strand_cont) = cfg_file.strand_contrasts {
+            let strand_con = StrandContrastsBuilder::new(&strand_cont, expt_key)?;
+            Some(strand_con)
+        } else {
+            None
+        };
+
+        let parsers = ParamParsers::new(&cfg_file.parse, expt_key)?;
+
+        let cfg = Config {
+            input: cfg_file.input,
+            output: cfg_file.output,
+            parse: parsers,
+            geno_contrasts: geno_contrasts,
+            strand_contrasts: strand_contrasts,
+        };
+        Ok(cfg)
+ 
+    }
+}
+
+/// A struct for building genotype contrast information
+#[derive(Debug, Clone)]
+struct StrandContrastsBuilder {}
+
+impl StrandContrastsBuilder {
+    fn new(cfg: &ContrastsConfig, expt_key: &ExptKey) -> BoxedResult<Contrasts> {
+
+        let pos_num = expt_key.pos_num[0];
+        let sample_num = expt_key.sample_num[0];
+        let mut contrast_vec: Vec<Contrast> = Vec::new();
+        // if user wants alpha contrasts, build the HashMap for alpha.
+        if let Some(alpha) = &cfg.Alpha {
+            for contrast_str in alpha {
+                let mut contrasts = Contrast::new(
+                    contrast_str,
+                    Parameter::Alpha,
+                    "Alpha",
+                    expt_key,
+                    ContrastType::Strand,
+                )?;
+                contrast_vec.append(&mut contrasts);
+            }
+        }
+
+        if let Some(beta) = &cfg.Beta {
+            for contrast_str in beta {
+                let mut contrasts = Contrast::new(
+                    contrast_str,
+                    Parameter::Beta,
+                    "Beta",
+                    expt_key,
+                    ContrastType::Strand,
+                )?;
+                contrast_vec.append(&mut contrasts);
+            }
+        }
+
+        if let Some(gamma) = &cfg.Gamma {
+            for contrast_str in gamma {
+                let mut contrasts = Contrast::new(
+                    contrast_str,
+                    Parameter::Gamma,
+                    "Gamma",
+                    expt_key,
+                    ContrastType::Strand,
+                )?;
+                contrast_vec.append(&mut contrasts);
+            }
+
+        }
+
+        if let Some(non_sub) = &cfg.non_sub {
+            for contrast_str in non_sub {
+                let mut contrasts = Contrast::new(
+                    contrast_str,
+                    Parameter::non_sub,
+                    "non_sub",
+                    expt_key,
+                    ContrastType::Strand,
+                )?;
+                contrast_vec.append(&mut contrasts);
+            }
+        }
+
+        let threshold: f32 = if let Some(thresh) = &cfg.threshold {
+            *thresh
+        } else {
+            0.0
+        };
+        Ok(Contrasts{
+            contrasts: contrast_vec,
+            threshold: threshold,
+        })
+    }
+}
+
+/// A struct for building genotype contrast information
+#[derive(Debug, Clone)]
+struct GenoContrastsBuilder {}
+
+impl GenoContrastsBuilder {
+    fn new(cfg: &ContrastsConfig, expt_key: &ExptKey) -> BoxedResult<Contrasts> {
+
+        let pos_num = expt_key.pos_num[0];
+        let sample_num = expt_key.sample_num[0];
+        let mut contrast_vec: Vec<Contrast> = Vec::new();
+        // if user wants alpha contrasts, build the HashMap for alpha.
+        if let Some(alpha) = &cfg.Alpha {
+            for contrast_str in alpha {
+                let mut contrasts = Contrast::new(
+                    contrast_str,
+                    Parameter::Alpha,
+                    "Alpha",
+                    expt_key,
+                    ContrastType::Genotype,
+                )?;
+                contrast_vec.append(&mut contrasts);
+            }
+        }
+
+        if let Some(beta) = &cfg.Beta {
+            for contrast_str in beta {
+                let mut contrasts = Contrast::new(
+                    contrast_str,
+                    Parameter::Beta,
+                    "Beta",
+                    expt_key,
+                    ContrastType::Genotype,
+                )?;
+                contrast_vec.append(&mut contrasts);
+            }
+        }
+
+        if let Some(gamma) = &cfg.Gamma {
+            for contrast_str in gamma {
+                let mut contrasts = Contrast::new(
+                    contrast_str,
+                    Parameter::Gamma,
+                    "Gamma",
+                    expt_key,
+                    ContrastType::Genotype,
+                )?;
+                contrast_vec.append(&mut contrasts);
+            }
+
+        }
+
+        if let Some(non_sub) = &cfg.non_sub {
+            for contrast_str in non_sub {
+                let mut contrasts = Contrast::new(
+                    contrast_str,
+                    Parameter::non_sub,
+                    "non_sub",
+                    expt_key,
+                    ContrastType::Genotype,
+                )?;
+                contrast_vec.append(&mut contrasts);
+            }
+        }
+
+        let threshold = if let Some(thresh) = &cfg.threshold {
+            *thresh
+        } else {
+            0.0
+        };
+        Ok(Contrasts{
+            contrasts: contrast_vec,
+            threshold: threshold,
+        })
+    }
+}
+
+#[derive(Deserialize, Debug, Clone)]
+struct ParserConfig {
+    vars: Vec<String>,
+    threshold: Option<f32>,
+}
+
+#[derive(Deserialize, Debug, Clone)]
+struct ContrastsConfig {
+    Alpha: Option<Vec<String>>,
+    Beta: Option<Vec<String>>,
+    Gamma: Option<Vec<String>>,
+    non_sub: Option<Vec<String>>,
+    threshold: Option<f32>,
+}
+
+/// The Contrast struct contains the information necessary to
+/// retrieve proper values to perform the contrast of interest and
+/// to write values to disk.
+///
+/// Attributes:
+///
+/// parameter: Parameter
+///     Denotes whether this contrast is for Alpha, Beta, Gamma, or non_sub
+/// text: String
+///     The user's given text for the contrast, given in the config file.
+/// name: String
+///     The name of the contrast
+/// numerators: Vec<ParamID>
+///     Each value gives a numerator's ParamID so that the proper values from the blob
+///     can be read and added to the result.
+/// denominators: Vec<ParamID>
+///     Same as numerators, but these values, when read from the blob,
+///     will be subtracted from the result.
+#[derive(Debug, Clone)]
+struct Contrast {
+    parameter: Parameter,
+    text: String,
+    contrast_str: String,
+    numerators: Vec<ParamID>,
+    denominators: Vec<ParamID>,
+}
+
+enum ContrastType {
+    Genotype,
+    Strand,
+}
+
+fn build_tmp_id_vec(
+        contrast_type: &ContrastType,
+        geno_names: &Vec<String>,
+        strand_names: &Vec<String>,
+        param_name: &str,
+        substring: &str,
+) -> BoxedResult<Vec<ParamID>> {
+    let mut tmp_ids: Vec<ParamID> = Vec::new();
+    match contrast_type {
+        // if we're doing genotype contrast, get the geno_idx
+        ContrastType::Genotype => {
+            // just for checking whether substring is in geno_names
+            let geno_idx = geno_names.iter()
+                .position(|s| *s == substring).ok_or("No such geno_name")?;
+            for strand_name in strand_names {
+                let param_id = ParamID{
+                    parameter: param_name.to_string(),
+                    geno: substring.to_string(),
+                    strand: Some(strand_name.to_string()),
+                };
+                tmp_ids.push(param_id);
+            }
+        },
+        // if we're doing strand contrast, get the strand_idx
+        ContrastType::Strand => {
+            // just for checking whether substring is in strand_names
+            let strand_idx = strand_names.iter()
+                .position(|s| *s == substring).ok_or("No such strand name")?;
+            for geno_name in geno_names {
+                let param_id = ParamID{
+                    parameter: param_name.to_string(),
+                    geno: geno_name.to_string(),
+                    strand: Some(substring.to_string()),
+                };
+                tmp_ids.push(param_id);
+            }
+        },
+    };
+    Ok(tmp_ids)
+}
+
+fn append_to_vecs(
+        substring: &str,
+        minus: &bool,
+        contrast_type: &ContrastType,
+        strand_names: &Vec<String>,
+        geno_names: &Vec<String>,
+        numerator_vec: &mut Vec<Vec<ParamID>>,
+        denominator_vec: &mut Vec<Vec<ParamID>>,
+        contrast_str_vec: &mut Vec<String>,
+        tmp_ids: &Vec<ParamID>,
+) {
+    if *minus {
+        match contrast_type {
+            ContrastType::Genotype => {
+                for i in 0..strand_names.len() {
+                    denominator_vec[i].push(tmp_ids[i].clone());
+                    contrast_str_vec[i].push('-');
+                    contrast_str_vec[i].push_str(substring);
+                }
+            },
+            ContrastType::Strand => {
+                for i in 0..geno_names.len() {
+                    denominator_vec[i].push(tmp_ids[i].clone());
+                    contrast_str_vec[i].push('-');
+                    contrast_str_vec[i].push_str(substring);
+                }
+            }
+        };
+    } else {
+        match contrast_type {
+            ContrastType::Genotype => {
+                for i in 0..strand_names.len() {
+                    numerator_vec[i].push(tmp_ids[i].clone());
+                    if numerator_vec[i].len() > 1 || denominator_vec[i].len() > 0 {
+                        contrast_str_vec[i].push('+');
+                    }
+                    contrast_str_vec[i].push_str(substring);
+                }
+            },
+            ContrastType::Strand => {
+                for i in 0..geno_names.len() {
+                    numerator_vec[i].push(tmp_ids[i].clone());
+                    if numerator_vec[i].len() > 1 || denominator_vec[i].len() > 0 {
+                        contrast_str_vec[i].push('+');
+                    }
+                    contrast_str_vec[i].push_str(substring);
+                }
+            }
+        };
+    }
+}
+
+impl Contrast {
+    fn new(
+            text: &str,
+            parameter: Parameter,
+            param_name: &str,
+            expt_key: &ExptKey,
+            contrast_type: ContrastType,
+    ) -> BoxedResult<Vec<Contrast>> {
+
+        // The trick here is to say, if we're doing genotype contrasts,
+        // collect all the genotype information, then afterward, go through
+        // all strand names to produce the genotype contrasts for each strand.
+        //
+        // However, if we're doing strand contrasts, collect the strand information,
+        // then afterward go through all genotypes to produce strand contrasts
+        // for each genotype.
+        let strand_names = &expt_key.strand_map;
+        let param_idx = expt_key.var_map.iter()
+            .position(|s| *s == param_name).ok_or("No such param name")?;
+        let geno_names = &expt_key.geno_map[param_idx];
+
+        // If this is a genotype contrast, outer vec is for each strand.
+        // If this is a strand contrast, outer vec is for each genotype.
+        let mut numerator_vec: Vec<Vec<ParamID>> = Vec::new();
+        let mut denominator_vec: Vec<Vec<ParamID>> = Vec::new();
+        let mut contrast_str_vec: Vec<String> = Vec::new();
+        // instantiate inner vecs
+        match contrast_type {
+            ContrastType::Genotype => {
+                for i in 0..strand_names.len() {
+                    denominator_vec.push(Vec::new());
+                    numerator_vec.push(Vec::new());
+                    contrast_str_vec.push(String::new());
+                }
+            },
+            ContrastType::Strand => {
+                for i in 0..geno_names.len() {
+                    denominator_vec.push(Vec::new());
+                    numerator_vec.push(Vec::new());
+                    contrast_str_vec.push(String::new());
+                }
+            }
+        };
+
+        let mut substring = "".to_string();
+        let mut minus = false;
+        let mut first_char = true;
+        for c in text.chars() {
+            if first_char {
+                // if the first character is '-', set minus to true,
+                // then first_char to false
+                if c == '-' {
+                    minus = true;
+                // if the first character is space, continue without
+                // switching first_char to false
+                } else if c == ' ' {
+                    continue
+                // if the first character is '+' continue
+                } else if c == '+' {
+                    continue
+                // if the first character is something else, push to string
+                } else {
+                    substring.push(c);
+                }
+                first_char = false;
+                continue
+            }
+            // skip space characters
+            if c == ' ' {
+                continue
+            // if we hit a '+' character, place current string into 
+            // appropriate vec, then set minus to false and go to nect char
+            } else if c == '+' || c == '-' {
+
+                // Will store each contrast as a Contrast struct
+                // need to know whether this is a genotype or a strand contrast so that we
+                // can iterate over either genotypes (for strand contrast) or strands (for genotype
+                // contrast) below to get all proper contrasts for this group of genotypes or
+                // strands.
+                let tmp_ids = build_tmp_id_vec(
+                    &contrast_type,
+                    &geno_names,
+                    &strand_names,
+                    param_name,
+                    &substring,
+                )?;
+
+                append_to_vecs(
+                    &substring,
+                    &minus,
+                    &contrast_type,
+                    &strand_names,
+                    &geno_names,
+                    &mut numerator_vec,
+                    &mut denominator_vec,
+                    &mut contrast_str_vec,
+                    &tmp_ids,
+                );
+
+                // after we've used substring, empty it.
+                substring.clear();
+                if c == '+' {
+                    minus = false
+                } else {
+                    minus = true
+                }
+            } else {
+                substring.push(c);
+            }
+        }
+
+        let tmp_ids = build_tmp_id_vec(
+            &contrast_type,
+            &geno_names,
+            &strand_names,
+            param_name,
+            &substring,
+        )?;
+        append_to_vecs(
+            &substring,
+            &minus,
+            &contrast_type,
+            &strand_names,
+            &geno_names,
+            &mut numerator_vec,
+            &mut denominator_vec,
+            &mut contrast_str_vec,
+            &tmp_ids,
+        );
+
+        let mut contrasts: Vec<Contrast> = Vec::new();
+        // outer vecs are for either strand or genotype, depending on type of contrast
+        match contrast_type {
+            ContrastType::Genotype => {
+                for i in 0..strand_names.len() {
+                    let cont = Contrast {
+                        parameter: parameter.clone(),
+                        text: text.to_string(),
+                        contrast_str: contrast_str_vec[i].clone(),
+                        numerators: numerator_vec[i].clone(),
+                        denominators: denominator_vec[i].clone(),
+                    };
+                    contrasts.push(cont);
+                }
+            },
+            ContrastType::Strand => {
+                for i in 0..geno_names.len() {
+                    let cont = Contrast {
+                        parameter: parameter.clone(),
+                        text: text.to_string(),
+                        contrast_str: contrast_str_vec[i].clone(),
+                        numerators: numerator_vec[i].clone(),
+                        denominators: denominator_vec[i].clone(),
+                    };
+                    contrasts.push(cont);
+                }
+            }
+        };
+        Ok(contrasts)
+    }
+}
+
 
 #[derive(Deserialize, Debug, Clone)]
 pub struct InputConfig {
