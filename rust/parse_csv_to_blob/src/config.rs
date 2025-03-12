@@ -1,11 +1,12 @@
 use clap::Parser;
+use std::path::Path;
 use serde::{Deserialize};
 use serde_json;
 use toml;
 use std::fmt;
 use std::fs::File;
 use std::collections::{HashMap, HashSet};
-use std::io::{self, Write, BufRead, BufReader, Read};
+use std::io::{self, Write, BufRead, BufReader, Read, BufWriter};
 use std::error::Error;
 use crate::{BoxedResult, Parameter, index::ParamID};
 
@@ -60,7 +61,7 @@ mod tests {
         assert_eq!(cfg.output.out_direc, String::from("test_data/out_direc"));
         assert_eq!(cfg.parse.param_ids.len(), 24);
         assert_eq!(
-            cfg.parse.param_ids[0],
+            cfg.parse.param_ids[0].param_id,
             ParamID{
                 parameter: "Alpha".to_string(),
                 geno: "wt".to_string(),
@@ -68,7 +69,7 @@ mod tests {
             }
         );
         assert_eq!(
-            cfg.parse.param_ids[3],
+            cfg.parse.param_ids[3].param_id,
             ParamID{
                 parameter: "Alpha".to_string(),
                 geno: "vpsR".to_string(),
@@ -77,8 +78,8 @@ mod tests {
         );
         assert_eq!(cfg.parse.threshold, 1.0);
 
-        let geno_contrasts = cfg.geno_contrasts.clone().unwrap();
-        let strand_contrasts = cfg.strand_contrasts.clone().unwrap();
+        let geno_contrasts = cfg.geno_contrasts.unwrap();
+        let strand_contrasts = cfg.strand_contrasts.unwrap();
         assert_eq!(geno_contrasts.threshold, 1.0);
         assert_eq!(strand_contrasts.threshold, 0.0);
         assert_eq!(
@@ -167,6 +168,7 @@ mod tests {
             "Alpha",
             &expt_key,
             ContrastType::Strand,
+            "test_data/out_direc",
         ).unwrap();
 
         assert_eq!(contrasts[0].parameter, Parameter::Alpha);
@@ -187,6 +189,7 @@ mod tests {
             "Alpha",
             &expt_key,
             ContrastType::Strand,
+            "test_data/out_direc",
         ).unwrap();
 
         assert_eq!(contrasts[0].parameter, Parameter::Alpha);
@@ -213,6 +216,7 @@ mod tests {
             "Gamma",
             &expt_key,
             ContrastType::Genotype,
+            "test_data/out_direc",
         ).unwrap();
         println!("contrasts: {:?}", &contrasts);
 
@@ -242,6 +246,22 @@ pub struct Args {
     pub expt_key: String,
 }
 
+#[derive(Deserialize)]
+pub struct PositionMap {
+    pub map: Vec<(String, usize, usize)>,
+}
+
+impl PositionMap {
+    pub fn read(basename: &str, out_direc: &str) -> BoxedResult<Self> {
+        let fname = Path::new(out_direc).join(basename);
+        let mut file = File::open(fname)?;
+        let mut data = String::new();
+        file.read_to_string(&mut data)?;
+        let pos_map: Self = serde_json::from_str(&data)?;
+        Ok(pos_map)
+    }
+}
+
 #[derive(Deserialize, Debug, Clone)]
 pub struct ConfigFile {
     pub input: InputConfig,
@@ -261,7 +281,7 @@ impl ConfigFile {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Config {
     pub input: InputConfig,
     pub output: OutputConfig,
@@ -270,21 +290,219 @@ pub struct Config {
     pub strand_contrasts: Option<Contrasts>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Contrasts {
     pub contrasts: Vec<Contrast>,
     pub threshold: f32,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct ParamParsers {
-    pub param_ids: Vec<ParamID>,
+    pub param_ids: Vec<ParamParser>,
     pub threshold: f32,
 }
 
+#[derive(Debug)]
+pub struct ParamParser {
+    pub param_id: ParamID,
+    pub low_file: BufWriter<File>,
+    pub mean_file: BufWriter<File>,
+    pub up_file: BufWriter<File>,
+    pub Kge_file: BufWriter<File>,
+    pub Klt_file: BufWriter<File>,
+}
+
+impl ParamParser {
+    fn new(param_id: ParamID, out_dir: &str) -> BoxedResult<Self> {
+
+        let mean_basename = format!("{}_mean.bedgraph", param_id);
+        let mean_fname = Path::new(out_dir).join(mean_basename);
+        let low_basename = format!("{}_lower.bedgraph", param_id);
+        let low_fname = Path::new(out_dir).join(low_basename);
+        let up_basename = format!("{}_upper.bedgraph", param_id);
+        let up_fname = Path::new(out_dir).join(up_basename);
+        let Kge_basename = format!("{}_Kge.bedgraph", param_id);
+        let Kge_fname = Path::new(out_dir).join(Kge_basename);
+        let Klt_basename = format!("{}_Klt.bedgraph", param_id);
+        let Klt_fname = Path::new(out_dir).join(Klt_basename);
+
+        let mean_f = File::create(mean_fname)?;
+        let mean_file = BufWriter::new(mean_f);
+
+        let low_f = File::create(low_fname)?;
+        let low_file = BufWriter::new(low_f);
+
+        let up_f = File::create(up_fname)?;
+        let up_file = BufWriter::new(up_f);
+
+        let Kge_f = File::create(Kge_fname)?;
+        let Kge_file = BufWriter::new(Kge_f);
+
+        let Klt_f = File::create(Klt_fname)?;
+        let Klt_file = BufWriter::new(Klt_f);
+
+        Ok(Self{
+            param_id,
+            low_file,
+            mean_file,
+            up_file,
+            Kge_file,
+            Klt_file,
+        })
+    }
+
+    fn write_mean_to_file(
+            &mut self,
+            ctg: &str,
+            start: &usize,
+            end: &usize,
+            val: f32,
+    ) -> BoxedResult<()> {
+        // Write the string content to the buffer
+        let content = format!("{ctg}\t{start}\t{end}\t{val}\n");
+        self.mean_file.write_all(content.as_bytes())?;
+        Ok(())
+    }
+
+    fn flush_mean_buffer(&mut self) -> BoxedResult<()> {
+        // Flush the buffer to ensure all data is written to the file
+        self.mean_file.flush()?;
+        Ok(())
+    }
+
+    fn write_lower_to_file(
+            &mut self,
+            ctg: &str,
+            start: &usize,
+            end: &usize,
+            val: f32,
+    ) -> BoxedResult<()> {
+        // Write the string content to the buffer
+        let content = format!("{ctg}\t{start}\t{end}\t{val}\n");
+        self.low_file.write_all(content.as_bytes())?;
+        Ok(())
+    }
+
+    fn flush_lower_buffer(&mut self) -> BoxedResult<()> {
+        // Flush the buffer to ensure all data is written to the file
+        self.low_file.flush()?;
+        Ok(())
+    }
+
+    fn write_upper_to_file(
+            &mut self,
+            ctg: &str,
+            start: &usize,
+            end: &usize,
+            val: f32,
+    ) -> BoxedResult<()> {
+        // Write the string content to the buffer
+        let content = format!("{ctg}\t{start}\t{end}\t{val}\n");
+        self.up_file.write_all(content.as_bytes())?;
+        Ok(())
+    }
+
+    fn flush_upper_buffer(&mut self) -> BoxedResult<()> {
+        // Flush the buffer to ensure all data is written to the file
+        self.up_file.flush()?;
+        Ok(())
+    }
+
+    fn write_Kge_to_file(
+            &mut self,
+            ctg: &str,
+            start: &usize,
+            end: &usize,
+            val: f32,
+    ) -> BoxedResult<()> {
+        // Write the string content to the buffer
+        let content = format!("{ctg}\t{start}\t{end}\t{val}\n");
+        self.Kge_file.write_all(content.as_bytes())?;
+        Ok(())
+    }
+
+    fn flush_Kge_buffer(&mut self) -> BoxedResult<()> {
+        // Flush the buffer to ensure all data is written to the file
+        self.Kge_file.flush()?;
+        Ok(())
+    }
+
+    fn write_Klt_to_file(
+            &mut self,
+            ctg: &str,
+            start: &usize,
+            end: &usize,
+            val: f32,
+    ) -> BoxedResult<()> {
+        // Write the string content to the buffer
+        let content = format!("{ctg}\t{start}\t{end}\t{val}\n");
+        self.Klt_file.write_all(content.as_bytes())?;
+        Ok(())
+    }
+
+    fn flush_Klt_buffer(&mut self) -> BoxedResult<()> {
+        // Flush the buffer to ensure all data is written to the file
+        self.Klt_file.flush()?;
+        Ok(())
+    }
+
+    pub fn flush_buffers(&mut self) -> BoxedResult<()> {
+        self.flush_upper_buffer()?;
+        self.flush_lower_buffer()?;
+        self.flush_mean_buffer()?;
+        self.flush_Kge_buffer()?;
+        self.flush_Klt_buffer()?;
+        Ok(())
+    }
+
+    pub fn write_vals_to_files(
+            &mut self,
+            ctg: &str,
+            start: &usize,
+            end: &usize,
+            mean: f32,
+            lower: f32,
+            upper: f32,
+            Kge: f32,
+            Klt: f32,
+    ) -> BoxedResult<()> {
+        self.write_mean_to_file(
+            ctg,
+            start,
+            end,
+            mean,
+        )?;
+        self.write_lower_to_file(
+            ctg,
+            start,
+            end,
+            lower,
+        )?;
+        self.write_upper_to_file(
+            ctg,
+            start,
+            end,
+            upper,
+        )?;
+        self.write_Kge_to_file(
+            ctg,
+            start,
+            end,
+            Kge,
+        )?;
+        self.write_Klt_to_file(
+            ctg,
+            start,
+            end,
+            Klt,
+        )?;
+        Ok(())
+    }
+}
+
 impl ParamParsers {
-    fn new(parse_cfg: &ParserConfig, expt_key: &ExptKey) -> BoxedResult<Self> {
-        let mut parsers: Vec<ParamID> = Vec::new();
+    fn new(parse_cfg: &ParserConfig, expt_key: &ExptKey, out_dir: &str) -> BoxedResult<Self> {
+        let mut parsers: Vec<ParamParser> = Vec::new();
         for (param_idx, param_name) in parse_cfg.vars.iter().enumerate() {
             for geno_name in &expt_key.geno_map[param_idx] {
                 for strand_name in &expt_key.strand_map {
@@ -293,7 +511,8 @@ impl ParamParsers {
                         geno: geno_name.to_string(),
                         strand: Some(strand_name.to_string()),
                     };
-                    parsers.push(param_id);
+                    let par_parser = ParamParser::new(param_id, out_dir)?;
+                    parsers.push(par_parser);
                 }
             }
         }
@@ -314,19 +533,19 @@ impl Config {
 
         // if there are geno_contrasts, fetch indices and construct Contrasts
         let geno_contrasts = if let Some(geno_cont) = cfg_file.geno_contrasts {
-            let geno_con = GenoContrastsBuilder::new(&geno_cont, expt_key)?;
+            let geno_con = GenoContrastsBuilder::new(&geno_cont, expt_key, &cfg_file.output.out_direc)?;
             Some(geno_con)
         } else {
             None
         };
         let strand_contrasts = if let Some(strand_cont) = cfg_file.strand_contrasts {
-            let strand_con = StrandContrastsBuilder::new(&strand_cont, expt_key)?;
+            let strand_con = StrandContrastsBuilder::new(&strand_cont, expt_key, &cfg_file.output.out_direc)?;
             Some(strand_con)
         } else {
             None
         };
 
-        let parsers = ParamParsers::new(&cfg_file.parse, expt_key)?;
+        let parsers = ParamParsers::new(&cfg_file.parse, expt_key, &cfg_file.output.out_direc)?;
 
         let cfg = Config {
             input: cfg_file.input,
@@ -345,7 +564,7 @@ impl Config {
 struct StrandContrastsBuilder {}
 
 impl StrandContrastsBuilder {
-    fn new(cfg: &ContrastsConfig, expt_key: &ExptKey) -> BoxedResult<Contrasts> {
+    fn new(cfg: &ContrastsConfig, expt_key: &ExptKey, out_dir: &str) -> BoxedResult<Contrasts> {
 
         let pos_num = expt_key.pos_num[0];
         let sample_num = expt_key.sample_num[0];
@@ -359,6 +578,7 @@ impl StrandContrastsBuilder {
                     "Alpha",
                     expt_key,
                     ContrastType::Strand,
+                    out_dir,
                 )?;
                 contrast_vec.append(&mut contrasts);
             }
@@ -372,6 +592,7 @@ impl StrandContrastsBuilder {
                     "Beta",
                     expt_key,
                     ContrastType::Strand,
+                    out_dir,
                 )?;
                 contrast_vec.append(&mut contrasts);
             }
@@ -385,6 +606,7 @@ impl StrandContrastsBuilder {
                     "Gamma",
                     expt_key,
                     ContrastType::Strand,
+                    out_dir,
                 )?;
                 contrast_vec.append(&mut contrasts);
             }
@@ -399,6 +621,7 @@ impl StrandContrastsBuilder {
                     "non_sub",
                     expt_key,
                     ContrastType::Strand,
+                    out_dir,
                 )?;
                 contrast_vec.append(&mut contrasts);
             }
@@ -421,7 +644,7 @@ impl StrandContrastsBuilder {
 struct GenoContrastsBuilder {}
 
 impl GenoContrastsBuilder {
-    fn new(cfg: &ContrastsConfig, expt_key: &ExptKey) -> BoxedResult<Contrasts> {
+    fn new(cfg: &ContrastsConfig, expt_key: &ExptKey, out_dir: &str) -> BoxedResult<Contrasts> {
 
         let pos_num = expt_key.pos_num[0];
         let sample_num = expt_key.sample_num[0];
@@ -435,6 +658,7 @@ impl GenoContrastsBuilder {
                     "Alpha",
                     expt_key,
                     ContrastType::Genotype,
+                    out_dir,
                 )?;
                 contrast_vec.append(&mut contrasts);
             }
@@ -448,6 +672,7 @@ impl GenoContrastsBuilder {
                     "Beta",
                     expt_key,
                     ContrastType::Genotype,
+                    out_dir,
                 )?;
                 contrast_vec.append(&mut contrasts);
             }
@@ -461,6 +686,7 @@ impl GenoContrastsBuilder {
                     "Gamma",
                     expt_key,
                     ContrastType::Genotype,
+                    out_dir,
                 )?;
                 contrast_vec.append(&mut contrasts);
             }
@@ -475,6 +701,7 @@ impl GenoContrastsBuilder {
                     "non_sub",
                     expt_key,
                     ContrastType::Genotype,
+                    out_dir,
                 )?;
                 contrast_vec.append(&mut contrasts);
             }
@@ -525,13 +752,16 @@ struct ContrastsConfig {
 /// denominators: Vec<ParamID>
 ///     Same as numerators, but these values, when read from the blob,
 ///     will be subtracted from the result.
-#[derive(Debug, Clone)]
-struct Contrast {
-    parameter: Parameter,
-    text: String,
-    contrast_str: String,
-    numerators: Vec<ParamID>,
-    denominators: Vec<ParamID>,
+#[derive(Debug)]
+pub struct Contrast {
+    pub parameter: Parameter,
+    pub text: String,
+    pub contrast_str: String,
+    pub numerators: Vec<ParamID>,
+    pub denominators: Vec<ParamID>,
+    pub low_file: BufWriter<File>,
+    pub mean_file: BufWriter<File>,
+    pub up_file: BufWriter<File>,
 }
 
 enum ContrastType {
@@ -639,6 +869,7 @@ impl Contrast {
             param_name: &str,
             expt_key: &ExptKey,
             contrast_type: ContrastType,
+            out_direc: &str,
     ) -> BoxedResult<Vec<Contrast>> {
 
         // The trick here is to say, if we're doing genotype contrasts,
@@ -767,24 +998,58 @@ impl Contrast {
         match contrast_type {
             ContrastType::Genotype => {
                 for i in 0..strand_names.len() {
+                    let low_base = format!("{}_{}_lower.bedgraph", &contrast_str_vec[i], &parameter);
+                    let low_fname = Path::new(out_direc).join(low_base);
+                    let low_f = File::create(low_fname)?;
+                    let low_file = BufWriter::new(low_f);
+
+                    let mean_base = format!("{}_{}_mean.bedgraph", &contrast_str_vec[i], &parameter);
+                    let mean_fname = Path::new(out_direc).join(mean_base);
+                    let mean_f = File::create(mean_fname)?;
+                    let mean_file = BufWriter::new(mean_f);
+
+                    let up_base = format!("{}_{}_upper.bedgraph", &contrast_str_vec[i], &parameter);
+                    let up_fname = Path::new(out_direc).join(up_base);
+                    let up_f = File::create(up_fname)?;
+                    let up_file = BufWriter::new(up_f);
+
                     let cont = Contrast {
                         parameter: parameter.clone(),
                         text: text.to_string(),
                         contrast_str: contrast_str_vec[i].clone(),
                         numerators: numerator_vec[i].clone(),
                         denominators: denominator_vec[i].clone(),
+                        low_file: low_file,
+                        mean_file: mean_file,
+                        up_file: up_file,
                     };
                     contrasts.push(cont);
                 }
             },
             ContrastType::Strand => {
                 for i in 0..geno_names.len() {
+                    let low_base = format!("{}_{}_lower.bedgraph", &contrast_str_vec[i], &parameter);
+                    let low_fname = Path::new(out_direc).join(low_base);
+                    let low_f = File::create(low_fname)?;
+                    let low_file = BufWriter::new(low_f);
+                    let mean_base = format!("{}_{}_mean.bedgraph", &contrast_str_vec[i], &parameter);
+                    let mean_fname = Path::new(out_direc).join(mean_base);
+                    let mean_f = File::create(mean_fname)?;
+                    let mean_file = BufWriter::new(mean_f);
+                    let up_base = format!("{}_{}_upper.bedgraph", &contrast_str_vec[i], &parameter);
+                    let up_fname = Path::new(out_direc).join(up_base);
+                    let up_f = File::create(up_fname)?;
+                    let up_file = BufWriter::new(up_f);
+
                     let cont = Contrast {
                         parameter: parameter.clone(),
                         text: text.to_string(),
                         contrast_str: contrast_str_vec[i].clone(),
                         numerators: numerator_vec[i].clone(),
                         denominators: denominator_vec[i].clone(),
+                        low_file: low_file,
+                        mean_file: mean_file,
+                        up_file: up_file,
                     };
                     contrasts.push(cont);
                 }

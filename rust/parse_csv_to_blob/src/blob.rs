@@ -133,5 +133,17 @@ impl Blob {
         self.file.seek(SeekFrom::Start(offset))?;
         Ok(())
     }
+
+    pub fn read_f32_from_position(&mut self, offset: u64) -> BoxedResult<Vec<f32>> {
+        self.read_from_position(offset);
+        let mut vals: Vec<f32> = Vec::new();
+        for start_idx in (0..self.buffer.len()).step_by(4) {
+            let end_idx = start_idx + 4;
+            let val_bytes: [u8; 4] =  self.buffer[start_idx..end_idx].try_into()?;
+            let val = f32::from_be_bytes(val_bytes);
+            vals.push(val);
+        }
+        Ok(vals)
+    }
 }
 

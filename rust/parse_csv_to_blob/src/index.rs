@@ -3,7 +3,7 @@ use std::path::Path;
 use std::fs::File;
 use std::io::{Write, Read};
 use std::error::Error;
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use std::fmt;
 use serde_json;
 use serde::{Serialize, Deserialize};
@@ -38,7 +38,9 @@ use crate::config::ExptKey;
 ///
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Index {
-    pub offsets: HashMap<String, Offset>,
+    //pub offsets: BTreeMap<String, Offset>,
+    pub offsets: Vec<u64>,
+    pub param_ids: Vec<String>,
     pub total_bytes: usize,
     pub buffer_size: usize,
 }
@@ -102,7 +104,9 @@ impl Index {
     pub fn new(expt_key: &ExptKey) -> BoxedResult<Self> {
 
         //let mut offset_vec: Vec<Offset> = Vec::new();
-        let mut offset_map: HashMap<String, Offset> = HashMap::new();
+        //let mut offset_map: BTreeMap<String, Offset> = BTreeMap::new();
+        let mut offsets = Vec::new();
+        let mut param_ids = Vec::new();
         let var_map = &expt_key.var_map;
         let geno_map = &expt_key.geno_map;
         let strand_names = &expt_key.strand_map;
@@ -119,9 +123,11 @@ impl Index {
                         geno: geno_name.to_string(),
                         strand: Some(strand_name.to_string()),
                     };
-                    let offset = Offset::new(param_id.clone(), offset_bytes.clone());
+                    //let offset = Offset::new(param_id.clone(), offset_bytes.clone());
                     //offset_vec.push(offset);
-                    offset_map.insert(param_id.to_string(), offset);
+                    //offset_map.insert(param_id.to_string(), offset);
+                    offsets.push(offset_bytes.clone());
+                    param_ids.push(param_id.to_string());
                     // increment offset by
                     // number of genome positions
                     // times number of samples
@@ -143,9 +149,11 @@ impl Index {
                             geno: geno_name.to_string(),
                             strand: None,
                         };
-                        let offset = Offset::new(param_id.clone(), offset_bytes.clone());
+                        //let offset = Offset::new(param_id.clone(), offset_bytes.clone());
                         //offset_vec.push(offset);
-                        offset_map.insert(param_id.to_string(), offset);
+                        //offset_map.insert(param_id.to_string(), offset);
+                        offsets.push(offset_bytes.clone());
+                        param_ids.push(param_id.to_string());
                         // increment offset by number of samples times 4 bytes for f32
                         // no pos_num on RHS here
                         offset_bytes += samp_num * 4;
@@ -156,7 +164,12 @@ impl Index {
 
         let total_bytes = offset_bytes.try_into()?;
 
-        Ok(Self{offsets: offset_map, total_bytes: total_bytes, buffer_size: buffer_size})
+        Ok(Self{
+            offsets: offsets,
+            param_ids: param_ids,
+            total_bytes: total_bytes,
+            buffer_size: buffer_size,
+        })
     }
 
     pub fn read(direc: &str) -> BoxedResult<Self> {
@@ -172,6 +185,7 @@ impl Index {
         let fname = Path::new(outdir).join("index.json");
         let mut file = File::create(fname)?;
         let index_json = serde_json::to_string_pretty(self)?;
+        //let index_json = serde_json::to_string(self)?;
         file.write_all(index_json.as_bytes())?;
         Ok(())
     }

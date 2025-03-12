@@ -1,0 +1,19 @@
+[input]
+expt_key_file = "expt_key.json"
+draws_file = "draws.csv"
+pos_file_name = "position_map.json"
+
+[output]
+out_direc = "test_data/out_direc"
+
+[parse]
+vars = ["Alpha", "Beta", "Gamma", "non_sub"]
+threshold = 1.0
+
+[geno_contrasts]
+Beta = ["vpsR-wt", "vpsT-wt", "vpsR - wt -vpsT + wt"]
+Gamma = ["vpsR-wt", "vpsT-wt"]
+threshold = 1.0
+
+[strand_contrasts]
+Gamma = ["plus-minus", "minus-plus"]

@@ -111,7 +111,7 @@ mod tests {
         let hash = set_up_tests();
         let expt_key = ExptKey::read("test_data/expt_key.json").unwrap();
         let index = Index::new(&expt_key).unwrap();
-        //index.to_file("test_data/out_direc/filter_fields").unwrap();
+        index.to_file("test_data/out_direc/filter_fields").unwrap();
 
         let mut col_idx = 0;
         let bytes = hash.get("into_colname").unwrap().as_bytes();
@@ -179,6 +179,7 @@ mod tests {
 
         let expt_key = ExptKey::read("test_data/expt_key.json").unwrap();
         let index = Index::new(&expt_key).unwrap();
+        index.to_file("test_data/out_direc/filter_fields").unwrap();
 
         let mut col_idx = 0;
         let mut byter = BytesIterator::new(bytes.to_vec());
@@ -454,24 +455,23 @@ impl FieldVec {
                             };
                             (param_id, position_idx)
                         };
-                        println!("param_id {:?}", param_id);
-                        let base_offset_opt = index.offsets.get(&param_id.to_string());
-                        if let Some(base_offset) = base_offset_opt {
-                            println!("base_offset: {:?}", &base_offset.offset);
-                            println!("position_idx: {:?}", &position_idx);
-                            println!("sample_num: {:?}", &sample_num);
-                            // add position_idx * 4 bytes to the base offset for this param
-                            let this_offset: u64 = base_offset.offset
-                                + position_idx * sample_num * 4;
-                            // we're keeping values in this column, so we need to
-                            // mark this col_idx as retained, and track the offset at which
-                            // we must write this field's values to blob
-                            retained_fields.push(
-                                (field.col_idx, this_offset)
-                            );
-                        } else {
-                            return Err(Box::new(HandleFieldsError::NoMatchingParamIDError))
-                        }
+                        //println!("param_id {:?}", param_id);
+                        let offset_idx = index.param_ids.iter()
+                            .position(|s| *s == param_id.to_string())
+                            .ok_or("No such param_id")?;
+                        let base_offset = &index.offsets[offset_idx];
+                        //println!("base_offset: {:?}", &base_offset.offset);
+                        //println!("position_idx: {:?}", &position_idx);
+                        //println!("sample_num: {:?}", &sample_num);
+                        // add position_idx * 4 bytes to the base offset for this param
+                        let this_offset: u64 = base_offset
+                            + position_idx * sample_num * 4;
+                        // we're keeping values in this column, so we need to
+                        // mark this col_idx as retained, and track the offset at which
+                        // we must write this field's values to blob
+                        retained_fields.push(
+                            (field.col_idx, this_offset)
+                        );
                     }
                 },
                 PriorByteIn::Samples(_) => {

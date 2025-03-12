@@ -1,0 +1,50 @@
+{
+    "var_map": [
+        "Alpha",
+        "Beta",
+        "Gamma",
+        "non_sub"
+    ],
+    "geno_map": [
+        [
+            "wt",
+            "vpsR",
+            "vpsT"
+        ],
+        [
+            "wt",
+            "vpsR",
+            "vpsT"
+        ],
+        [
+            "wt",
+            "vpsR",
+            "vpsT"
+        ],
+        [
+            "wt",
+            "vpsR",
+            "vpsT"
+        ]
+    ],
+    "strand_map": [
+        "plus",
+        "minus"
+    ],
+    "resolution": [
+        5
+    ],
+    "pos_num": [
+        50
+    ],
+    "strand_num": [
+        1
+    ],
+    "sample_num": [
+        500
+    ],
+    "position_map_file": [
+        "position_map.json"
+    ]
+}
+

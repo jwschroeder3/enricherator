@@ -1,270 +1,74 @@
 {
-  "offsets": {
-    "Beta.vpsT.plus": {
-      "param_id": {
-        "parameter": "Beta",
-        "geno": "vpsT",
-        "strand": "plus"
-      },
-      "offset": 1000000
-    },
-    "non_sub.vpsR.plus": {
-      "param_id": {
-        "parameter": "non_sub",
-        "geno": "vpsR",
-        "strand": "plus"
-      },
-      "offset": 2000000
-    },
-    "a_cubic.wt": {
-      "param_id": {
-        "parameter": "a_cubic",
-        "geno": "wt",
-        "strand": null
-      },
-      "offset": 2400000
-    },
-    "Gamma.wt.plus": {
-      "param_id": {
-        "parameter": "Gamma",
-        "geno": "wt",
-        "strand": "plus"
-      },
-      "offset": 1200000
-    },
-    "Gamma.vpsT.minus": {
-      "param_id": {
-        "parameter": "Gamma",
-        "geno": "vpsT",
-        "strand": "minus"
-      },
-      "offset": 1700000
-    },
-    "Beta.vpsT.minus": {
-      "param_id": {
-        "parameter": "Beta",
-        "geno": "vpsT",
-        "strand": "minus"
-      },
-      "offset": 1100000
-    },
-    "Beta.vpsR.minus": {
-      "param_id": {
-        "parameter": "Beta",
-        "geno": "vpsR",
-        "strand": "minus"
-      },
-      "offset": 900000
-    },
-    "b_cubic.wt": {
-      "param_id": {
-        "parameter": "b_cubic",
-        "geno": "wt",
-        "strand": null
-      },
-      "offset": 2402000
-    },
-    "Beta.wt.plus": {
-      "param_id": {
-        "parameter": "Beta",
-        "geno": "wt",
-        "strand": "plus"
-      },
-      "offset": 600000
-    },
-    "Alpha.vpsR.minus": {
-      "param_id": {
-        "parameter": "Alpha",
-        "geno": "vpsR",
-        "strand": "minus"
-      },
-      "offset": 300000
-    },
-    "b_cubic.vpsR": {
-      "param_id": {
-        "parameter": "b_cubic",
-        "geno": "vpsR",
-        "strand": null
-      },
-      "offset": 2408000
-    },
-    "c_cubic.vpsR": {
-      "param_id": {
-        "parameter": "c_cubic",
-        "geno": "vpsR",
-        "strand": null
-      },
-      "offset": 2410000
-    },
-    "Gamma.wt.minus": {
-      "param_id": {
-        "parameter": "Gamma",
-        "geno": "wt",
-        "strand": "minus"
-      },
-      "offset": 1300000
-    },
-    "a_cubic.vpsR": {
-      "param_id": {
-        "parameter": "a_cubic",
-        "geno": "vpsR",
-        "strand": null
-      },
-      "offset": 2406000
-    },
-    "Gamma.vpsT.plus": {
-      "param_id": {
-        "parameter": "Gamma",
-        "geno": "vpsT",
-        "strand": "plus"
-      },
-      "offset": 1600000
-    },
-    "non_sub.vpsT.plus": {
-      "param_id": {
-        "parameter": "non_sub",
-        "geno": "vpsT",
-        "strand": "plus"
-      },
-      "offset": 2200000
-    },
-    "Beta.wt.minus": {
-      "param_id": {
-        "parameter": "Beta",
-        "geno": "wt",
-        "strand": "minus"
-      },
-      "offset": 700000
-    },
-    "Gamma.vpsR.minus": {
-      "param_id": {
-        "parameter": "Gamma",
-        "geno": "vpsR",
-        "strand": "minus"
-      },
-      "offset": 1500000
-    },
-    "c_cubic.wt": {
-      "param_id": {
-        "parameter": "c_cubic",
-        "geno": "wt",
-        "strand": null
-      },
-      "offset": 2404000
-    },
-    "Alpha.vpsT.plus": {
-      "param_id": {
-        "parameter": "Alpha",
-        "geno": "vpsT",
-        "strand": "plus"
-      },
-      "offset": 400000
-    },
-    "Alpha.wt.plus": {
-      "param_id": {
-        "parameter": "Alpha",
-        "geno": "wt",
-        "strand": "plus"
-      },
-      "offset": 0
-    },
-    "Alpha.vpsR.plus": {
-      "param_id": {
-        "parameter": "Alpha",
-        "geno": "vpsR",
-        "strand": "plus"
-      },
-      "offset": 200000
-    },
-    "Beta.vpsR.plus": {
-      "param_id": {
-        "parameter": "Beta",
-        "geno": "vpsR",
-        "strand": "plus"
-      },
-      "offset": 800000
-    },
-    "Gamma.vpsR.plus": {
-      "param_id": {
-        "parameter": "Gamma",
-        "geno": "vpsR",
-        "strand": "plus"
-      },
-      "offset": 1400000
-    },
-    "non_sub.vpsR.minus": {
-      "param_id": {
-        "parameter": "non_sub",
-        "geno": "vpsR",
-        "strand": "minus"
-      },
-      "offset": 2100000
-    },
-    "Alpha.vpsT.minus": {
-      "param_id": {
-        "parameter": "Alpha",
-        "geno": "vpsT",
-        "strand": "minus"
-      },
-      "offset": 500000
-    },
-    "non_sub.wt.plus": {
-      "param_id": {
-        "parameter": "non_sub",
-        "geno": "wt",
-        "strand": "plus"
-      },
-      "offset": 1800000
-    },
-    "a_cubic.vpsT": {
-      "param_id": {
-        "parameter": "a_cubic",
-        "geno": "vpsT",
-        "strand": null
-      },
-      "offset": 2412000
-    },
-    "b_cubic.vpsT": {
-      "param_id": {
-        "parameter": "b_cubic",
-        "geno": "vpsT",
-        "strand": null
-      },
-      "offset": 2414000
-    },
-    "non_sub.vpsT.minus": {
-      "param_id": {
-        "parameter": "non_sub",
-        "geno": "vpsT",
-        "strand": "minus"
-      },
-      "offset": 2300000
-    },
-    "c_cubic.vpsT": {
-      "param_id": {
-        "parameter": "c_cubic",
-        "geno": "vpsT",
-        "strand": null
-      },
-      "offset": 2416000
-    },
-    "Alpha.wt.minus": {
-      "param_id": {
-        "parameter": "Alpha",
-        "geno": "wt",
-        "strand": "minus"
-      },
-      "offset": 100000
-    },
-    "non_sub.wt.minus": {
-      "param_id": {
-        "parameter": "non_sub",
-        "geno": "wt",
-        "strand": "minus"
-      },
-      "offset": 1900000
-    }
-  },
+  "offsets": [
+    0,
+    100000,
+    200000,
+    300000,
+    400000,
+    500000,
+    600000,
+    700000,
+    800000,
+    900000,
+    1000000,
+    1100000,
+    1200000,
+    1300000,
+    1400000,
+    1500000,
+    1600000,
+    1700000,
+    1800000,
+    1900000,
+    2000000,
+    2100000,
+    2200000,
+    2300000,
+    2400000,
+    2402000,
+    2404000,
+    2406000,
+    2408000,
+    2410000,
+    2412000,
+    2414000,
+    2416000
+  ],
+  "param_ids": [
+    "Alpha.wt.plus",
+    "Alpha.wt.minus",
+    "Alpha.vpsR.plus",
+    "Alpha.vpsR.minus",
+    "Alpha.vpsT.plus",
+    "Alpha.vpsT.minus",
+    "Beta.wt.plus",
+    "Beta.wt.minus",
+    "Beta.vpsR.plus",
+    "Beta.vpsR.minus",
+    "Beta.vpsT.plus",
+    "Beta.vpsT.minus",
+    "Gamma.wt.plus",
+    "Gamma.wt.minus",
+    "Gamma.vpsR.plus",
+    "Gamma.vpsR.minus",
+    "Gamma.vpsT.plus",
+    "Gamma.vpsT.minus",
+    "non_sub.wt.plus",
+    "non_sub.wt.minus",
+    "non_sub.vpsR.plus",
+    "non_sub.vpsR.minus",
+    "non_sub.vpsT.plus",
+    "non_sub.vpsT.minus",
+    "a_cubic.wt",
+    "b_cubic.wt",
+    "c_cubic.wt",
+    "a_cubic.vpsR",
+    "b_cubic.vpsR",
+    "c_cubic.vpsR",
+    "a_cubic.vpsT",
+    "b_cubic.vpsT",
+    "c_cubic.vpsT"
+  ],
   "total_bytes": 2418000,
   "buffer_size": 2000
 }

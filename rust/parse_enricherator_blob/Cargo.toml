@@ -5,3 +5,4 @@ edition = "2024"
 
 [dependencies]
 parse_csv_to_blob = { path = "../parse_csv_to_blob" }
+clap = {version="4.5.2", features=["derive"]}
