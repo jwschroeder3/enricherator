@@ -109,6 +109,7 @@ Then, from the R terminal, run:
 
 ```R
 install.packages("stringi", configure.args="--disable-pkg-config")
+blogdown::install_hugo()
 install.packages("cmdstanr", repos = c("https://mc-stan.org/r-packages/", getOption("repos")))
 # check whether cmdstanr is properly set up
 library(cmdstanr)
