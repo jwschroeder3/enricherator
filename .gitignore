@@ -2,6 +2,8 @@ rust/*/target
 rust/*/Cargo.lock
 rust/parse_cmdstan_csv_dev/test_data/test_outs
 rust/parse_csv_to_blob/test_data/test_outs
+rust/parse_csv_to_blob/test_data/out_direc/
+rust/parse_enricherator_blob/test_data/out_direc/
 R/tests/__pycache__
 R/tests/results
 R/tests/data

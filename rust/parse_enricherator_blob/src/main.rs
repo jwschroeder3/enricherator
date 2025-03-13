@@ -1,6 +1,6 @@
 use parse_csv_to_blob::{
     config::{Args, ExptKey, Config, PositionMap},
-    index::Index,
+    index::{Index, ParamID},
     blob::Blob,
     BoxedResult,
 };
@@ -87,6 +87,150 @@ fn main() -> BoxedResult<()> {
             )?;
         }
     }
+
+    if let Some(geno_contrasts) = &mut cfg.geno_contrasts {
+        let geno_contrast_thresh = geno_contrasts.threshold;
+        for contrast in &mut geno_contrasts.contrasts {
+
+            let mut param_ids: Vec<ParamID> = Vec::new();
+            let mut add: Vec<bool> = Vec::new();
+            for param_id in &contrast.numerators {
+                param_ids.push(param_id.clone());
+                add.push(true);
+            }
+            for param_id in &contrast.denominators {
+                param_ids.push(param_id.clone());
+                add.push(false);
+            }
+
+            for pos_idx in 0..pos_num {
+
+                // allocate vec for contrasts
+                let mut contrast_vals = Vec::<f32>::with_capacity(samp_num as usize);
+                for _ in 0..samp_num {
+                    contrast_vals.push(0.0);
+                }
+
+                // get the &("ctg", start, end) for this position
+                let (ctg,start,end) = &position_map.map[pos_idx];
+                let pos: u64 = pos_idx.try_into()?;
+                for (param_id,numerator) in param_ids.iter().zip(add.clone()) {
+                    let offset_idx = index.param_ids.iter()
+                        .position(|s| *s == param_id.to_string())
+                        .ok_or("No such param_id")?;
+                    let base_offset: u64 = index.offsets[offset_idx].try_into()?;
+                    let this_offset: u64 = base_offset
+                        + pos * samp_num * 4;
+                    // reads the bytes into `blob_file.buffer`,
+                    // converts to f32 values, returns the Vec<f32>
+                    let samples = blob_file.read_f32_from_position(this_offset)?;
+                    for (i,val) in contrast_vals.iter_mut().enumerate() {
+                        if numerator {
+                            *val += samples[i];
+                        } else {
+                            *val -= samples[i];
+                        }
+                    }
+                    // sort the samples to get conf lims
+                    contrast_vals.sort_unstable_by(|x,y| x.total_cmp(&y));
+                    let lower = contrast_vals[cl_low_idx];
+                    let upper = contrast_vals[cl_up_idx];
+                    let sum: f32 = contrast_vals.iter().sum();
+                    let mean: f32 = sum / samp_num as f32;
+
+                    // get number of samples less than threshold
+                    let lt_count = contrast_vals.partition_point(|x| x < param_thresh);
+                    let ge_count = samp_num - lt_count as u64;
+
+                    // Calculate the ratio
+                    let Klt = lt_count as f32 / ge_count as f32;
+                    let Kge = ge_count as f32 / lt_count as f32;
+                    contrast.write_vals_to_files(
+                        &ctg,
+                        start,
+                        end,
+                        mean,
+                        lower,
+                        upper,
+                        Kge,
+                        Klt,
+                    )?;
+                }
+            }
+        }
+    }    
+
+    if let Some(strand_contrasts) = &mut cfg.strand_contrasts {
+        let strand_contrast_thresh = strand_contrasts.threshold;
+        for contrast in &mut strand_contrasts.contrasts {
+
+            let mut param_ids: Vec<ParamID> = Vec::new();
+            let mut add: Vec<bool> = Vec::new();
+            for param_id in &contrast.numerators {
+                param_ids.push(param_id.clone());
+                add.push(true);
+            }
+            for param_id in &contrast.denominators {
+                param_ids.push(param_id.clone());
+                add.push(false);
+            }
+
+            for pos_idx in 0..pos_num {
+
+                // allocate vec for contrasts
+                let mut contrast_vals = Vec::<f32>::with_capacity(samp_num as usize);
+                for _ in 0..samp_num {
+                    contrast_vals.push(0.0);
+                }
+
+                // get the &("ctg", start, end) for this position
+                let (ctg,start,end) = &position_map.map[pos_idx];
+                let pos: u64 = pos_idx.try_into()?;
+                for (param_id,numerator) in param_ids.iter().zip(add.clone()) {
+                    let offset_idx = index.param_ids.iter()
+                        .position(|s| *s == param_id.to_string())
+                        .ok_or("No such param_id")?;
+                    let base_offset: u64 = index.offsets[offset_idx].try_into()?;
+                    let this_offset: u64 = base_offset
+                        + pos * samp_num * 4;
+                    // reads the bytes into `blob_file.buffer`,
+                    // converts to f32 values, returns the Vec<f32>
+                    let samples = blob_file.read_f32_from_position(this_offset)?;
+                    for (i,val) in contrast_vals.iter_mut().enumerate() {
+                        if numerator {
+                            *val += samples[i];
+                        } else {
+                            *val -= samples[i];
+                        }
+                    }
+                    // sort the samples to get conf lims
+                    contrast_vals.sort_unstable_by(|x,y| x.total_cmp(&y));
+                    let lower = contrast_vals[cl_low_idx];
+                    let upper = contrast_vals[cl_up_idx];
+                    let sum: f32 = contrast_vals.iter().sum();
+                    let mean: f32 = sum / samp_num as f32;
+
+                    // get number of samples less than threshold
+                    let lt_count = contrast_vals.partition_point(|x| x < param_thresh);
+                    let ge_count = samp_num - lt_count as u64;
+
+                    // Calculate the ratio
+                    let Klt = lt_count as f32 / ge_count as f32;
+                    let Kge = ge_count as f32 / lt_count as f32;
+                    contrast.write_vals_to_files(
+                        &ctg,
+                        start,
+                        end,
+                        mean,
+                        lower,
+                        upper,
+                        Kge,
+                        Klt,
+                    )?;
+                }
+            }
+        }
+    }    
 
     Ok(())
 }

@@ -762,6 +762,8 @@ pub struct Contrast {
     pub low_file: BufWriter<File>,
     pub mean_file: BufWriter<File>,
     pub up_file: BufWriter<File>,
+    pub Kge_file: BufWriter<File>,
+    pub Klt_file: BufWriter<File>,
 }
 
 enum ContrastType {
@@ -1013,6 +1015,16 @@ impl Contrast {
                     let up_f = File::create(up_fname)?;
                     let up_file = BufWriter::new(up_f);
 
+                    let Kge_base = format!("{}_{}_Kge.bedgraph", &contrast_str_vec[i], &parameter);
+                    let Kge_fname = Path::new(out_direc).join(Kge_base);
+                    let Kge_f = File::create(Kge_fname)?;
+                    let Kge_file = BufWriter::new(Kge_f);
+
+                    let Klt_base = format!("{}_{}_Klt.bedgraph", &contrast_str_vec[i], &parameter);
+                    let Klt_fname = Path::new(out_direc).join(Klt_base);
+                    let Klt_f = File::create(Klt_fname)?;
+                    let Klt_file = BufWriter::new(Klt_f);
+
                     let cont = Contrast {
                         parameter: parameter.clone(),
                         text: text.to_string(),
@@ -1022,6 +1034,8 @@ impl Contrast {
                         low_file: low_file,
                         mean_file: mean_file,
                         up_file: up_file,
+                        Kge_file: Kge_file,
+                        Klt_file: Klt_file,
                     };
                     contrasts.push(cont);
                 }
@@ -1040,6 +1054,15 @@ impl Contrast {
                     let up_fname = Path::new(out_direc).join(up_base);
                     let up_f = File::create(up_fname)?;
                     let up_file = BufWriter::new(up_f);
+                    let Kge_base = format!("{}_{}_Kge.bedgraph", &contrast_str_vec[i], &parameter);
+                    let Kge_fname = Path::new(out_direc).join(Kge_base);
+                    let Kge_f = File::create(Kge_fname)?;
+                    let Kge_file = BufWriter::new(Kge_f);
+
+                    let Klt_base = format!("{}_{}_Klt.bedgraph", &contrast_str_vec[i], &parameter);
+                    let Klt_fname = Path::new(out_direc).join(Klt_base);
+                    let Klt_f = File::create(Klt_fname)?;
+                    let Klt_file = BufWriter::new(Klt_f);
 
                     let cont = Contrast {
                         parameter: parameter.clone(),
@@ -1050,12 +1073,162 @@ impl Contrast {
                         low_file: low_file,
                         mean_file: mean_file,
                         up_file: up_file,
+                        Kge_file: Kge_file,
+                        Klt_file: Klt_file,
                     };
                     contrasts.push(cont);
                 }
             }
         };
         Ok(contrasts)
+    }
+
+    fn write_mean_to_file(
+            &mut self,
+            ctg: &str,
+            start: &usize,
+            end: &usize,
+            val: f32,
+    ) -> BoxedResult<()> {
+        // Write the string content to the buffer
+        let content = format!("{ctg}\t{start}\t{end}\t{val}\n");
+        self.mean_file.write_all(content.as_bytes())?;
+        Ok(())
+    }
+
+    fn flush_mean_buffer(&mut self) -> BoxedResult<()> {
+        // Flush the buffer to ensure all data is written to the file
+        self.mean_file.flush()?;
+        Ok(())
+    }
+
+    fn write_lower_to_file(
+            &mut self,
+            ctg: &str,
+            start: &usize,
+            end: &usize,
+            val: f32,
+    ) -> BoxedResult<()> {
+        // Write the string content to the buffer
+        let content = format!("{ctg}\t{start}\t{end}\t{val}\n");
+        self.low_file.write_all(content.as_bytes())?;
+        Ok(())
+    }
+
+    fn flush_lower_buffer(&mut self) -> BoxedResult<()> {
+        // Flush the buffer to ensure all data is written to the file
+        self.low_file.flush()?;
+        Ok(())
+    }
+
+    fn write_upper_to_file(
+            &mut self,
+            ctg: &str,
+            start: &usize,
+            end: &usize,
+            val: f32,
+    ) -> BoxedResult<()> {
+        // Write the string content to the buffer
+        let content = format!("{ctg}\t{start}\t{end}\t{val}\n");
+        self.up_file.write_all(content.as_bytes())?;
+        Ok(())
+    }
+
+    fn flush_upper_buffer(&mut self) -> BoxedResult<()> {
+        // Flush the buffer to ensure all data is written to the file
+        self.up_file.flush()?;
+        Ok(())
+    }
+
+    fn write_Kge_to_file(
+            &mut self,
+            ctg: &str,
+            start: &usize,
+            end: &usize,
+            val: f32,
+    ) -> BoxedResult<()> {
+        // Write the string content to the buffer
+        let content = format!("{ctg}\t{start}\t{end}\t{val}\n");
+        self.Kge_file.write_all(content.as_bytes())?;
+        Ok(())
+    }
+
+    fn flush_Kge_buffer(&mut self) -> BoxedResult<()> {
+        // Flush the buffer to ensure all data is written to the file
+        self.Kge_file.flush()?;
+        Ok(())
+    }
+
+    fn write_Klt_to_file(
+            &mut self,
+            ctg: &str,
+            start: &usize,
+            end: &usize,
+            val: f32,
+    ) -> BoxedResult<()> {
+        // Write the string content to the buffer
+        let content = format!("{ctg}\t{start}\t{end}\t{val}\n");
+        self.Klt_file.write_all(content.as_bytes())?;
+        Ok(())
+    }
+
+    fn flush_Klt_buffer(&mut self) -> BoxedResult<()> {
+        // Flush the buffer to ensure all data is written to the file
+        self.Klt_file.flush()?;
+        Ok(())
+    }
+
+    pub fn flush_buffers(&mut self) -> BoxedResult<()> {
+        self.flush_upper_buffer()?;
+        self.flush_lower_buffer()?;
+        self.flush_mean_buffer()?;
+        self.flush_Kge_buffer()?;
+        self.flush_Klt_buffer()?;
+        Ok(())
+    }
+
+    pub fn write_vals_to_files(
+            &mut self,
+            ctg: &str,
+            start: &usize,
+            end: &usize,
+            mean: f32,
+            lower: f32,
+            upper: f32,
+            Kge: f32,
+            Klt: f32,
+    ) -> BoxedResult<()> {
+        self.write_mean_to_file(
+            ctg,
+            start,
+            end,
+            mean,
+        )?;
+        self.write_lower_to_file(
+            ctg,
+            start,
+            end,
+            lower,
+        )?;
+        self.write_upper_to_file(
+            ctg,
+            start,
+            end,
+            upper,
+        )?;
+        self.write_Kge_to_file(
+            ctg,
+            start,
+            end,
+            Kge,
+        )?;
+        self.write_Klt_to_file(
+            ctg,
+            start,
+            end,
+            Klt,
+        )?;
+        Ok(())
     }
 }
 
