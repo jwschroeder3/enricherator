@@ -241,12 +241,8 @@ insert_data = function(data, spike_name, spikein_rel_abund) {
     data_list = list()
     data_list[["alpha_prior"]] = log(1/spikein_rel_abund)
     pos_num = nrow(data$data[[1]] %>% filter(seqname != spike_name))
-    data_list[["position_mapper"]] = tibble(
-        seqnames=data$data[[1]] %>% filter(seqname != spike_name) %>% .$seqname,
-        start=data$data[[1]] %>% filter(seqname != spike_name) %>% .$start,
-        end=data$data[[1]] %>% filter(seqname != spike_name) %>% .$end,
-        position_row=1:pos_num
-    )
+    data_list[["position_mapper"]] = data.frame(data$data[[1]]$seqname, data$data[[1]]$start, data$data[[1]]$end)
+    colnames(data_list[["position_mapper"]]) = c("ctg", "start", "end")
 
     #print("norm_df line 252")
     #print(norm_df)
@@ -288,7 +284,8 @@ insert_data = function(data, spike_name, spikein_rel_abund) {
     #tmm_deseq_size_factors = get_size_factors(spike_mat, summary_fn=get_trimmed_mean)
     #med_deseq_size_factors = get_size_factors(spike_mat, summary_fn=median)
     #mean_size_factors = apply(spike_mat, FUN=mean, MAR=2)
-    tm_size_factors = apply(norm_mat, FUN=get_trimmed_mean, MAR=2)
+    #tm_size_factors = apply(norm_mat, FUN=get_trimmed_mean, MAR=2)
+    tm_size_factors = apply(norm_mat, FUN=mean, MAR=2)
     #print("size factor shape")
     #print(dim(tm_size_factors))
     #print("norm factors")
@@ -304,6 +301,12 @@ insert_data = function(data, spike_name, spikein_rel_abund) {
     return(list(pos_num, data_list))
 }
 
+append_unique_string = function(vec, string) {
+  if (!(string %in% vec)) {
+      vec = c(vec, string)
+  }
+  return(vec)
+}
 
 prep_stan_data = function(data_df, norm_method, spikein, spikein_rel_abund=0.05, input_subsample_dist_bp=50, input_frag_len_bp=125, ext_subsample_dist_bp=50, ext_frag_len_bp=50, ipod_subsample_dist_bp=50, ipod_frag_len_bp=50, log_lik=FALSE, frac_genome_enriched=NULL, debug=FALSE, debug_outdir=NULL) {
     # this sort step is VERY USEFUL for arranging data
@@ -374,7 +377,11 @@ prep_stan_data = function(data_df, norm_method, spikein, spikein_rel_abund=0.05,
     }
 
     param_idx_arr = matrix(0, nrow=samp_num, ncol=3)
-    var_map = list("Alpha"=c(), "Beta"=c(), "Gamma"=c())
+    var_map = c("Alpha", "Beta", "Gamma", "non_sub")
+    alpha_map = c()
+    beta_map = c()
+    gamma_map = c()
+    non_sub_map = c()
 
     for (s in 1:samp_num ) {
         stype = data_df$sample[s]
@@ -385,28 +392,58 @@ prep_stan_data = function(data_df, norm_method, spikein, spikein_rel_abund=0.05,
         gamma_ind = data_df$extract_group[s]
 
         if (stype == "extract") {
+            # set this samples row, gamma column, to this gamma's index
             param_idx_arr[s,3] = gamma_ind
-            if (is.null(var_map[["Gamma"]][gamma_ind]) || is.na(var_map[["Gamma"]][gamma_ind])) {
-                var_map[["Gamma"]][gamma_ind] = geno
-                var_map[["non_sub"]][gamma_ind] = geno
+            # Append this genotype to the gamma and non_sub geno maps
+            if (is.null(gamma_map[gamma_ind]) || is.na(gamma_map[gamma_ind])) {
+                gamma_map[gamma_ind] = geno
+                non_sub_map[gamma_ind] = geno
             } else {
-                var_map[["Gamma"]][gamma_ind] = paste(var_map[["Gamma"]][gamma_ind], geno, sep="_AND_")
-                var_map[["non_sub"]][gamma_ind] = paste(var_map[["non_sub"]][gamma_ind], geno, sep="_AND_")
+                # if the geno is not already at this idx, append it with _AND_ between
+                if (!grepl(geno, gamma_map[gamma_ind])) {
+                    gamma_map[gamma_ind] = paste(gamma_map[gamma_ind], geno, sep="_AND_")
+                    non_sub_map[gamma_ind] = paste(non_sub_map[gamma_ind], geno, sep="_AND_")
+                }
             }
+            #if (is.null(var_map[["Gamma"]][gamma_ind]) || is.na(var_map[["Gamma"]][gamma_ind])) {
+            #    var_map[["Gamma"]][gamma_ind] = geno
+            #    var_map[["non_sub"]][gamma_ind] = geno
+            #} else {
+            #    var_map[["Gamma"]][gamma_ind] = paste(var_map[["Gamma"]][gamma_ind], geno, sep="_AND_")
+            #    var_map[["non_sub"]][gamma_ind] = paste(var_map[["non_sub"]][gamma_ind], geno, sep="_AND_")
+            #}
         } else {
             if (stype == "control") {
-                if (is.null(var_map[["Beta"]][beta_idx]) || is.na(var_map[["Beta"]][beta_idx])) {
-                    var_map[["Beta"]][beta_idx] = geno
+                # Append this genotype to the beta map
+                if (is.null(beta_map[beta_idx]) || is.na(beta_map[beta_idx])) {
+                    beta_map[beta_idx] = geno
                 } else {
-                    var_map[["Beta"]][beta_idx] = paste(var_map[["Beta"]][beta_idx], geno, sep="_AND_")
+                    # if the geno is not already at this idx, append it with _AND_ between
+                    if (!grepl(geno, beta_map[beta_idx])) {
+                        beta_map[beta_idx] = paste(beta_map[beta_idx], geno, sep="_AND_")
+                    }
                 }
+                #if (is.null(var_map[["Beta"]][beta_idx]) || is.na(var_map[["Beta"]][beta_idx])) {
+                #    var_map[["Beta"]][beta_idx] = geno
+                #} else {
+                #    var_map[["Beta"]][beta_idx] = paste(var_map[["Beta"]][beta_idx], geno, sep="_AND_")
+                #}
             } else {
                 if (stype == "input") {
-                    if (is.null(var_map[["Alpha"]][alpha_idx]) || is.na(var_map[["Alpha"]][alpha_idx])) {
-                        var_map[["Alpha"]][alpha_idx] = geno
+                    # Append this genotype to the alpha map
+                    if (is.null(alpha_map[alpha_idx]) || is.na(alpha_map[alpha_idx])) {
+                        alpha_map[alpha_idx] = geno
                     } else {
-                        var_map[["Alpha"]][alpha_idx] = paste(var_map[["Alpha"]][alpha_idx], geno, sep="_AND_")
+                        # if the geno is not already at this idx, append it with _AND_ between
+                        if (!grepl(geno, alpha_map[alpha_idx])) {
+                            alpha_map[alpha_idx] = paste(alpha_map[alpha_idx], geno, sep="_AND_")
+                        }
                     }
+                    #if (is.null(var_map[["Alpha"]][alpha_idx]) || is.na(var_map[["Alpha"]][alpha_idx])) {
+                    #    var_map[["Alpha"]][alpha_idx] = geno
+                    #} else {
+                    #    var_map[["Alpha"]][alpha_idx] = paste(var_map[["Alpha"]][alpha_idx], geno, sep="_AND_")
+                    #}
                 } else {
                     stop(paste0("Encountered a sample type that was none of the required samples types. Required sample types are 'control', 'extract', and 'input'. The incorrect type was ", stype))
                 }
@@ -418,16 +455,22 @@ prep_stan_data = function(data_df, norm_method, spikein, spikein_rel_abund=0.05,
         param_idx_arr[s,1] = alpha_idx
 
     }
+    geno_map = list(
+        alpha_map,
+        beta_map,
+        gamma_map,
+        non_sub_map
+    )
 
     # to track which gammas to subtract a given beta from
-    gamma_idx = matrix(0, nrow=B, ncol=G)
+    beta_sub_idx = c()
     
     for (s in 1:samp_num) {
         # if this sample is an extract sample, the gamma column
-        # will be greater than zero and the correct indices of 
-        # gamma_idx must be set to 1.
+        # will be greater than zero and the correct index of 
+        # beta_sub_idx must be set to 1.
         if (param_idx_arr[s,3] > 0) {
-            gamma_idx[param_idx_arr[s,2], param_idx_arr[s,3]] = 1
+            beta_sub_idx[param_idx_arr[s,3]] = as.integer(param_idx_arr[s,2])
         }
     }
 
@@ -435,9 +478,9 @@ prep_stan_data = function(data_df, norm_method, spikein, spikein_rel_abund=0.05,
         fname = file.path(debug_outdir, "param_idx_arr.csv")
         print(paste0("Writing param_idx_arr to ", fname))
         write(t(param_idx_arr), file=fname, sep=",", ncolumns=ncol(param_idx_arr))
-        fname = file.path(debug_outdir, "gamma_idx.csv")
-        print(paste0("Writing gamma_idx to ", fname))
-        write(t(gamma_idx), file=fname, sep=",", ncolumns=ncol(gamma_idx))
+        fname = file.path(debug_outdir, "beta_sub_idx.csv")
+        print(paste0("Writing beta_sub_idx to ", fname))
+        write(beta_sub_idx, file=fname, sep=",")
     }
 
     levels = unique(data_df$sample_id)
@@ -473,11 +516,13 @@ prep_stan_data = function(data_df, norm_method, spikein, spikein_rel_abund=0.05,
     #print(stan_list[["Q"]])
     stan_list[["info"]] = data_df %>% select(-data)
     stan_list[["gather_log_lik"]] = log_lik
-    stan_list[["gamma_idx"]] = gamma_idx
+    stan_list[["beta_sub_idx"]] = beta_sub_idx
     stan_list[["param_idx_arr"]] = param_idx_arr 
     stan_list[["expt_key"]] = list()
     stan_list[["expt_key"]][["var_map"]] = var_map
+    stan_list[["expt_key"]][["geno_map"]] = geno_map
     stan_list[["expt_key"]][["strand_map"]] = strand_names
+    stan_list[["expt_key"]][["sample_num"]] = 500
 
     data_arr = base::array(0, dim=c(samp_num,strand_num,pos_num))
     for (s in 1:samp_num) {
@@ -505,14 +550,17 @@ prep_stan_data = function(data_df, norm_method, spikein, spikein_rel_abund=0.05,
     }
     stan_list[["Y"]] = data_arr
 
-    resolution = median(diff(stan_list[["position_mapper"]]$start))
+    starts = stan_list[["position_mapper"]]$start
+    resolution = median(diff(starts))
     stan_list[["expt_key"]][["resolution"]] = resolution
     stan_list[["expt_key"]][["pos_num"]] = pos_num
+    stan_list[["expt_key"]][["resolution"]] = resolution
     #stan_list[["expt_key"]][["geno_num"]] = num_geno
     stan_list[["expt_key"]][["strand_num"]] = strand_num
 
-
     # round to nearest multiple of "resolution"
+    #print(paste0("input_subsample_dist_bp: ", input_subsample_dist_bp))
+    #print(paste0("resolution: ", resolution))
     input_subsample_dist_bp = round(input_subsample_dist_bp/resolution)*resolution
     input_frag_len_bp = round(input_frag_len_bp/resolution)*resolution
     ext_subsample_dist_bp = round(ext_subsample_dist_bp/resolution)*resolution
@@ -527,6 +575,9 @@ prep_stan_data = function(data_df, norm_method, spikein, spikein_rel_abund=0.05,
     b_K = ext_frag_len_bp / resolution
     g_K = ipod_frag_len_bp / resolution
     # enforce that C must be odd
+    #print(paste0("input_subsample_dist_bp: ", input_subsample_dist_bp))
+    #print(paste0("resolution: ", resolution))
+    #print(paste0("a_C: ", a_C))
     if (a_C %% 2 == 0) {
         a_C = a_C+1
     }
@@ -724,6 +775,51 @@ prep_stan_data = function(data_df, norm_method, spikein, spikein_rel_abund=0.05,
     return(stan_list)
 }
 
+parse_blob = function(cfg_file) {
+    exec_f_path = get_exec_file()
+    exec_direc = dirname(exec_f_path)
+    bin_path = file.path(exec_direc, "../bin/parse_enricherator_blob")
+    
+    #if (!file.exists(w_out)) {
+    print("Running command:")
+    print(paste("parse_enricherator_blob --cfg-file", cfg_file, sep=" "))
+    res = system2(
+        bin_path,
+        c("--cfg-file", cfg_file),
+        env="RUST_BACKTRACE=1",
+        stderr="",
+        stdout=""
+    )
+    if (res != 0) {
+        stop("Error in parse_enricherator_blob. Check err and log files.")
+    } else {
+        print("Finished parsing cmdstan blob and writing summaries to bedgraph files. We wish you all the greatest happiness in your future endeavors")
+    }
+ 
+}
+parse_csv_to_blob = function(cfg_file) {
+    exec_f_path = get_exec_file()
+    exec_direc = dirname(exec_f_path)
+    bin_path = file.path(exec_direc, "../bin/parse_csv_to_blob")
+    
+    #if (!file.exists(w_out)) {
+    print("Running command:")
+    print(paste("parse_csv_to_blob --cfg-file", cfg_file, sep=" "))
+    res = system2(
+        bin_path,
+        c("--cfg-file", cfg_file),
+        env="RUST_BACKTRACE=1",
+        stderr="",
+        stdout=""
+    )
+    if (res != 0) {
+        stop("Error in parse_csv_to_blob. Check err and log files.")
+    } else {
+        print("Finished parsing cmdstan csv to blob. Move on to the blob parsing stage.")
+    }
+ 
+}
+
 quant = function(vec, interval) {
     quantile(vec, probs=quant_vec)
 }
@@ -762,8 +858,8 @@ summarize_rstan_inference = function(param_mat, stan_data, quant_vec, out_direc)
                 strand = info_df$strand[info_df$strand_x == k][1]
                 this_df = tibble(
                     seqnames=stan_data[["position_mapper"]]$seqnames,
-                    start=stan_data[["position_mapper"]]$start,
-                    end=stan_data[["position_mapper"]]$end,
+                    start=as.integer(stan_data[["position_mapper"]]$start),
+                    end=as.integer(stan_data[["position_mapper"]]$end),
                     score=strand_vals,
                     strand = ifelse(strand == "plus", "+", ifelse(strand == "minus", "-", ifelse(strand=="both", "*", strand)))
                 )
@@ -885,8 +981,8 @@ write_cmdstan_contrasts = function(summary_df, stan_data, out_direc, params, con
                     filter(genotype == geno_id, strand == k, var_name == param) %>%
                     mutate(
                         seqnames=stan_data[["position_mapper"]]$seqnames,
-                        start=stan_data[["position_mapper"]]$start,
-                        end=stan_data[["position_mapper"]]$end,
+                        start=as.integer(stan_data[["position_mapper"]]$start),
+                        end=as.integer(stan_data[["position_mapper"]]$end),
                         strand = ifelse(.strand == "plus", "+",
                             ifelse(.strand == "minus", "-",
                             ifelse(.strand=="both", "*", .strand)))
@@ -988,8 +1084,8 @@ write_cmdstan_summaries = function(summary_df, stan_data, out_direc, params, con
                     filter(genotype == geno_id, strand == k, var_name == param) %>%
                     mutate(
                         seqnames=stan_data[["position_mapper"]]$seqnames,
-                        start=stan_data[["position_mapper"]]$start,
-                        end=stan_data[["position_mapper"]]$end,
+                        start=as.integer(stan_data[["position_mapper"]]$start),
+                        end=as.integer(stan_data[["position_mapper"]]$end),
                         strand = ifelse(.strand == "plus", "+",
                             ifelse(.strand == "minus", "-",
                             ifelse(.strand=="both", "*", .strand)))

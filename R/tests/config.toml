@@ -4,7 +4,7 @@ draws_file = "draws.csv"
 pos_file_name = "position_map.tsv"
 
 [output]
-out_direc = "out_direc"
+out_direc = "test_data/out_direc"
 
 [parse]
 vars = ["Alpha", "Beta", "Gamma", "non_sub"]

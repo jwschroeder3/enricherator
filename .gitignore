@@ -7,4 +7,6 @@ rust/parse_enricherator_blob/test_data/out_direc/
 R/tests/__pycache__
 R/tests/results
 R/tests/data
+R/tests/parse_csv_testing
+R/tests/parse_blob_testing
 singularity

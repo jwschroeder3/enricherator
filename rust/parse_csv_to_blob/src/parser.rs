@@ -455,7 +455,6 @@ impl FieldVec {
                             };
                             (param_id, position_idx)
                         };
-                        //println!("param_id {:?}", param_id);
                         let offset_idx = index.param_ids.iter()
                             .position(|s| *s == param_id.to_string())
                             .ok_or("No such param_id")?;

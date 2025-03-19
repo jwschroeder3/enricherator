@@ -4,6 +4,7 @@ library(cmdstanr)
 library(optparse)
 library(tidyverse)
 library(stringr)
+library(blogdown)
 
 get_exec_file = function() {
     # copied from https://stackoverflow.com/questions/1815606/determine-path-of-the-executing-script
@@ -190,6 +191,7 @@ if (is.null(opt$genome_data_file)) {
     load(opt$genome_data_file)
 }
 
+print(opt)
 #save(experiment_info, file="debug_stan.RData")
 #load("debug_stan.RData")
 stan_list = prep_stan_data(
@@ -209,7 +211,8 @@ stan_list = prep_stan_data(
     opt$debug_outdir
 )
 stan_list[["expt_key_file"]] = paste0(opt$draws_direc, "/expt_key.json")
-stan_list[["pos_map_file"]] = paste0(opt$draws_direc, "/position_map.tsv")
+stan_list[["pos_map_file"]] = paste0(opt$draws_direc, "/position_map.txt")
+stan_list[["config_file"]] = paste0(opt$draws_direc, "/config.toml")
 
 print(paste0("Writing covariate key to ", stan_list[["expt_key_file"]]))
 jsonlite::toJSON(stan_list[["expt_key"]]) %>%
@@ -217,8 +220,13 @@ jsonlite::toJSON(stan_list[["expt_key"]]) %>%
     write(stan_list[["expt_key_file"]])
 
 print(paste0("Writing position map to ", stan_list[["pos_map_file"]]))
-stan_list[["position_mapper"]] %>% write_tsv(file=stan_list[["pos_map_file"]], col_names=FALSE)
-
+write.table(
+    stan_list[["position_mapper"]],
+    file=stan_list[["pos_map_file"]],
+    col.names=FALSE,
+    row.names=FALSE,
+    quote=FALSE
+)
 
 if (opt$norm_method == "libsize") {
     stan_list[["libsize"]] = stan_list[[opt$libsize_key]] 
@@ -226,6 +234,20 @@ if (opt$norm_method == "libsize") {
     stan_list[["libsize"]] = stan_list[["spikein_norm_factors"]]
 }
 
+print(paste0("Writing config file to ", stan_list[["config_file"]]))
+cfg_list = list(
+    "input" = list(
+        "expt_key_file" = stan_list[["expt_key_file"]],
+        "draws_file" = paste0(opt$draws_direc, "/draws.csv"),
+        "pos_file_name" = stan_list[["pos_map_file"]]
+    ),
+    "output" = list(
+        "out_direc" = opt$draws_direc
+    ),
+    "beta_sub_idx" = stan_list[["beta_sub_idx"]]
+)
+
+write_toml(cfg_list, output = stan_list[["config_file"]])
 print(paste0("Writing stan_list to ", opt$data_file))
 save(stan_list, file=opt$data_file)
 

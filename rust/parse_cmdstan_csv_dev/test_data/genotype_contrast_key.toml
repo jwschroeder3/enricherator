@@ -1,9 +1,0 @@
-parse = ["Alpha", "Beta", "Gamma", "non_sub"]
-
-[geno_contrast]
-Beta = ["vpsR-wt", "vpsT-wt", "vpsR - wt -vpsT + wt"]
-Gamma = ["vpsR-wt", "vpsT-wt"]
-
-[strand_contrast]
-Gamma = ["plus-minus"]
-non_sub = ["minus - plus"]

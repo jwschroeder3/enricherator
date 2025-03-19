@@ -10,6 +10,7 @@ dependencies:
   #- icu = 58
   #- icu
   - cudatoolkit
+  - r-blogdown
   - r-tidyverse
   - r-optparse
   - r-checkmate
@@ -23,3 +24,4 @@ dependencies:
   #- r-usethis
   - r-ggnewscale
   - pytest
+  - numpy

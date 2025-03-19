@@ -26,8 +26,8 @@ const SAMP_NUM: usize = 501;
 fn main() -> BoxedResult<()> {
 
     let args = Args::parse();
-    let expt_key = ExptKey::read(&args.expt_key)?;
     let cfg = ConfigFile::read(&args.cfg_file)?;
+    let expt_key = ExptKey::read(&cfg.input.expt_key_file)?;
     println!("Config: {:?}", &cfg);
     println!("expt_key: {:?}", &expt_key);
 
@@ -49,12 +49,15 @@ fn main() -> BoxedResult<()> {
     let offset_idx = Index::new(&expt_key)?;
     offset_idx.to_file(out_direc)?;
 
+    let blob_fname = Path::new(out_direc).join("params.blob");
+    println!("Creating binary file {:?}", &blob_fname);
     // instantiate the Blob to manage IO to binary file
     let mut blob_file = Blob::create(
-        Path::new(out_direc).join("params.blob"),
+        blob_fname,
         offset_idx.total_bytes,
         offset_idx.buffer_size,
     )?;
+    println!("Successfully created binary file");
 
     // channel for threads to communicate
     let (reader_tx, reader_rx) = mpsc::sync_channel::<Vec<u8>>(1);
@@ -65,7 +68,9 @@ fn main() -> BoxedResult<()> {
     let recd: Vec<u8> = Vec::new();
     let mut byte_iterator = BytesIterator::new(recd);
 
+    println!("Opening connection to draws file {:?}", &infname);
     let file = File::open(infname)?;
+    println!("Successfully opened connection to draws file {:?}", &infname);
 
     let mut reader = BufReader::new(file);
     let mut read_buffer = [0; BUF_SIZE];
