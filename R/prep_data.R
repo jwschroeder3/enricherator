@@ -47,15 +47,11 @@ option_list = list(
         help="The fraction of reads expected to align to spikein contig. Set this carefully, it's used to set prior on alpha",
     ),
     make_option(
-        c("--draws_direc"), type="character",
-        help="The name of the directory into which draws.csv will be written",
+        c("--data_direc"), type="character",
+        help="The name of the directory into which prepared data will be written",
     ),
     make_option(c("--frac_genome_enriched"), type="double", default=NULL,
         help="Prior expectation for the fraction of the genome enriched (positive and negative) for the signal of interest. Sets the degree of shrinkage applied to enrichment estimates.",
-    ),
-    make_option(
-        c("--data_file"), type="character",
-        help="The name of the RData file containing stan data list",
     ),
     make_option(
         c("--ext_fragment_length"), type="integer", default=60,
@@ -102,10 +98,6 @@ option_list = list(
         help="include if you want the point-wise log-likelihood calculated and returned from the stanfit object."
     ),
     make_option(
-        c("--load_data_file"), action="store_true", default=FALSE,
-        help="include if you want to load data already prepared from --data_file"
-    ),
-    make_option(
         c("--genome_data_file"), type="character", default=NULL,
         help="RData file containing initial genome data"
     )
@@ -125,21 +117,17 @@ if (debug) {
     }
 }
 
-if (is.null(opt$draws_direc)) {
-    stop("--draws_direc argument is required, but was absent. Exiting now.")
+if (is.null(opt$data_direc)) {
+    stop("--data_direc argument is required, but was absent. Exiting now.")
 }
 
 # Check if the directory exists
-if (!file.exists(opt$draws_direc)) {
+if (!file.exists(opt$data_direc)) {
       # Create the directory
-      dir.create(opt$draws_direc)
-  cat("Directory created:", opt$draws_direc, "\n")
+      dir.create(opt$data_direc)
+      cat("Directory created:", opt$data_direc, "\n")
 } else {
-      cat("Directory already exists:", opt$draws_direc, "\n")
-}
-
-if (is.null(opt$data_file)) {
-    stop("--data_file argument is required, but was absent. Exiting now.")
+      cat("Directory already exists:", opt$data_direc, "\n")
 }
 
 spikein = opt$spikein
@@ -191,7 +179,6 @@ if (is.null(opt$genome_data_file)) {
     load(opt$genome_data_file)
 }
 
-print(opt)
 #save(experiment_info, file="debug_stan.RData")
 #load("debug_stan.RData")
 stan_list = prep_stan_data(
@@ -210,9 +197,9 @@ stan_list = prep_stan_data(
     opt$debug,
     opt$debug_outdir
 )
-stan_list[["expt_key_file"]] = paste0(opt$draws_direc, "/expt_key.json")
-stan_list[["pos_map_file"]] = paste0(opt$draws_direc, "/position_map.txt")
-stan_list[["config_file"]] = paste0(opt$draws_direc, "/config.toml")
+stan_list[["expt_key_file"]] = paste0(opt$data_direc, "/expt_key.json")
+stan_list[["pos_map_file"]] = paste0(opt$data_direc, "/position_map.txt")
+stan_list[["config_file"]] = paste0(opt$data_direc, "/config.toml")
 
 print(paste0("Writing covariate key to ", stan_list[["expt_key_file"]]))
 jsonlite::toJSON(stan_list[["expt_key"]]) %>%
@@ -234,20 +221,29 @@ if (opt$norm_method == "libsize") {
     stan_list[["libsize"]] = stan_list[["spikein_norm_factors"]]
 }
 
+# Get the absolute path to data directory
+absolute_path_data = normalizePath(opt$data_direc, winslash = "/", mustWork = FALSE)
+
+# Construct the absolute path to "direc/draws"
+# Utilizing the directory part of the path obtained above
+draws_direc = file.path(dirname(absolute_path_data), "draws")
+
 print(paste0("Writing config file to ", stan_list[["config_file"]]))
 cfg_list = list(
     "input" = list(
         "expt_key_file" = stan_list[["expt_key_file"]],
-        "draws_file" = paste0(opt$draws_direc, "/draws.csv"),
+        "draws_file" = paste0(draws_direc, "/draws.csv"),
         "pos_file_name" = stan_list[["pos_map_file"]]
     ),
     "output" = list(
-        "out_direc" = opt$draws_direc
+        "out_direc" = draws_direc
     ),
     "beta_sub_idx" = stan_list[["beta_sub_idx"]]
 )
 
+datafile = file.path(absolute_path_data, "data.RData")
+
 write_toml(cfg_list, output = stan_list[["config_file"]])
-print(paste0("Writing stan_list to ", opt$data_file))
-save(stan_list, file=opt$data_file)
+print(paste0("Writing stan_list to ", datafile))
+save(stan_list, file=datafile)
 

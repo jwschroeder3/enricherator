@@ -236,7 +236,9 @@ transformed parameters {
     lprior += student_t_lpdf(c_cubic | 3, 0.0, 1.0);
     lprior += student_t_lpdf(hs_global_beta | hs_df_global_beta, 0, hs_scale_global_beta)
         - 1 * log(0.5);
+    // priors on global shrinkage params
     lprior += inv_gamma_lpdf(hs_slab_beta | 0.5 * hs_df_slab_beta, 0.5 * hs_df_slab_beta);
+    // spike around zero
     lprior += gamma_lpdf(shape_beta | 0.01, 0.01);
     lprior += student_t_lpdf(hs_global_gamma | hs_df_global_gamma, 0, hs_scale_global_gamma)
         - 1 * log(0.5);
@@ -270,6 +272,8 @@ transformed parameters {
     //lprior += gamma_lpdf(psi | 3.0, 1.0);
     for (s in 1:S) {
         //lprior += poisson_log_lpmf(log_pseudocount[s] | psi[s]);
+        //print(log_pseudocount[s]);
+        //print(psi[s]);
         lprior += normal_lpdf(log_pseudocount[s] | psi[s], 1.0);
     }
 
