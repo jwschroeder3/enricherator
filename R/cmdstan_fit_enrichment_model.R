@@ -30,6 +30,10 @@ option_list = list(
         help="The name of the file containing the stan model",
     ),
     make_option(
+        c("--compiled_model"), type="character", default=NULL,
+        help="The name of the binary file containing the compiled stan model",
+    ),
+    make_option(
         c("--draws_direc"), type="character",
         help="The name of the directory into which draws.csv will be written",
     ),
@@ -78,9 +82,15 @@ if (debug) {
     }
 }
 
-model_file = opt$stan_file
-print(paste0("Compiling model in ", model_file))
-sm = cmdstan_model(model_file, cpp_options = list(stan_threads = TRUE))
+if (!is.null(opt$compiled_model)) {
+    model_file = opt$compiled_model
+    print(paste0("Reading pre-built model in ", model_file))
+    sm = cmdstan_model(exe_file=model_file)
+} else {
+    model_file = opt$stan_file
+    print(paste0("Compiling model in ", model_file))
+    sm = cmdstan_model(model_file, cpp_options = list(stan_threads = TRUE))
+}
 
 print(paste0("Reading stan_list from ", opt$data_file))
 load(opt$data_file)

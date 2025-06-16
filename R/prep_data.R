@@ -53,6 +53,9 @@ option_list = list(
     make_option(c("--frac_genome_enriched"), type="double", default=NULL,
         help="Prior expectation for the fraction of the genome enriched (positive and negative) for the signal of interest. Sets the degree of shrinkage applied to enrichment estimates.",
     ),
+    make_option(c("--tau_coef"), type="double", default=1,
+        help="Scaling factor for prior on global shrinkage",
+    ),
     make_option(
         c("--ext_fragment_length"), type="integer", default=60,
         help="Sets the width of the smoothing kernel applied to sampled betas."
@@ -82,7 +85,7 @@ option_list = list(
         help="The number of cores to use for parallel chains when doing MCMC."
     ),
     make_option(
-        c("--libsize_key"), type="character", default="tm_size_factors",
+        c("--libsize_key"), type="character", default="mean_size_factors",
         help="The key in stan_list to use as the libsize for size factor exposure."
     ),
     make_option(
@@ -195,7 +198,8 @@ stan_list = prep_stan_data(
     opt$log_lik,
     opt$frac_genome_enriched,
     opt$debug,
-    opt$debug_outdir
+    opt$debug_outdir,
+    opt$tau_coef
 )
 stan_list[["expt_key_file"]] = paste0(opt$data_direc, "/expt_key.json")
 stan_list[["pos_map_file"]] = paste0(opt$data_direc, "/position_map.txt")
@@ -229,21 +233,27 @@ absolute_path_data = normalizePath(opt$data_direc, winslash = "/", mustWork = FA
 draws_direc = file.path(dirname(absolute_path_data), "draws")
 
 print(paste0("Writing config file to ", stan_list[["config_file"]]))
-cfg_list = list(
-    "input" = list(
-        "expt_key_file" = stan_list[["expt_key_file"]],
-        "draws_file" = paste0(draws_direc, "/draws.csv"),
-        "pos_file_name" = stan_list[["pos_map_file"]]
-    ),
-    "output" = list(
-        "out_direc" = draws_direc
-    ),
-    "beta_sub_idx" = stan_list[["beta_sub_idx"]]
+# necessary to ensure that the beta_sub_idx is encoded in toml as a list, whether it's a
+# vector in R or not
+collapsed = paste(stan_list[["beta_sub_idx"]], collapse=",")
+print(collapsed)
+beta_sub_str = paste0("beta_sub_idx = [", collapsed, "]")
+
+cfg_f = file(stan_list[["config_file"]], open="w+")
+
+toml_vec = c(
+    paste0(beta_sub_str, "\n"),
+    "[input]",
+    paste0("draws_file = ", "\"", draws_direc, "/draws-1.csv", "\""),
+    paste0("expt_key_file = ", "\"", stan_list[["expt_key_file"]], "\""),
+    paste0("pos_file_name = ", "\"", stan_list[["pos_map_file"]], "\"\n"),
+    "[output]",
+    paste0("out_direc = ", "\"", draws_direc, "\"")
 )
+writeLines(toml_vec, cfg_f)
 
 datafile = file.path(absolute_path_data, "data.RData")
 
-write_toml(cfg_list, output = stan_list[["config_file"]])
 print(paste0("Writing stan_list to ", datafile))
 save(stan_list, file=datafile)
 

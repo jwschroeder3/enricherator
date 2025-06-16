@@ -5,7 +5,7 @@ use parse_csv_to_blob::{
     BoxedResult,
 };
 use std::fs::File;
-use std::io::{BufReader, BufRead, Seek, SeekFrom, Result};
+use std::io::{BufReader, BufRead, Seek, SeekFrom, Result, Write};
 use itertools::Itertools;
 
 use clap::Parser;
@@ -170,6 +170,10 @@ fn main() -> BoxedResult<()> {
     let buffer_size: usize = expt_key.sample_num[0] * 4;
     let pos_num: usize = expt_key.pos_num[0];
 
+    let cubics_fname = format!("{out_direc}/cubic_estimates.txt");
+    let mut cubics_file = File::create(&cubics_fname)?;
+    let mut cubics_str = String::new();
+
     // what indices from sorted samples to take the upper and lower 90% credible limits?
     let samp_num: u64 = expt_key.sample_num[0].try_into()?;
     let cl_low_idx: usize = ((samp_num / 20) - 1).try_into()?;
@@ -226,8 +230,16 @@ fn main() -> BoxedResult<()> {
             let ge_count = samp_num - lt_count as u64;
 
             // Calculate the ratio
-            let Klt = lt_count as f32 / ge_count as f32;
-            let Kge = ge_count as f32 / lt_count as f32;
+            let mut Klt = lt_count as f32 / ge_count as f32;
+            if Klt > samp_num as f32 {
+                Klt = (samp_num + 1) as f32;
+            }
+            let mut Kge = ge_count as f32 / lt_count as f32;
+            if Kge > samp_num as f32 {
+                //println!("{}", &Kge);
+                Kge = (samp_num + 1) as f32;
+                //println!("{}", &Kge);
+            }
 
             if param_parser.param_id.parameter == "Beta" {
                 plot_beta.push(mean.clone());
@@ -274,10 +286,14 @@ fn main() -> BoxedResult<()> {
 
             let mut param_ids: Vec<ParamID> = Vec::new();
             let mut add: Vec<bool> = Vec::new();
+            // for any param_id in the numerators, push to param_ids vec and push
+            // true to the add vec
             for param_id in &contrast.numerators {
                 param_ids.push(param_id.clone());
                 add.push(true);
             }
+            // for any param_id in the denominators, push to param_ids vec and push
+            // false to the add vec
             for param_id in &contrast.denominators {
                 param_ids.push(param_id.clone());
                 add.push(false);
@@ -285,7 +301,7 @@ fn main() -> BoxedResult<()> {
 
             for pos_idx in 0..pos_num {
 
-                // allocate vec for contrasts
+                // allocate vec for contrasts and fill with zeros
                 let mut contrast_vals = Vec::<f32>::with_capacity(samp_num as usize);
                 for _ in 0..samp_num {
                     contrast_vals.push(0.0);
@@ -299,6 +315,8 @@ fn main() -> BoxedResult<()> {
                 let end: usize = pos_map_line[2].parse::<usize>()?;
 
                 let pos: u64 = pos_idx.try_into()?;
+                // step through param_ids and add vecs together to increment
+                // the vals in contrast_vals appropriately
                 for (param_id,numerator) in param_ids.iter().zip(add.clone()) {
                     let offset_idx = index.param_ids.iter()
                         .position(|s| *s == param_id.to_string())
@@ -316,31 +334,40 @@ fn main() -> BoxedResult<()> {
                             *val -= samples[i];
                         }
                     }
-                    // sort the samples to get conf lims
-                    contrast_vals.sort_unstable_by(|x,y| x.total_cmp(&y));
-                    let lower = contrast_vals[cl_low_idx];
-                    let upper = contrast_vals[cl_up_idx];
-                    let sum: f32 = contrast_vals.iter().sum();
-                    let mean: f32 = sum / samp_num as f32;
-
-                    // get number of samples less than threshold
-                    let lt_count = contrast_vals.partition_point(|x| x < param_thresh);
-                    let ge_count = samp_num - lt_count as u64;
-
-                    // Calculate the ratio
-                    let Klt = lt_count as f32 / ge_count as f32;
-                    let Kge = ge_count as f32 / lt_count as f32;
-                    contrast.write_vals_to_files(
-                        &ctg,
-                        &start,
-                        &end,
-                        mean,
-                        lower,
-                        upper,
-                        Kge,
-                        Klt,
-                    )?;
                 }
+                // sort the samples to get conf lims
+                contrast_vals.sort_unstable_by(|x,y| x.total_cmp(&y));
+                let lower = contrast_vals[cl_low_idx];
+                let upper = contrast_vals[cl_up_idx];
+                let sum: f32 = contrast_vals.iter().sum();
+                let mean: f32 = sum / samp_num as f32;
+
+                // get number of samples less than threshold
+                let lt_count = contrast_vals.partition_point(|x| *x < geno_contrast_thresh);
+                let ge_count = samp_num - lt_count as u64;
+
+                // Calculate the ratio
+                let mut Klt = lt_count as f32 / ge_count as f32;
+                if Klt > samp_num as f32 {
+                    Klt = (samp_num + 1) as f32;
+                }
+                let mut Kge = ge_count as f32 / lt_count as f32;
+                if Kge > samp_num as f32 {
+                    //println!("{}", &Kge);
+                    Kge = (samp_num + 1) as f32;
+                    //println!("{}", &Kge);
+                }
+
+                contrast.write_vals_to_files(
+                    &ctg,
+                    &start,
+                    &end,
+                    mean,
+                    lower,
+                    upper,
+                    Kge,
+                    Klt,
+                )?;
                 pos_line.clear();
 
             }
@@ -400,31 +427,40 @@ fn main() -> BoxedResult<()> {
                             *val -= samples[i];
                         }
                     }
-                    // sort the samples to get conf lims
-                    contrast_vals.sort_unstable_by(|x,y| x.total_cmp(&y));
-                    let lower = contrast_vals[cl_low_idx];
-                    let upper = contrast_vals[cl_up_idx];
-                    let sum: f32 = contrast_vals.iter().sum();
-                    let mean: f32 = sum / samp_num as f32;
-
-                    // get number of samples less than threshold
-                    let lt_count = contrast_vals.partition_point(|x| x < param_thresh);
-                    let ge_count = samp_num - lt_count as u64;
-
-                    // Calculate the ratio
-                    let Klt = lt_count as f32 / ge_count as f32;
-                    let Kge = ge_count as f32 / lt_count as f32;
-                    contrast.write_vals_to_files(
-                        &ctg,
-                        &start,
-                        &end,
-                        mean,
-                        lower,
-                        upper,
-                        Kge,
-                        Klt,
-                    )?;
                 }
+                // sort the samples to get conf lims
+                contrast_vals.sort_unstable_by(|x,y| x.total_cmp(&y));
+                let lower = contrast_vals[cl_low_idx];
+                let upper = contrast_vals[cl_up_idx];
+                let sum: f32 = contrast_vals.iter().sum();
+                let mean: f32 = sum / samp_num as f32;
+
+                // get number of samples less than threshold
+                let lt_count = contrast_vals.partition_point(|x| *x < strand_contrast_thresh);
+                let ge_count = samp_num - lt_count as u64;
+
+                // Calculate the ratio
+                let mut Klt = lt_count as f32 / ge_count as f32;
+                if Klt > samp_num as f32 {
+                    Klt = (samp_num + 1) as f32;
+                }
+                let mut Kge = ge_count as f32 / lt_count as f32;
+                if Kge > samp_num as f32 {
+                    //println!("{}", &Kge);
+                    Kge = (samp_num + 1) as f32;
+                    //println!("{}", &Kge);
+                }
+
+                contrast.write_vals_to_files(
+                    &ctg,
+                    &start,
+                    &end,
+                    mean,
+                    lower,
+                    upper,
+                    Kge,
+                    Klt,
+                )?;
                 pos_line.clear();
             }
             // return pos_map_reader to beginning of file
@@ -476,8 +512,9 @@ fn main() -> BoxedResult<()> {
         let mut samples = blob_file.read_f32_from_position(this_offset)?;
         let sum: f32 = samples.iter().sum();
         let a: f32 = sum / samp_num as f32;
+        cubics_str.push_str(&format!("{},{}\n", &param, &a));
 
-        let param = format!("a_cubic.{geno_name}");
+        let param = format!("b_cubic.{geno_name}");
         println!("Parsing {param}");
         let offset_idx = index.param_ids.iter()
             .position(|s| *s == param)
@@ -486,8 +523,9 @@ fn main() -> BoxedResult<()> {
         let mut samples = blob_file.read_f32_from_position(this_offset)?;
         let sum: f32 = samples.iter().sum();
         let b: f32 = sum / samp_num as f32;
+        cubics_str.push_str(&format!("{},{}\n", &param, &b));
 
-        let param = format!("a_cubic.{geno_name}");
+        let param = format!("c_cubic.{geno_name}");
         println!("Parsing {param}");
         let offset_idx = index.param_ids.iter()
             .position(|s| *s == param)
@@ -496,6 +534,7 @@ fn main() -> BoxedResult<()> {
         let mut samples = blob_file.read_f32_from_position(this_offset)?;
         let sum: f32 = samples.iter().sum();
         let c: f32 = sum / samp_num as f32;
+        cubics_str.push_str(&format!("{},{}\n", &param, &c));
 
         let _ = plot_relationships(
             &out_direc,
@@ -511,6 +550,9 @@ fn main() -> BoxedResult<()> {
         this_gamma_vec.clear();
         this_nonsub_vec.clear();
     }
+
+    println!("Writing cubic relationship esitmates to {}", &cubics_fname);
+    write!(cubics_file, "{}", cubics_str)?;
 
     Ok(())
 }

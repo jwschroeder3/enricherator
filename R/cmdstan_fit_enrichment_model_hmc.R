@@ -113,11 +113,12 @@ fit = sm$sample(
     chains = 4,
     parallel_chains = 4,
     threads_per_chain = 1,
-    iter_warmup = 10000,
+    #iter_warmup = 10000,
+    iter_warmup = 1000,
     iter_sampling = 500,
     output_dir = opt$draws_direc,
-    adapt_delta = 0.99,
-    max_treedepth = 15
+    adapt_delta = 0.999,
+    max_treedepth = 20
 )
 
 save(fit, file=opt$fit_file)

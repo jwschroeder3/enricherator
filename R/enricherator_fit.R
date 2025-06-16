@@ -31,8 +31,16 @@ option_list = list(
         help="The name of the directory containing data.RData file",
     ),
     make_option(
+        c("--out_direc"), type="character", default=NULL,
+        help="The name of the directory into which to write fits",
+    ),
+    make_option(
         c("--stan_file"), type="character",
         help="The name of the file containing the stan model",
+    ),
+    make_option(
+        c("--compiled_model"), type="character", default=NULL,
+        help="The name of the binary file containing the compiled stan model",
     ),
     make_option(
         c("--seed"), type="integer",
@@ -52,7 +60,10 @@ opt_parser = OptionParser(option_list=option_list)
 opt = parse_args(opt_parser)
 
 # set out_direc to directory above data_direc
-opt[["out_direc"]] = dirname(opt[["data_direc"]])
+if (is.null(opt[["out_direc"]])) {
+    opt[["out_direc"]] = dirname(opt[["data_direc"]])
+}
+
 options(mc.cores = opt$cores)
 
 fit_enricherator = function(.i, .opt) {
@@ -71,7 +82,7 @@ fit_enricherator = function(.i, .opt) {
         }
         if (arg_name == "data_direc") {
             new_arg_name = "data_file"
-            arg = paste0(.opt[["out_direc"]], "/data/data.RData")
+            arg = paste0(.opt[["data_direc"]], "/data.RData")
         }
         args_length = args_length + 1
         args[args_length] = paste0("--",new_arg_name)
@@ -133,6 +144,7 @@ prune_fits = function(retained_fit, inputs, .opt) {
     final_fit_file = paste0(.opt[["out_direc"]], "/fit.RData")
     final_fit_log = paste0(.opt[["out_direc"]], "/fit.log")
     final_fit_err = paste0(.opt[["out_direc"]], "/fit.err")
+    final_draws_direc = paste0(.opt[["out_direc"]], "/draws")
 
     for (i in inputs) {
 
@@ -148,6 +160,7 @@ prune_fits = function(retained_fit, inputs, .opt) {
             file.rename(from=fit_file, to=final_fit_file)
             file.rename(from=fit_log, to=final_fit_log)
             file.rename(from=fit_err, to=final_fit_err)
+            file.rename(from=draws_direc, to=final_draws_direc)
         } else {
             unlink(fit_file)
             unlink(fit_log)
@@ -158,7 +171,7 @@ prune_fits = function(retained_fit, inputs, .opt) {
 }
 
 inputs = list()
-for (i in seq(5)) {
+for (i in seq(4)) {
     inputs[i] = i
 }
 

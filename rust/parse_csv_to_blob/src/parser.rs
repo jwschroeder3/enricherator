@@ -351,27 +351,6 @@ pub struct FieldVec {
     pub fields: Vec<StringField>,
 }
 
-//fn get_offset(
-//        param_idx: usize,
-//        param_dist: usize,
-//        geno_idx: usize,
-//        geno_dist: usize,
-//        strand_idx: usize,
-//        strand_dist: usize
-//        pos_idx: usize,
-//        pos_dist: usize,
-//        samp_idx: usize,
-//        samp_dist: usize,
-//) -> usize {
-//    let offset = (param_idx + 1) * param_dist
-//        + (geno_idx + 1) * geno_dist
-//        + (strand_idx + 1) * strand_dist
-//        + (pos_idx + 1) * pos_dist
-//        + (samp_idx + 1) * samp_dist
-//        - 1;
-//    offset
-//}
-
 impl FieldVec {
     fn new() -> FieldVec {
         FieldVec{fields: Vec::<StringField>::new()}
@@ -494,6 +473,7 @@ impl FieldVec {
                         if let PriorByteIn::Samples(samp_idx) = field.linetype {
                             // add four bytes per sample
                             offset += samp_idx * 4;
+                            // change val from base e to base2
                             blob.write_f32_to_position(offset, val)?;
                         }
                         *retained_idx += 1;

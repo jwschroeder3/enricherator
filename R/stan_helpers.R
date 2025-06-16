@@ -285,7 +285,8 @@ insert_data = function(data, spike_name, spikein_rel_abund) {
     #med_deseq_size_factors = get_size_factors(spike_mat, summary_fn=median)
     #mean_size_factors = apply(spike_mat, FUN=mean, MAR=2)
     #tm_size_factors = apply(norm_mat, FUN=get_trimmed_mean, MAR=2)
-    tm_size_factors = apply(norm_mat, FUN=mean, MAR=2)
+    mean_size_factors = apply(norm_mat, FUN=mean, MAR=2)
+    median_size_factors = apply(norm_mat, FUN=median, MAR=2)
     #print("size factor shape")
     #print(dim(tm_size_factors))
     #print("norm factors")
@@ -293,7 +294,8 @@ insert_data = function(data, spike_name, spikein_rel_abund) {
     #stop()
     
     #stan_list[["mean_size_factors"]] = mean_size_factors
-    data_list[["tm_size_factors"]] = tm_size_factors
+    data_list[["mean_size_factors"]] = mean_size_factors
+    data_list[["median_size_factors"]] = median_size_factors
     data_list[["spikein_norm_factors"]] = norm_factors
     #stan_list[["tmm_deseq_size_factors"]] = tmm_deseq_size_factors
     #stan_list[["med_deseq_size_factors"]] = med_deseq_size_factors
@@ -308,7 +310,7 @@ append_unique_string = function(vec, string) {
   return(vec)
 }
 
-prep_stan_data = function(data_df, norm_method, spikein, spikein_rel_abund=0.05, input_subsample_dist_bp=50, input_frag_len_bp=125, ext_subsample_dist_bp=50, ext_frag_len_bp=50, ipod_subsample_dist_bp=50, ipod_frag_len_bp=50, log_lik=FALSE, frac_genome_enriched=NULL, debug=FALSE, debug_outdir=NULL) {
+prep_stan_data = function(data_df, norm_method, spikein, spikein_rel_abund=0.05, input_subsample_dist_bp=50, input_frag_len_bp=125, ext_subsample_dist_bp=50, ext_frag_len_bp=50, ipod_subsample_dist_bp=50, ipod_frag_len_bp=50, log_lik=FALSE, frac_genome_enriched=NULL, debug=FALSE, debug_outdir=NULL, tau_coef=1) {
     # this sort step is VERY USEFUL for arranging data
     # later on to keep size factors
     # associated with correct samples
@@ -463,7 +465,7 @@ prep_stan_data = function(data_df, norm_method, spikein, spikein_rel_abund=0.05,
     )
 
     # to track which gammas to subtract a given beta from
-    beta_sub_idx = c()
+    beta_sub_idx = array()
     
     for (s in 1:samp_num) {
         # if this sample is an extract sample, the gamma column
@@ -542,9 +544,6 @@ prep_stan_data = function(data_df, norm_method, spikein, spikein_rel_abund=0.05,
                 filter(seqname != spikein) %>%
                 select(score)) %>%
                 unlist(use.names=F)
-            #print(sq_data %>% head)
-            #print(length(sq_data))
-            #print(dim(data_arr))
             data_arr[s,q,] = sq_data
         }
     }
@@ -755,14 +754,16 @@ prep_stan_data = function(data_df, norm_method, spikein, spikein_rel_abund=0.05,
         N_per_hs = pos_num
         coef_num_per_hs = b_sub_L 
         num_enriched = b_sub_L * frac_genome_enriched
-        par_ratio = num_enriched / (N_per_hs - num_enriched)
-        scale = par_ratio / sqrt(N_per_hs)
+        par_ratio = num_enriched / (b_sub_L - num_enriched)
+        scale = par_ratio * tau_coef
+        #scale = 0.00000000000001 * par_ratio
         stan_list[["hs_scale_global_beta"]] = scale
         stan_list[["hs_scale_global_gamma"]] = scale
     } else {
         stan_list[["hs_scale_global_beta"]] = 1
         stan_list[["hs_scale_global_gamma"]] = 1
     }
+    print(paste0("hs_scale_global_beta: ", stan_list[["hs_scale_global_beta"]]))
 
     stan_list[["hs_df_beta"]] = 1
     stan_list[["hs_df_global_beta"]] = 1
