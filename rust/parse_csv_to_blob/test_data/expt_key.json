@@ -2,15 +2,9 @@
     "var_map": [
         "Alpha",
         "Beta",
-        "Gamma",
         "non_sub"
     ],
     "geno_map": [
-        [
-            "wt",
-            "vpsR",
-            "vpsT"
-        ],
         [
             "wt",
             "vpsR",

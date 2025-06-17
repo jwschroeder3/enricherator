@@ -1,5 +1,7 @@
+beta_sub_idx = [1]
+
 [input]
-expt_key_file = "expt_key.json"
+expt_key_file = "test_data/expt_key.json"
 draws_file = "draws.csv"
 pos_file_name = "position_map.tsv"
 

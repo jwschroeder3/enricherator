@@ -1,4 +1,3 @@
-use clap::Parser;
 use std::path::Path;
 use std::fs::File;
 use std::error::Error;
@@ -21,8 +20,8 @@ mod tests {
     //use assert_approx_eq::*;
 
     fn set_up_tests() -> HashMap<String, &'static str> {
-        let into_colname_text = "#header text \nlp__,log_p__,log_g__,sig_noise.1,sub_Alpha.1.1.1,sub_Beta.1.1.1,sub_Gamma.1.1.1,Alpha.1.1.1,Alpha.2.1.1,Alpha.3.1.1,Alpha.1.1.2,Alpha.2.1.2,Alpha.3.1.2,Gamma.3.2.2,a_cubic.1,b_cubic.1,c_cubic.1,a_cubic.2,b_cubic.2,c_cubic.2\n";
-        let into_sample_text = "#header text \nlp__,log_p__,log_g__,sig_noise.1,sub_Alpha.1.1.1,sub_Beta.1.1.1,sub_Gamma.1.1.1,Alpha.1.1.1,Alpha.2.1.1,Alpha.3.1.1,Alpha.1.1.2,Alpha.2.1.2,Alpha.3.1.2,Gamma.3.2.2,a_cubic.1,b_cubic.1,c_cubic.1,a_cubic.2,b_cubic.2,c_cubic.2\n#next header \n0.0,0.00,0.0,0.99999,1.0,1.2,1.2,1.0,2.0,3.0,4.0,5.0,6.0,7.0,0.0,1.0,2.0,1.0,2.0,3.0\n";
+        let into_colname_text = "#header text \nlp__,log_p__,log_g__,sig_noise.1,sub_Alpha.1.1.1,sub_Beta.1.1.1,sub_Gamma.1.1.1,Alpha.1.1.1,Alpha.2.1.1,Alpha.3.1.1,Alpha.1.1.2,Alpha.2.1.2,Alpha.3.1.2,non_sub.3.2.2\n";
+        let into_sample_text = "#header text \nlp__,log_p__,log_g__,sig_noise.1,sub_Alpha.1.1.1,sub_Beta.1.1.1,sub_Gamma.1.1.1,Alpha.1.1.1,Alpha.2.1.1,Alpha.3.1.1,Alpha.1.1.2,Alpha.2.1.2,Alpha.3.1.2,non_sub.3.2.2\n#next header \n0.0,0.00,0.0,0.99999,1.0,1.2,1.2,1.0,2.0,3.0,4.0,5.0,6.0,7.0\n";
         let first_batch = "#header text \nlp__,log_p__,log_g__,sig_noise.1,sub_Alpha.1.1.1,sub_Beta.1";
         let leftover = "sub_Beta.1";
         let the_rest = ".1.1,sub_Gamma.1.1.1,Alpha.1.1.1,Alpha.2.1.1,Alpha.3.1.1,Alpha.1.1.2,Alpha.2.1.2,Alpha.3.1.2\n";
@@ -31,7 +30,7 @@ mod tests {
         let expt_key = "test_data/expt_key.json";
         let parse_key = "test_data/parse_key.toml";
 
-        let contrast_text = "#header text \nlp__,log_p__,log_g__,sig_noise.1,sub_Alpha.1.1.1,sub_Beta.1.1.1,Alpha.1.1.1,Alpha.2.1.1,Alpha.3.1.1,Alpha.1.1.2,Alpha.2.1.2,Alpha.3.1.2,Beta.1.1.1,Beta.2.1.1,Beta.3.1.1,Beta.1.1.2,Beta.2.1.2,Beta.3.1.2,Gamma.1.1.1,Gamma.2.1.1,Gamma.3.1.1,Gamma.1.1.2,Gamma.2.1.2,Gamma.3.1.2\n#next header \n0.0,0.00,0.0,0.99999,1.0,1.2,1.0,2.0,3.0,4.0,5.0,6.0,7.0,8.0,9.0,10.0,11.0,12.0,13.0,14.0,15.0,16.0,17.0,18.0\n0.0,0.00,0.0,0.99999,1.0,1.2,1.5,2.5,3.5,4.5,5.5,6.5,7.5,8.5,9.5,10.5,11.5,12.5,13.5,14.5,15.5,16.5,17.5,18.5\n";
+        let _contrast_text = "#header text \nlp__,log_p__,log_g__,sig_noise.1,sub_Alpha.1.1.1,sub_Beta.1.1.1,Alpha.1.1.1,Alpha.2.1.1,Alpha.3.1.1,Alpha.1.1.2,Alpha.2.1.2,Alpha.3.1.2,Beta.1.1.1,Beta.2.1.1,Beta.3.1.1,Beta.1.1.2,Beta.2.1.2,Beta.3.1.2,non_sub.1.1.1,non_sub.2.1.1,non_sub.3.1.1,non_sub.1.1.2,non_sub.2.1.2,non_sub.3.1.2\n#next header \n0.0,0.00,0.0,0.99999,1.0,1.2,1.0,2.0,3.0,4.0,5.0,6.0,7.0,8.0,9.0,10.0,11.0,12.0,13.0,14.0,15.0,16.0,17.0,18.0\n0.0,0.00,0.0,0.99999,1.0,1.2,1.5,2.5,3.5,4.5,5.5,6.5,7.5,8.5,9.5,10.5,11.5,12.5,13.5,14.5,15.5,16.5,17.5,18.5\n";
 
         let mut hash = HashMap::new();
         hash.insert(String::from("into_colname"), into_colname_text);
@@ -102,7 +101,7 @@ mod tests {
         let mut byter = BytesIterator::new(bytes.to_vec());
         let fields = byter.field_scan(&mut col_idx).unwrap();
         assert_eq!("lp__", fields.fields[0].string);
-        assert_eq!("c_cubic.2", fields.fields[fields.len()-1].string);
+        assert_eq!("non_sub.3.2.2", fields.fields[fields.len()-1].string);
     }
 
     #[test]
@@ -136,7 +135,7 @@ mod tests {
             &mut retained_idx,
         ).unwrap();
 
-        let target_cols = vec![7,8,9,10,11,12,13,14,15,16,17,18,19];
+        let target_cols = vec![7,8,9,10,11,12,13]; //,14,15,16,17,18,19];
         let result_cols: Vec<usize> = retained_fields.iter().map(|x| x.0).collect();
         assert_eq!(target_cols, result_cols);
 
@@ -148,13 +147,13 @@ mod tests {
             500 * (2 - 1) * 4, // Alpha.1.1.2; wt, plus, 2
             200000 + 500 * (2 - 1) * 4, // Alpha.2.1.2; vpsR, plus, 2
             400000 + 500 * (2 - 1) * 4, // Alpha.3.1.2; vpsT, plus, 2
-            1700000 + 500 * (2 - 1) * 4, // Gamma.3.2.2; vpsT, minus, 2
-            2400000, // a_cubic.1
-            2402000, // b_cubic.1
-            2404000, // c_cubic.1
-            2406000, // a_cubic.2
-            2408000, // b_cubic.2
-            2410000, // c_cubic.2
+            1700000 + 500 * (2 - 1) * 4, // non_sub.3.2.2; vpsT, minus, 2
+            //2400000, // a_cubic.1
+            //2402000, // b_cubic.1
+            //2404000, // c_cubic.1
+            //2406000, // a_cubic.2
+            //2408000, // b_cubic.2
+            //2410000, // c_cubic.2
         ];
         let result_offsets: Vec<u64> = retained_fields.iter().map(|x| x.1).collect();
         assert_eq!(target_offsets, result_offsets);
@@ -166,8 +165,8 @@ mod tests {
         let mut col_idx = 0;
         let bytes = hash.get("into_sample").unwrap().as_bytes();
         let mut byter = BytesIterator::new(bytes.to_vec());
-        let mut fields = byter.field_scan(&mut col_idx).unwrap();
-        assert_eq!(fields.fields[fields.fields.len()-1].col_idx, 19);
+        let fields = byter.field_scan(&mut col_idx).unwrap();
+        assert_eq!(fields.fields[fields.fields.len()-1].col_idx, 13);
         assert_eq!(fields.fields[fields.fields.len()-1].linetype, PriorByteIn::Samples(0));
     }
 
@@ -211,24 +210,24 @@ mod tests {
             500 * (2 - 1) * 4, // Alpha.1.1.2; wt, plus, 2
             200000 + 500 * (2 - 1) * 4, // Alpha.2.1.2; vpsR, plus, 2
             400000 + 500 * (2 - 1) * 4, // Alpha.3.1.2; vpsT, plus, 2
-            1700000 + 500 * (2 - 1) * 4, // Gamma.3.2.2; vpsT, minus, 2
-            2400000, // a_cubic.1
-            2402000, // b_cubic.1
-            2404000, // c_cubic.1
-            2406000, // a_cubic.2
-            2408000, // b_cubic.2
-            2410000, // c_cubic.2
+            1700000 + 500 * (2 - 1) * 4, // non_sub.3.2.2; vpsT, minus, 2
+            //2400000, // a_cubic.1
+            //2402000, // b_cubic.1
+            //2404000, // c_cubic.1
+            //2406000, // a_cubic.2
+            //2408000, // b_cubic.2
+            //2410000, // c_cubic.2
         ];
 
         // The following f32 vals should have been written to blob at the positions in
         // target_offsets
-        let values_in_blob = vec![1.0,2.0,3.0,4.0,5.0,6.0,7.0,0.0,1.0,2.0,1.0,2.0,3.0];
+        let values_in_blob = vec![1.0,2.0,3.0,4.0,5.0,6.0,7.0]; //,0.0,1.0,2.0,1.0,2.0,3.0];
 
-        for (i, (targ_off, targ_val)) in target_offsets.iter().zip(values_in_blob).enumerate() {
+        for (_i, (targ_off, targ_val)) in target_offsets.iter().zip(values_in_blob).enumerate() {
             // read_from_position reads to the Blob's `buffer` attribute
-            let blob_bytes = blob_file.read_from_position(*targ_off);
+            let _blob_bytes = blob_file.read_from_position(*targ_off);
             // convert first four bytes of buffer into [u8;4] to then cast to f32
-            let mut val_bytes: [u8; 4] =  blob_file.buffer[0..4].try_into().unwrap();
+            let val_bytes: [u8; 4] =  blob_file.buffer[0..4].try_into().unwrap();
             let blob_val = f32::from_be_bytes(val_bytes);
             // assert the float values are what we expect
             assert_eq!(targ_val, blob_val);
@@ -327,6 +326,7 @@ impl StringField {
     }
 }
 
+#[allow(dead_code)]
 impl ByteField {
     fn new() -> ByteField {
         let bytes = Vec::new();
@@ -351,6 +351,7 @@ pub struct FieldVec {
     pub fields: Vec<StringField>,
 }
 
+#[allow(dead_code)]
 impl FieldVec {
     fn new() -> FieldVec {
         FieldVec{fields: Vec::<StringField>::new()}
@@ -384,55 +385,38 @@ impl FieldVec {
             retained_fields: &mut Vec<(usize, u64)>,
             retained_idx: &mut usize,
     ) -> BoxedResult<()> {
-        let vars = vec!["Alpha", "Beta", "Gamma", "non_sub", "a_cubic", "b_cubic", "c_cubic"];
-        let cubic_vars = vec!["a_cubic", "b_cubic", "c_cubic"];
+        let vars = vec![
+            "Alpha",
+            "Beta",
+            "non_sub",
+        ];
+        //let cubic_vars = vec!["a_cubic", "b_cubic", "c_cubic"];
         //println!("Parsing fields passed from thread");
         for field in &self.fields {
             //println!("{:?}", field.linetype);
             match field.linetype {
                 // if this field is a column name, do the following
                 PriorByteIn::ColNames => {
-                    // check whether the col name starts with "Alpha, Beta, Gamma, or
-                    // non_sub"
+                    // check whether the col name starts with Alpha, Beta, or non_sub
                     if vars.iter().any(|var| field.string.starts_with(var)) {
                         // split string on ".", unpack to position and covar_idx
                         let field_split: Vec<&str> = field.string.split('.').collect();
-                        // if this is a cubic var, do the following
                         let param_name = String::from(field_split[0]);
-                        // this works for cubic vars, since we manually set their position_idx to
-                        // zero below, and thus this pseudo-position index won't influence their
-                        // offsets
-                        let (param_id, position_idx) = if cubic_vars.iter().any(|var| field.string.starts_with(var)) {
-                            // use Gamma for param_idx here so we extract the right geno_name from
-                            // geno_map
-                            let param_idx = expt_key.var_map.iter().position(|s| *s == "Gamma").unwrap();
-                            let geno_idx = field_split[1].parse::<usize>().unwrap() - 1;
-                            let geno_name = &expt_key.geno_map[param_idx][geno_idx];
-                            // set the ParamID for this parameter
-                            let param_id = ParamID {
-                                parameter: param_name,
-                                geno: geno_name.to_string(),
-                                strand: None,
-                            };
-                            (param_id, 0)
-                        } else {
-                            let param_idx = expt_key.var_map.iter().position(|s| *s == param_name).unwrap();
-                            // toss out the first element, keeping final two, converting to usize
-                            let field_usize: Vec<usize> = field_split[1..4].iter().map(|x| {
-                                x.parse::<usize>().unwrap()
-                            }).collect();
-                            let geno_idx = field_usize[0] - 1;
-                            let geno_name = &expt_key.geno_map[param_idx][geno_idx];
-                            let strand_idx = field_usize[1] - 1;
-                            let strand_name = &expt_key.strand_map[strand_idx];
-                            let position_idx: u64 = (field_usize[2] - 1).try_into()?;
-                            // set the ParamID for this parameter
-                            let param_id = ParamID {
-                                parameter: param_name,
-                                geno: geno_name.to_string(),
-                                strand: Some(strand_name.to_string()),
-                            };
-                            (param_id, position_idx)
+                        let param_idx = expt_key.var_map.iter().position(|s| *s == param_name).unwrap();
+                        // toss out the first element, keeping final two, converting to usize
+                        let field_usize: Vec<usize> = field_split[1..4].iter().map(|x| {
+                            x.parse::<usize>().unwrap()
+                        }).collect();
+                        let geno_idx = field_usize[0] - 1;
+                        let geno_name = &expt_key.geno_map[param_idx][geno_idx];
+                        let strand_idx = field_usize[1] - 1;
+                        let strand_name = &expt_key.strand_map[strand_idx];
+                        let position_idx: u64 = (field_usize[2] - 1).try_into()?;
+                        // set the ParamID for this parameter
+                        let param_id = ParamID {
+                            parameter: param_name,
+                            geno: geno_name.to_string(),
+                            strand: Some(strand_name.to_string()),
                         };
                         let offset_idx = index.param_ids.iter()
                             .position(|s| *s == param_id.to_string())
@@ -453,7 +437,7 @@ impl FieldVec {
                     }
                 },
                 PriorByteIn::Samples(_) => {
-                    // set retained_idx to zero if we reached the end of the the
+                    // set retained_idx to zero if we reached the end of the
                     // retained_fields vec in a prior field.
                     if retained_idx == &retained_fields.len() {
                         *retained_idx = 0;
@@ -468,7 +452,7 @@ impl FieldVec {
                             Ok(val) => val,
                             Err(_error) => return Err(Box::new(HandleFieldsError::ParseFloatError))
                         };
-                        
+
                         // get the sample_index from the linetype attribute
                         if let PriorByteIn::Samples(samp_idx) = field.linetype {
                             // add four bytes per sample

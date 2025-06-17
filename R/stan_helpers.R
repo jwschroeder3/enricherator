@@ -379,10 +379,9 @@ prep_stan_data = function(data_df, norm_method, spikein, spikein_rel_abund=0.05,
     }
 
     param_idx_arr = matrix(0, nrow=samp_num, ncol=3)
-    var_map = c("Alpha", "Beta", "Gamma", "non_sub")
+    var_map = c("Alpha", "Beta", "non_sub")
     alpha_map = c()
     beta_map = c()
-    gamma_map = c()
     non_sub_map = c()
 
     for (s in 1:samp_num ) {
@@ -397,23 +396,14 @@ prep_stan_data = function(data_df, norm_method, spikein, spikein_rel_abund=0.05,
             # set this samples row, gamma column, to this gamma's index
             param_idx_arr[s,3] = gamma_ind
             # Append this genotype to the gamma and non_sub geno maps
-            if (is.null(gamma_map[gamma_ind]) || is.na(gamma_map[gamma_ind])) {
-                gamma_map[gamma_ind] = geno
+            if (is.null(non_sub_map[gamma_ind]) || is.na(non_sub_map[gamma_ind])) {
                 non_sub_map[gamma_ind] = geno
             } else {
                 # if the geno is not already at this idx, append it with _AND_ between
-                if (!grepl(geno, gamma_map[gamma_ind])) {
-                    gamma_map[gamma_ind] = paste(gamma_map[gamma_ind], geno, sep="_AND_")
+                if (!grepl(geno, non_sub_map[gamma_ind])) {
                     non_sub_map[gamma_ind] = paste(non_sub_map[gamma_ind], geno, sep="_AND_")
                 }
             }
-            #if (is.null(var_map[["Gamma"]][gamma_ind]) || is.na(var_map[["Gamma"]][gamma_ind])) {
-            #    var_map[["Gamma"]][gamma_ind] = geno
-            #    var_map[["non_sub"]][gamma_ind] = geno
-            #} else {
-            #    var_map[["Gamma"]][gamma_ind] = paste(var_map[["Gamma"]][gamma_ind], geno, sep="_AND_")
-            #    var_map[["non_sub"]][gamma_ind] = paste(var_map[["non_sub"]][gamma_ind], geno, sep="_AND_")
-            #}
         } else {
             if (stype == "control") {
                 # Append this genotype to the beta map
@@ -425,11 +415,6 @@ prep_stan_data = function(data_df, norm_method, spikein, spikein_rel_abund=0.05,
                         beta_map[beta_idx] = paste(beta_map[beta_idx], geno, sep="_AND_")
                     }
                 }
-                #if (is.null(var_map[["Beta"]][beta_idx]) || is.na(var_map[["Beta"]][beta_idx])) {
-                #    var_map[["Beta"]][beta_idx] = geno
-                #} else {
-                #    var_map[["Beta"]][beta_idx] = paste(var_map[["Beta"]][beta_idx], geno, sep="_AND_")
-                #}
             } else {
                 if (stype == "input") {
                     # Append this genotype to the alpha map
@@ -441,11 +426,6 @@ prep_stan_data = function(data_df, norm_method, spikein, spikein_rel_abund=0.05,
                             alpha_map[alpha_idx] = paste(alpha_map[alpha_idx], geno, sep="_AND_")
                         }
                     }
-                    #if (is.null(var_map[["Alpha"]][alpha_idx]) || is.na(var_map[["Alpha"]][alpha_idx])) {
-                    #    var_map[["Alpha"]][alpha_idx] = geno
-                    #} else {
-                    #    var_map[["Alpha"]][alpha_idx] = paste(var_map[["Alpha"]][alpha_idx], geno, sep="_AND_")
-                    #}
                 } else {
                     stop(paste0("Encountered a sample type that was none of the required samples types. Required sample types are 'control', 'extract', and 'input'. The incorrect type was ", stype))
                 }
@@ -460,7 +440,6 @@ prep_stan_data = function(data_df, norm_method, spikein, spikein_rel_abund=0.05,
     geno_map = list(
         alpha_map,
         beta_map,
-        gamma_map,
         non_sub_map
     )
 
@@ -492,14 +471,6 @@ prep_stan_data = function(data_df, norm_method, spikein, spikein_rel_abund=0.05,
         strand_names[q] = data_df$strand[data_df$strand_x == q][1]
     }
 
-    #geno_names = NA
-    #distinct_geno_ids = sort(unique(data_df$geno_x))
-    #for (g in distinct_geno_ids) {
-    #    geno_names[g] = data_df$genotype[data_df$geno_x == g][1]
-    #}
-    #strand_names = unique(data_df$strand)
-    #print(strand_names)
-    #stop("Reached stop point")
     samp_num = length(levels)
     strand_num = length(strand_names)
     strand_df = data_df %>% select(-data)

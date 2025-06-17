@@ -1,8 +1,19 @@
 use std::fs::{File, OpenOptions};
-use std::io::{self, Write, Read, BufReader, Seek, SeekFrom};
-use std::path::{Path, PathBuf};
+use std::io::{
+    //self,
+    Write,
+    Read,
+    //BufReader,
+    Seek,
+    SeekFrom,
+};
+use std::path::{
+    Path,
+    PathBuf,
+};
 use crate::BoxedResult;
 
+#[allow(dead_code)]
 mod test {
     use super::*;
     use std::collections::HashMap;
@@ -12,7 +23,7 @@ mod test {
         map.insert("fname".to_string(), "test_data/blob_test/params.blob".to_string());
         map.insert("out_direc".to_string(), "test_data/blob_test".to_string());
 
-        let out_dir = map.get("out_direc").unwrap();
+        let _out_dir = map.get("out_direc").unwrap();
         let blob_file = Blob::create(
             fname,
             400,
@@ -25,7 +36,7 @@ mod test {
     #[test]
     fn blob_read() {
         let fname = Path::new("test_data/blob_test").join("params.blob");
-        let (map, mut blob_file) = set_up_tests(fname);
+        let (_map, mut blob_file) = set_up_tests(fname);
 
         blob_file.read_from_position(0).unwrap();
         assert_eq!(blob_file.buffer.clone(), vec![0,0,0,0,0]);
@@ -44,7 +55,7 @@ mod test {
     #[test]
     fn write_f32() {
         let fname = Path::new("test_data/blob_test").join("write_f32.blob");
-        let (map, mut blob_file) = set_up_tests(fname);
+        let (_map, mut blob_file) = set_up_tests(fname);
         let value_to_write: f32 = 12.5;
         // note that, although this is the target buffer, it's not the bytes corresponding
         // to a 12.5 f32 value. That's because we set the buffer size to 4 bytes in the
@@ -135,7 +146,7 @@ impl Blob {
     }
 
     pub fn read_f32_from_position(&mut self, offset: u64) -> BoxedResult<Vec<f32>> {
-        self.read_from_position(offset);
+        let _ = self.read_from_position(offset);
         let mut vals: Vec<f32> = Vec::new();
         for start_idx in (0..self.buffer.len()).step_by(4) {
             let end_idx = start_idx + 4;

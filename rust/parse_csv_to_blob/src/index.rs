@@ -1,13 +1,16 @@
-use clap::Parser;
+//use clap::Parser;
 use std::path::Path;
 use std::fs::File;
 use std::io::{Write, Read};
-use std::error::Error;
-use std::collections::BTreeMap;
+//use std::error::Error;
+//use std::collections::BTreeMap;
 use std::fmt;
 use serde_json;
 use serde::{Serialize, Deserialize};
-use crate::{BoxedResult, Parameter};
+use crate::{
+    BoxedResult,
+    //Parameter,
+};
 use crate::config::ExptKey;
 
 /// Contains information for serializing/deserializing an index to
@@ -103,8 +106,6 @@ impl Offset{
 impl Index {
     pub fn new(expt_key: &ExptKey) -> BoxedResult<Self> {
 
-        //let mut offset_vec: Vec<Offset> = Vec::new();
-        //let mut offset_map: BTreeMap<String, Offset> = BTreeMap::new();
         let mut offsets = Vec::new();
         let mut param_ids = Vec::new();
         let var_map = &expt_key.var_map;
@@ -115,9 +116,9 @@ impl Index {
         let buffer_size: usize = (samp_num * 4).try_into()?;
 
         let mut offset_bytes: u64 = 0;
-        for (param_idx, (param_name,param_genos)) in var_map.iter().zip(geno_map).enumerate() {
-            for (geno_idx, geno_name) in param_genos.iter().enumerate() {
-                for (strand_idx, strand_name) in strand_names.iter().enumerate() {
+        for (_param_idx, (param_name,param_genos)) in var_map.iter().zip(geno_map).enumerate() {
+            for (_geno_idx, geno_name) in param_genos.iter().enumerate() {
+                for (_strand_idx, strand_name) in strand_names.iter().enumerate() {
                     let param_id = ParamID{
                         parameter: param_name.to_string(),
                         geno: geno_name.to_string(),
@@ -137,30 +138,29 @@ impl Index {
             }
         }
 
-        // each Gamma genotype will have an a_cubic, b_cubic, and c_cubic associated
-        // with it, so set the offsets for those here. Strand is None, because
-        // we don't 
-        for (param_idx, (param_name,param_genos)) in var_map.iter().zip(geno_map).enumerate() {
-            if param_name == "Gamma" {
-                for (geno_idx,geno_name) in param_genos.iter().enumerate() {
-                    for var in ["a_cubic", "b_cubic", "c_cubic"] {
-                        let param_id = ParamID{
-                            parameter: var.to_string(),
-                            geno: geno_name.to_string(),
-                            strand: None,
-                        };
-                        //let offset = Offset::new(param_id.clone(), offset_bytes.clone());
-                        //offset_vec.push(offset);
-                        //offset_map.insert(param_id.to_string(), offset);
-                        offsets.push(offset_bytes.clone());
-                        param_ids.push(param_id.to_string());
-                        // increment offset by number of samples times 4 bytes for f32
-                        // no pos_num on RHS here
-                        offset_bytes += samp_num * 4;
-                    }
-                }
-            }
-        }
+        //// each non_sub genotype will have an a_cubic, b_cubic, and c_cubic associated
+        //// with it, so set the offsets for those here.
+        //for (_param_idx, (param_name,param_genos)) in var_map.iter().zip(geno_map).enumerate() {
+        //    if param_name == "non_sub" {
+        //        for (_geno_idx,geno_name) in param_genos.iter().enumerate() {
+        //            for var in ["a_cubic", "b_cubic", "c_cubic"] {
+        //                let param_id = ParamID{
+        //                    parameter: var.to_string(),
+        //                    geno: geno_name.to_string(),
+        //                    strand: None,
+        //                };
+        //                //let offset = Offset::new(param_id.clone(), offset_bytes.clone());
+        //                //offset_vec.push(offset);
+        //                //offset_map.insert(param_id.to_string(), offset);
+        //                offsets.push(offset_bytes.clone());
+        //                param_ids.push(param_id.to_string());
+        //                // increment offset by number of samples times 4 bytes for f32
+        //                // no pos_num on RHS here
+        //                offset_bytes += samp_num * 4;
+        //            }
+        //        }
+        //    }
+        //}
 
         let total_bytes = offset_bytes.try_into()?;
 

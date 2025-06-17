@@ -31,18 +31,6 @@ fn main() -> BoxedResult<()> {
     println!("Config: {:?}", &cfg);
     println!("expt_key: {:?}", &expt_key);
 
-    let vars = [
-        "Alpha",
-        "Beta",
-        "Gamma",
-        "non_sub",
-        "a_cubic",
-        "b_cubic",
-        "c_cubic",
-    ];
-    let enricherator_params = &vars[0..4];
-    let cubic_params = &vars[4..7];
-
     let infname = &cfg.input.draws_file;
     let out_direc: &str = &cfg.output.out_direc;
 
@@ -108,7 +96,7 @@ fn main() -> BoxedResult<()> {
     //
     // fields is a FieldVec, which has a single attribute, `fields`, of type Vec<StringField>
     let mut col_idx: usize = 0;
-    let parser_thread = thread::spawn(move || -> Result<(), ByteIterError> {
+    let _parser_thread = thread::spawn(move || -> Result<(), ByteIterError> {
         loop {
             let read_result = reader_rx.recv_timeout(time::Duration::from_secs(5));
             //let read_result = reader_rx.recv();
@@ -126,6 +114,7 @@ fn main() -> BoxedResult<()> {
             byte_iterator.update(bytes_read);
             // fields is a FieldVec
             let fields = byte_iterator.field_scan(&mut col_idx)?;
+            // if the fields attribute is not empty attempt to sent it to the handler
             if !fields.fields.is_empty() {
                 //println!("fields sent by parser tx: {:?}", &fields);
                 //let copy = fields.fields.to_vec();
@@ -147,8 +136,8 @@ fn main() -> BoxedResult<()> {
     let sample_num: u64 = expt_key.sample_num[0].try_into()?;
 
     // Responsible for accepting the FieldVec passed by parser thread
-    // either assigning each field as retained or not, or assigning each value to
-    // its proper position in the samples array.
+    // either assigning each field as retained or not, or writing each
+    // value to its proper position in the blob file.
     //
     // Tasks it must perform
     // 1) When in colname line, get vec of column indices and offsets
