@@ -171,7 +171,7 @@ transformed parameters {
                     ./ (c2 + tau_gamma[g]^2 * square(lambda_gamma[g,q]))
                 );
                 sub_gamma = zgamma[g,q] .* lambda_tilde_gamma*tau_gamma[g];
-                tmp_nonsub = csr_matrix_times_vector(
+                tmp_Gamma = csr_matrix_times_vector(
                     L,
                     g_sub_L,
                     g_weights_vals,
@@ -184,8 +184,8 @@ transformed parameters {
                 b_sub_idx = beta_sub_idx[g];
                 tmp_Beta = Beta[b_sub_idx,q];
                 for (l in 1:L) {
-                    if (tmp_Beta[l] > 0 && tmp_nonsub[l] > 0) {
-                        // if both control and chip are positive, estimate chip based on control
+                    if (tmp_Beta[l] > 0) {
+                        // if control is, estimate chip based on control
                         // using cubic relationship.
                         control_est[l] = (
                             a_cubic[g] * tmp_Beta[l]
@@ -195,10 +195,9 @@ transformed parameters {
                     } else {
                         control_est[l] = 0.0;
                     }
-                    //gr_zero[l] = tmp_Beta[l] > 0 && tmp_Gamma[l] > 0;
                 }
-                non_sub[g,q] = tmp_nonsub;
-                Gamma[g,q] = tmp_nonsub - control_est;
+                non_sub[g,q] = tmp_Gamma + control_est;
+                Gamma[g,q] = tmp_Gamma;
                 control_ests[g,q] = control_est;
             }
         }

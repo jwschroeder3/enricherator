@@ -294,12 +294,14 @@ pub struct Config {
 pub struct Contrasts {
     pub contrasts: Vec<Contrast>,
     pub threshold: f32,
+    pub rope: f32,
 }
 
 #[derive(Debug)]
 pub struct ParamParsers {
     pub param_ids: Vec<ParamParser>,
     pub threshold: f32,
+    pub rope: f32,
 }
 
 #[derive(Debug)]
@@ -310,6 +312,8 @@ pub struct ParamParser {
     pub up_file: BufWriter<File>,
     pub Kge_file: BufWriter<File>,
     pub Klt_file: BufWriter<File>,
+    pub K_in_rope_file: BufWriter<File>,
+    pub K_not_in_rope_file: BufWriter<File>,
 }
 
 impl ParamParser {
@@ -325,6 +329,10 @@ impl ParamParser {
         let Kge_fname = Path::new(out_dir).join(Kge_basename);
         let Klt_basename = format!("{}_Klt.bedgraph", param_id);
         let Klt_fname = Path::new(out_dir).join(Klt_basename);
+        let K_in_basename = format!("{}_K_in_rope.bedgraph", param_id);
+        let K_in_fname = Path::new(out_dir).join(K_in_basename);
+        let K_not_in_basename = format!("{}_K_not_in_rope.bedgraph", param_id);
+        let K_not_in_fname = Path::new(out_dir).join(K_not_in_basename);
 
         let mean_f = File::create(mean_fname)?;
         let mean_file = BufWriter::new(mean_f);
@@ -341,6 +349,12 @@ impl ParamParser {
         let Klt_f = File::create(Klt_fname)?;
         let Klt_file = BufWriter::new(Klt_f);
 
+        let K_in_f = File::create(K_in_fname)?;
+        let K_in_rope_file = BufWriter::new(K_in_f);
+
+        let K_not_in_f = File::create(K_not_in_fname)?;
+        let K_not_in_rope_file = BufWriter::new(K_not_in_f);
+
         Ok(Self{
             param_id,
             low_file,
@@ -348,6 +362,8 @@ impl ParamParser {
             up_file,
             Kge_file,
             Klt_file,
+            K_in_rope_file,
+            K_not_in_rope_file,
         })
     }
 
@@ -446,12 +462,52 @@ impl ParamParser {
         Ok(())
     }
 
+    fn write_K_in_to_file(
+            &mut self,
+            ctg: &str,
+            start: &usize,
+            end: &usize,
+            val: f32,
+    ) -> BoxedResult<()> {
+        // Write the string content to the buffer
+        let content = format!("{ctg}\t{start}\t{end}\t{val}\n");
+        self.K_in_rope_file.write_all(content.as_bytes())?;
+        Ok(())
+    }
+
+    fn flush_K_in_rope_buffer(&mut self) -> BoxedResult<()> {
+        // Flush the buffer to ensure all data is written to the file
+        self.K_in_rope_file.flush()?;
+        Ok(())
+    }
+
+    fn write_K_not_in_to_file(
+            &mut self,
+            ctg: &str,
+            start: &usize,
+            end: &usize,
+            val: f32,
+    ) -> BoxedResult<()> {
+        // Write the string content to the buffer
+        let content = format!("{ctg}\t{start}\t{end}\t{val}\n");
+        self.K_not_in_rope_file.write_all(content.as_bytes())?;
+        Ok(())
+    }
+
+    fn flush_K_not_in_rope_buffer(&mut self) -> BoxedResult<()> {
+        // Flush the buffer to ensure all data is written to the file
+        self.K_not_in_rope_file.flush()?;
+        Ok(())
+    }
+
     pub fn flush_buffers(&mut self) -> BoxedResult<()> {
         self.flush_upper_buffer()?;
         self.flush_lower_buffer()?;
         self.flush_mean_buffer()?;
         self.flush_Kge_buffer()?;
         self.flush_Klt_buffer()?;
+        self.flush_K_in_rope_buffer()?;
+        self.flush_K_not_in_rope_buffer()?;
         Ok(())
     }
 
@@ -465,6 +521,8 @@ impl ParamParser {
             upper: f32,
             Kge: f32,
             Klt: f32,
+            Kin: f32,
+            Knotin: f32,
     ) -> BoxedResult<()> {
         self.write_mean_to_file(
             ctg,
@@ -496,6 +554,18 @@ impl ParamParser {
             end,
             Klt,
         )?;
+        self.write_K_in_to_file(
+            ctg,
+            start,
+            end,
+            Kin,
+        )?;
+        self.write_K_not_in_to_file(
+            ctg,
+            start,
+            end,
+            Knotin,
+        )?;
         Ok(())
     }
 }
@@ -525,7 +595,15 @@ impl ParamParsers {
             0.0
         };
 
-        Ok(Self{param_ids: parsers, threshold: threshold})
+        // set the default ROPE for parameters to log2-enrichment = abs(0.5)
+        let rope = if let Some(rope_bound) = parse_cfg.rope {
+            rope_bound
+        } else {
+            0.5
+        };
+
+        // Leave the rope as Option<value>, since some users won't set it.
+        Ok(Self{param_ids: parsers, threshold: threshold, rope: rope})
     }
 }
 
@@ -636,9 +714,18 @@ impl StrandContrastsBuilder {
         } else {
             0.0
         };
+        
+        // set the default ROPE for contrasts to log2(FC) = abs(0.5)
+        let rope = if let Some(rope_bound) = &cfg.rope {
+            *rope_bound
+        } else {
+            0.5
+        };
+
         Ok(Contrasts{
             contrasts: contrast_vec,
             threshold: threshold,
+            rope: rope,
         })
     }
 }
@@ -716,9 +803,18 @@ impl GenoContrastsBuilder {
         } else {
             0.0
         };
+
+        // set the default ROPE for contrasts to log2(FC) = abs(0.5)
+        let rope = if let Some(rope_bound) = &cfg.rope {
+            *rope_bound
+        } else {
+            0.5
+        };
+
         Ok(Contrasts{
             contrasts: contrast_vec,
             threshold: threshold,
+            rope: rope,
         })
     }
 }
@@ -727,6 +823,7 @@ impl GenoContrastsBuilder {
 struct ParserConfig {
     vars: Vec<String>,
     threshold: Option<f32>,
+    rope: Option<f32>,
 }
 
 #[derive(Deserialize, Debug, Clone)]
@@ -736,6 +833,7 @@ struct ContrastsConfig {
     Gamma: Option<Vec<String>>,
     non_sub: Option<Vec<String>>,
     threshold: Option<f32>,
+    rope: Option<f32>,
 }
 
 /// The Contrast struct contains the information necessary to
@@ -768,6 +866,8 @@ pub struct Contrast {
     pub up_file: BufWriter<File>,
     pub Kge_file: BufWriter<File>,
     pub Klt_file: BufWriter<File>,
+    pub K_in_rope_file: BufWriter<File>,
+    pub K_not_in_rope_file: BufWriter<File>,
 }
 
 enum ContrastType {
@@ -1029,6 +1129,16 @@ impl Contrast {
                     let Klt_f = File::create(Klt_fname)?;
                     let Klt_file = BufWriter::new(Klt_f);
 
+                    let K_in_rope_base = format!("{}_{}_K_in_rope.bedgraph", &parameter, &contrast_str_vec[i]);
+                    let K_in_rope_fname = Path::new(out_direc).join(K_in_rope_base);
+                    let K_in_rope_f = File::create(K_in_rope_fname)?;
+                    let K_in_rope_file = BufWriter::new(K_in_rope_f);
+
+                    let K_not_in_rope_base = format!("{}_{}_K_not_in_rope.bedgraph", &parameter, &contrast_str_vec[i]);
+                    let K_not_in_rope_fname = Path::new(out_direc).join(K_not_in_rope_base);
+                    let K_not_in_rope_f = File::create(K_not_in_rope_fname)?;
+                    let K_not_in_rope_file = BufWriter::new(K_not_in_rope_f);
+
                     let cont = Contrast {
                         parameter: parameter.clone(),
                         text: text.to_string(),
@@ -1040,6 +1150,8 @@ impl Contrast {
                         up_file: up_file,
                         Kge_file: Kge_file,
                         Klt_file: Klt_file,
+                        K_in_rope_file: K_in_rope_file,
+                        K_not_in_rope_file: K_not_in_rope_file,
                     };
                     contrasts.push(cont);
                 }
@@ -1068,6 +1180,16 @@ impl Contrast {
                     let Klt_f = File::create(Klt_fname)?;
                     let Klt_file = BufWriter::new(Klt_f);
 
+                    let K_in_rope_base = format!("{}_{}_K_in_rope.bedgraph", &parameter, &contrast_str_vec[i]);
+                    let K_in_rope_fname = Path::new(out_direc).join(K_in_rope_base);
+                    let K_in_rope_f = File::create(K_in_rope_fname)?;
+                    let K_in_rope_file = BufWriter::new(K_in_rope_f);
+
+                    let K_not_in_rope_base = format!("{}_{}_K_not_in_rope.bedgraph", &parameter, &contrast_str_vec[i]);
+                    let K_not_in_rope_fname = Path::new(out_direc).join(K_not_in_rope_base);
+                    let K_not_in_rope_f = File::create(K_not_in_rope_fname)?;
+                    let K_not_in_rope_file = BufWriter::new(K_not_in_rope_f);
+
                     let cont = Contrast {
                         parameter: parameter.clone(),
                         text: text.to_string(),
@@ -1079,6 +1201,8 @@ impl Contrast {
                         up_file: up_file,
                         Kge_file: Kge_file,
                         Klt_file: Klt_file,
+                        K_in_rope_file: K_in_rope_file,
+                        K_not_in_rope_file: K_not_in_rope_file,
                     };
                     contrasts.push(cont);
                 }
@@ -1182,12 +1306,52 @@ impl Contrast {
         Ok(())
     }
 
+    fn write_K_in_to_file(
+            &mut self,
+            ctg: &str,
+            start: &usize,
+            end: &usize,
+            val: f32,
+    ) -> BoxedResult<()> {
+        // Write the string content to the buffer
+        let content = format!("{ctg}\t{start}\t{end}\t{val}\n");
+        self.K_in_rope_file.write_all(content.as_bytes())?;
+        Ok(())
+    }
+
+    fn flush_K_in_rope_buffer(&mut self) -> BoxedResult<()> {
+        // Flush the buffer to ensure all data is written to the file
+        self.K_in_rope_file.flush()?;
+        Ok(())
+    }
+
+    fn write_K_not_in_to_file(
+            &mut self,
+            ctg: &str,
+            start: &usize,
+            end: &usize,
+            val: f32,
+    ) -> BoxedResult<()> {
+        // Write the string content to the buffer
+        let content = format!("{ctg}\t{start}\t{end}\t{val}\n");
+        self.K_not_in_rope_file.write_all(content.as_bytes())?;
+        Ok(())
+    }
+
+    fn flush_K_not_in_rope_buffer(&mut self) -> BoxedResult<()> {
+        // Flush the buffer to ensure all data is written to the file
+        self.K_not_in_rope_file.flush()?;
+        Ok(())
+    }
+
     pub fn flush_buffers(&mut self) -> BoxedResult<()> {
         self.flush_upper_buffer()?;
         self.flush_lower_buffer()?;
         self.flush_mean_buffer()?;
         self.flush_Kge_buffer()?;
         self.flush_Klt_buffer()?;
+        self.flush_K_in_rope_buffer()?;
+        self.flush_K_not_in_rope_buffer()?;
         Ok(())
     }
 
@@ -1201,6 +1365,8 @@ impl Contrast {
             upper: f32,
             Kge: f32,
             Klt: f32,
+            Kin: f32,
+            Knotin: f32,
     ) -> BoxedResult<()> {
         self.write_mean_to_file(
             ctg,
@@ -1232,6 +1398,18 @@ impl Contrast {
             end,
             Klt,
         )?;
+        self.write_K_in_to_file(
+            ctg,
+            start,
+            end,
+            Kin,
+        )?;
+        self.write_K_not_in_to_file(
+            ctg,
+            start,
+            end,
+            Knotin,
+        )?;
         Ok(())
     }
 
@@ -1239,7 +1417,6 @@ impl Contrast {
         format!("{}_{}", &self.parameter, &self.contrast_str)
     }
 }
-
 
 #[derive(Deserialize, Debug, Clone)]
 pub struct InputConfig {

@@ -473,7 +473,6 @@ impl FieldVec {
                         if let PriorByteIn::Samples(samp_idx) = field.linetype {
                             // add four bytes per sample
                             offset += samp_idx * 4;
-                            // change val from base e to base2
                             blob.write_f32_to_position(offset, val)?;
                         }
                         *retained_idx += 1;

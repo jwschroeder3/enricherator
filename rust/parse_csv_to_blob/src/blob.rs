@@ -135,7 +135,7 @@ impl Blob {
     }
 
     pub fn read_f32_from_position(&mut self, offset: u64) -> BoxedResult<Vec<f32>> {
-        self.read_from_position(offset);
+        self.read_from_position(offset)?;
         let mut vals: Vec<f32> = Vec::new();
         for start_idx in (0..self.buffer.len()).step_by(4) {
             let end_idx = start_idx + 4;

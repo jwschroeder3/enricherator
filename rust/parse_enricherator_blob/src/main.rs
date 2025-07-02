@@ -12,6 +12,136 @@ use clap::Parser;
 
 use plotters::prelude::*;
 
+mod tests {
+    use super::*;
+
+    #[test]
+    fn check_change_to_base_2() {
+        let fc: f32 = 2.0;
+        let base_e = fc.ln();
+        let truth: f32 = 1.0;
+        let y = change_to_base_2(&base_e);
+        assert!(y == truth);
+    }
+
+    #[test]
+    fn check_change_to_base_e() {
+        // make the fold-change e to make the math easy
+        let fc: f32 = 1.0_f32.exp();
+        let truth: f32 = 1.0;
+        let base_2: f32 = fc.log2();
+        let y = change_to_base_e(&base_2);
+        assert!(y == truth);
+    }
+
+    #[test]
+    fn test_in_rope() {
+        let samples: Vec<f32> = vec![-1.0, 0.0, 0.0, 1.0, 2.0, 3.0];
+        let rope: f32 = 0.5;
+        let truth: u64 = 2;
+        let num_in = num_in_rope(&samples, &rope).unwrap();
+        assert!(num_in == truth);
+
+        let rope: f32 = 1.0;
+        let truth: u64 = 2;
+        let num_in = num_in_rope(&samples, &rope).unwrap();
+        assert!(num_in == truth);
+
+        let rope: f32 = 1.2;
+        let truth: u64 = 4;
+        let num_in = num_in_rope(&samples, &rope).unwrap();
+        assert!(num_in == truth);
+    }
+
+    #[test]
+    fn test_not_in_rope() {
+        let samples: Vec<f32> = vec![-1.0, 0.0, 0.0, 1.0, 2.0, 3.0];
+        let samp_num: u64 = 6;
+        let rope: f32 = 0.5;
+        let truth: u64 = 4;
+        let num_in = num_in_rope(&samples, &rope).unwrap();
+        let num_out = num_not_in_rope(&num_in, &samp_num);
+        assert!(num_out == truth);
+
+        let rope: f32 = 1.0;
+        let truth: u64 = 4;
+        let num_in = num_in_rope(&samples, &rope).unwrap();
+        let num_out = num_not_in_rope(&num_in, &samp_num);
+        assert!(num_out == truth);
+
+        let rope: f32 = 1.2;
+        let truth: u64 = 2;
+        let num_in = num_in_rope(&samples, &rope).unwrap();
+        let num_out = num_not_in_rope(&num_in, &samp_num);
+        assert!(num_out == truth);
+    }
+
+    #[test]
+    fn test_num_lt() {
+        let samples: Vec<f32> = vec![-1.0, 0.0, 0.0, 1.0, 2.0, 3.0];
+        let thresh: f32 = 0.5;
+        let truth: u64 = 3;
+        assert!(num_lt(&samples, &thresh) == truth);
+        let thresh: f32 = 0.0;
+        let truth: u64 = 1;
+        assert!(num_lt(&samples, &thresh) == truth);
+    }
+
+    #[test]
+    fn test_num_ge() {
+        let samples: Vec<f32> = vec![-1.0, 0.0, 0.0, 1.0, 2.0, 3.0];
+        let thresh: f32 = 0.5;
+        let truth: u64 = 3;
+        let samp_num: u64 = 6;
+        let lt_count = num_lt(&samples, &thresh);
+        let ge_count = num_ge(&lt_count, &samp_num);
+        assert!(ge_count == truth);
+
+        let thresh: f32 = 0.0;
+        let truth: u64 = 5;
+        let lt_count = num_lt(&samples, &thresh);
+        let ge_count = num_ge(&lt_count, &samp_num);
+        assert!(ge_count == truth);
+    }
+
+}
+
+/// returns number of samples less than threshold
+fn num_lt(samples: &Vec<f32>, thresh: &f32) -> u64 {
+    let lt_count = samples.partition_point(|x| x < thresh);
+    lt_count as u64
+}
+
+fn num_ge(num_lt: &u64, samp_num: &u64) -> u64 {
+    samp_num - num_lt
+}
+
+/// returns number of samples within the ROPE
+fn num_in_rope(samples: &Vec<f32>, rope: &f32) -> BoxedResult<u64>  {
+    let in_rope_left: u64 = (samples.partition_point(|x| *x <= -rope)).try_into()?;
+    let in_rope_right: u64 = (samples.partition_point(|x| x < rope)).try_into()?;
+    let in_rope_count = in_rope_right - in_rope_left;
+    Ok(in_rope_count)
+}
+
+fn num_not_in_rope(num_in: &u64, samp_num: &u64) -> u64 {
+    samp_num - num_in
+}
+
+/// converts samples that are in the natural-log scale to log-2 scale
+fn change_to_base_2(x: &f32) -> f32 {
+    // log2(FC) = ln(FC) / ln(2)
+    // let ln(FC) = x
+    x / 2.0_f32.ln()
+}
+
+fn change_to_base_e(x: &f32) -> f32 {
+    // log_e(FC) = log_2(FC) / log_2(e)
+    // let log_2(FC) = x
+    let e = 1.0_f32.exp();
+    x / e.log2()
+}
+
 fn cubic_interpolation(x: &f32, a: f32, b: f32, c: f32) -> f32 {
     a*x + b*x.powf(2.0) + c*x.powf(3.0)
 }
@@ -44,7 +174,7 @@ fn plot_relationships(
 
     let fname = format!("{}/{}_non_sub_vs_beta.png", path, geno_name);
     let root = BitMapBackend::new(&fname, (640, 480)).into_drawing_area();
-    root.fill(&WHITE);
+    root.fill(&WHITE)?;
     let root = root.margin(10, 10, 10, 10);
     // After this point, we should be able to construct a chart context
     let mut chart = ChartBuilder::on(&root)
@@ -85,7 +215,7 @@ fn plot_relationships(
 
     let fname = format!("{}/{}_gamma_vs_beta.png", path, geno_name);
     let gamma_root = BitMapBackend::new(&fname, (640, 480)).into_drawing_area();
-    gamma_root.fill(&WHITE);
+    gamma_root.fill(&WHITE)?;
     let gamma_root = gamma_root.margin(10, 10, 10, 10);
     // After this point, we should be able to construct a chart context
     let mut chart = ChartBuilder::on(&gamma_root)
@@ -195,6 +325,7 @@ fn main() -> BoxedResult<()> {
     // Below is not ideal, since it re-reads many paramters. Better would be the steps above.
     let mut geno_names = Vec::new();
     let param_thresh = &cfg.parse.threshold;
+    let param_rope = &cfg.parse.rope;
     println!("Parsing parameters of interest to save bedgraph summaries");
     for param_parser in &mut cfg.parse.param_ids {
         println!("Parsing parameter {:?}", &param_parser.param_id.to_string());
@@ -218,6 +349,10 @@ fn main() -> BoxedResult<()> {
             // reads the bytes into `blob_file.buffer`,
             // converts to f32 values, returns the Vec<f32>
             let mut samples = blob_file.read_f32_from_position(this_offset)?;
+            // change base of logarithm from e, which stan uses, to 2, which biologists use
+            for samp in samples.iter_mut() {
+                *samp = change_to_base_2(samp);
+            }
             // sort the samples to get conf lims
             samples.sort_unstable_by(|x,y| x.total_cmp(&y));
             let lower = samples[cl_low_idx];
@@ -226,7 +361,8 @@ fn main() -> BoxedResult<()> {
             let mean: f32 = sum / samp_num as f32;
 
             // get number of samples less than threshold
-            let lt_count = samples.partition_point(|x| x < param_thresh);
+            let lt_count = num_lt(&samples, param_thresh);
+            let ge_count = num_ge(&lt_count, &samp_num);
             let ge_count = samp_num - lt_count as u64;
 
             // Calculate the ratio
@@ -239,6 +375,19 @@ fn main() -> BoxedResult<()> {
                 //println!("{}", &Kge);
                 Kge = (samp_num + 1) as f32;
                 //println!("{}", &Kge);
+            }
+
+            // get number of samples within the ROPE to get evidence ratio
+            let in_rope_count = num_in_rope(&samples, &param_rope)?;
+            let not_in_rope_count = num_not_in_rope(&in_rope_count, &samp_num);
+
+            let mut Kin = in_rope_count as f32 / not_in_rope_count as f32;
+            if Kin > samp_num as f32 {
+                Kin = (samp_num + 1) as f32;
+            }
+            let mut Knotin = not_in_rope_count as f32 / in_rope_count as f32;
+            if Knotin > samp_num as f32 {
+                Knotin = (samp_num + 1) as f32;
             }
 
             if param_parser.param_id.parameter == "Beta" {
@@ -258,6 +407,8 @@ fn main() -> BoxedResult<()> {
                 upper,
                 Kge,
                 Klt,
+                Kin,
+                Knotin,
             )?;
             pos_line.clear();
 
@@ -274,13 +425,14 @@ fn main() -> BoxedResult<()> {
 
         // return pos_map_reader to beginning of file
         pos_map_reader.seek(SeekFrom::Start(0))?;
-        param_parser.flush_buffers();
+        param_parser.flush_buffers()?;
     }
 
     //println!("cfg.geno_contrasts: {:?}", &cfg.geno_contrasts);
     if let Some(geno_contrasts) = &mut cfg.geno_contrasts {
         println!("Preparing genotype contrasts of interest to save bedgraph summaries");
         let geno_contrast_thresh = geno_contrasts.threshold;
+        let geno_contrast_rope = geno_contrasts.rope;
         for contrast in &mut geno_contrasts.contrasts {
             println!("Preparing genotype contrast {}", contrast.to_string());
 
@@ -343,8 +495,8 @@ fn main() -> BoxedResult<()> {
                 let mean: f32 = sum / samp_num as f32;
 
                 // get number of samples less than threshold
-                let lt_count = contrast_vals.partition_point(|x| *x < geno_contrast_thresh);
-                let ge_count = samp_num - lt_count as u64;
+                let lt_count = num_lt(&contrast_vals, &geno_contrast_thresh);
+                let ge_count = num_ge(&lt_count, &samp_num);
 
                 // Calculate the ratio
                 let mut Klt = lt_count as f32 / ge_count as f32;
@@ -358,6 +510,19 @@ fn main() -> BoxedResult<()> {
                     //println!("{}", &Kge);
                 }
 
+                // get number of samples within the ROPE to get evidence ratio
+                let in_rope_count = num_in_rope(&contrast_vals, &geno_contrast_rope)?;
+                let not_in_rope_count = num_not_in_rope(&in_rope_count, &samp_num);
+
+                let mut Kin = in_rope_count as f32 / not_in_rope_count as f32;
+                if Kin > samp_num as f32 {
+                    Kin = (samp_num + 1) as f32;
+                }
+                let mut Knotin = not_in_rope_count as f32 / in_rope_count as f32;
+                if Knotin > samp_num as f32 {
+                    Knotin = (samp_num + 1) as f32;
+                }
+
                 contrast.write_vals_to_files(
                     &ctg,
                     &start,
@@ -367,19 +532,22 @@ fn main() -> BoxedResult<()> {
                     upper,
                     Kge,
                     Klt,
+                    Kin,
+                    Knotin,
                 )?;
                 pos_line.clear();
 
             }
             // return pos_map_reader to beginning of file
             pos_map_reader.seek(SeekFrom::Start(0))?;
-            contrast.flush_buffers();
+            contrast.flush_buffers()?;
         }
     }    
 
     if let Some(strand_contrasts) = &mut cfg.strand_contrasts {
         println!("Preparing strand contrasts of interest to save bedgraph summaries");
         let strand_contrast_thresh = strand_contrasts.threshold;
+        let strand_contrast_rope = strand_contrasts.rope;
         for contrast in &mut strand_contrasts.contrasts {
             println!("Preparing strand contrast {}", contrast.to_string());
 
@@ -436,8 +604,8 @@ fn main() -> BoxedResult<()> {
                 let mean: f32 = sum / samp_num as f32;
 
                 // get number of samples less than threshold
-                let lt_count = contrast_vals.partition_point(|x| *x < strand_contrast_thresh);
-                let ge_count = samp_num - lt_count as u64;
+                let lt_count = num_lt(&contrast_vals, &strand_contrast_thresh);
+                let ge_count = num_ge(&lt_count, &samp_num);
 
                 // Calculate the ratio
                 let mut Klt = lt_count as f32 / ge_count as f32;
@@ -451,6 +619,19 @@ fn main() -> BoxedResult<()> {
                     //println!("{}", &Kge);
                 }
 
+                // get number of samples within the ROPE to get evidence ratio
+                let in_rope_count = num_in_rope(&contrast_vals, &strand_contrast_rope)?;
+                let not_in_rope_count = num_not_in_rope(&in_rope_count, &samp_num);
+
+                let mut Kin = in_rope_count as f32 / not_in_rope_count as f32;
+                if Kin > samp_num as f32 {
+                    Kin = (samp_num + 1) as f32;
+                }
+                let mut Knotin = not_in_rope_count as f32 / in_rope_count as f32;
+                if Knotin > samp_num as f32 {
+                    Knotin = (samp_num + 1) as f32;
+                }
+
                 contrast.write_vals_to_files(
                     &ctg,
                     &start,
@@ -460,12 +641,14 @@ fn main() -> BoxedResult<()> {
                     upper,
                     Kge,
                     Klt,
+                    Kin,
+                    Knotin,
                 )?;
                 pos_line.clear();
             }
             // return pos_map_reader to beginning of file
             pos_map_reader.seek(SeekFrom::Start(0))?;
-            contrast.flush_buffers();
+            contrast.flush_buffers()?;
         }
     }    
 
@@ -510,6 +693,10 @@ fn main() -> BoxedResult<()> {
             .ok_or("Could not parse param_id. No such param_id. Exiting now.")?;
         let this_offset: u64 = index.offsets[offset_idx].try_into()?;
         let mut samples = blob_file.read_f32_from_position(this_offset)?;
+        // change base of logarithm from e, which stan uses, to 2, which biologists use
+        for samp in samples.iter_mut() {
+            *samp = change_to_base_2(samp);
+        }
         let sum: f32 = samples.iter().sum();
         let a: f32 = sum / samp_num as f32;
         cubics_str.push_str(&format!("{},{}\n", &param, &a));
@@ -521,6 +708,10 @@ fn main() -> BoxedResult<()> {
             .ok_or("Could not parse param_id. No such param_id. Exiting now.")?;
         let this_offset: u64 = index.offsets[offset_idx].try_into()?;
         let mut samples = blob_file.read_f32_from_position(this_offset)?;
+        // change base of logarithm from e, which stan uses, to 2, which biologists use
+        for samp in samples.iter_mut() {
+            *samp = change_to_base_2(samp);
+        }
         let sum: f32 = samples.iter().sum();
         let b: f32 = sum / samp_num as f32;
         cubics_str.push_str(&format!("{},{}\n", &param, &b));
@@ -532,9 +723,25 @@ fn main() -> BoxedResult<()> {
             .ok_or("Could not parse param_id. No such param_id. Exiting now.")?;
         let this_offset: u64 = index.offsets[offset_idx].try_into()?;
         let mut samples = blob_file.read_f32_from_position(this_offset)?;
+        // change base of logarithm from e, which stan uses, to 2, which biologists use
+        for samp in samples.iter_mut() {
+            *samp = change_to_base_2(samp);
+        }
         let sum: f32 = samples.iter().sum();
         let c: f32 = sum / samp_num as f32;
         cubics_str.push_str(&format!("{},{}\n", &param, &c));
+
+        // switch back to base-e for plotting relationships,
+        // since that's what was originally used for cubic fit.
+        for val in this_nonsub_vec.iter_mut() {
+            *val = change_to_base_e(val);
+        }
+        for val in this_beta_vec.iter_mut() {
+            *val = change_to_base_e(val);
+        }
+        for val in this_gamma_vec.iter_mut() {
+            *val = change_to_base_e(val);
+        }
 
         let _ = plot_relationships(
             &out_direc,
