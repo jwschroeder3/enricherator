@@ -36,6 +36,13 @@ functions {
         }
         return signoise;
     }
+
+    vector control_sub_vals(vector control, array[] int sub_idxs, real intercept, real slope) {
+        int K = rows(control);
+        vector[K] sub_values = rep_vector(0.0, K);
+        sub_values[sub_idxs] = intercept + slope * control[sub_idxs];
+        return sub_values;
+    }
 }
 
 data {
@@ -45,9 +52,11 @@ data {
     int<lower=1> A; // number of alphas
     int<lower=1> G; // number of gammas
     int<lower=1, upper=2> Q; // number of strands
+    int<lower=0, upper=L> C; // number of positions to be used in control subtraction
     real alpha_prior;
     array[S,3] int param_idx_arr; // parameter index for each of alpha, beta, gamma
-    array[G] int beta_sub_idx; // for each G, establishes which B to subtract
+    //array[G] int beta_sub_idx; // for each G, establishes which B to subtract
+    array[G,Q,C] int sub_loci;
     array[S] int sample_x; // sample_id for each datum
     array[S,Q,L] int Y; // counts
     array[S] real<lower=0> libsize; // exposure term for each sample
@@ -106,11 +115,8 @@ parameters {
     vector<lower=0>[3] prec; // stratify global precision inference by ChIP vs input vs ipod
     array[A,Q] vector[a_sub_L] sub_Alpha; // one intercept for each genotype/sub-position
 
-    vector<lower=0>[G] t_sd;
-    //vector<lower=0>[G] t_nu;
-    vector<lower=0>[G] a_cubic;
-    vector[G] b_cubic;
-    vector[G] c_cubic;
+    vector<lower=0>[G] intercept;
+    vector[G] slope;
 
     // local parameters for horseshoe prior
     array[G,Q] vector[g_sub_L] zgamma;
@@ -125,26 +131,23 @@ parameters {
 }
 
 transformed parameters {
-    array[B,Q] vector[L] Beta;
     array[A,Q] vector[L] Alpha; // one intercept for each genotype/position combination
+    array[B,Q] vector[L] Beta;
     array[G,Q] vector[L] Gamma;
-    array[G,Q] vector[L] non_sub;
+    //array[G,Q] vector[L] non_sub;
 
     //real lprior = 0.0;
-    real lcubic = 0.0;
+    //real lcubic = 0.0;
 
     {
         vector[b_sub_L] sub_Beta; 
         vector[g_sub_L] sub_gamma;
-        vector[L] tmp_Beta;
-        vector[L] tmp_Gamma;
-        vector[L] tmp_nonsub;
-        vector[L] control_est;
-        vector[L] tmp_in_lik;
+        //vector[L] tmp_Beta;
+        //vector[L] tmp_Gamma;
         //vector[L] beta_gr_zero;
         //vector[L] gamma_gr_zero;
         //vector[L] gr_zero;
-        int b_sub_idx;
+        //int b_sub_idx;
         vector[g_sub_L] lambda_tilde_gamma;
         vector[b_sub_L] lambda_tilde_beta;
         real c2;
@@ -172,7 +175,7 @@ transformed parameters {
                     ./ (c2 + tau_gamma[g]^2 * square(lambda_gamma[g,q]))
                 );
                 sub_gamma = zgamma[g,q] .* lambda_tilde_gamma*tau_gamma[g];
-                tmp_nonsub = csr_matrix_times_vector(
+                Gamma[g,q] = csr_matrix_times_vector(
                     L,
                     g_sub_L,
                     g_weights_vals,
@@ -180,26 +183,6 @@ transformed parameters {
                     g_row_non_zero_number,
                     sub_gamma
                 );
-                
-                // fetch correct Betas to fit cubic relationship
-                b_sub_idx = beta_sub_idx[g];
-                tmp_Beta = Beta[b_sub_idx,q];
-                for (l in 1:L) {
-                    if (tmp_Beta[l] > 0 && tmp_nonsub[l] > 0) {
-                        // if control is, estimate chip based on control
-                        // using cubic relationship.
-                        control_est[l] = (
-                            a_cubic[g] * tmp_Beta[l]
-                            + b_cubic[g] * tmp_Beta[l]^2
-                            + c_cubic[g] * tmp_Beta[l]^3
-                        );
-                        lcubic += student_t_lpdf(tmp_nonsub[l] | 2, control_est[l], t_sd[g]);
-                    } else {
-                        control_est[l] = 0.0;
-                    }
-                }
-                non_sub[g,q] = tmp_nonsub;
-                Gamma[g,q] = tmp_nonsub - control_est;
             }
         }
     }
@@ -216,40 +199,6 @@ transformed parameters {
             );
         }
     }
-
-    //lprior += student_t_lupdf(a_cubic | 3, 1.0, 0.5);
-    //lprior += student_t_lupdf(b_cubic | 3, 0.0, 0.5);
-    //lprior += student_t_lupdf(c_cubic | 3, 0.0, 0.5);
-
-    //for (b in 1:B) {
-    //    lprior += inv_gamma_lupdf(caux_beta[b] | 0.5*hs_df_slab_beta, 0.5*hs_df_slab_beta);
-    //    lprior += cauchy_lupdf(tau_beta[b] | 0, hs_scale_global_beta^2);
-    //    for (q in 1:Q) {
-    //        lprior += std_normal_lupdf(zbeta[b,q]);
-    //        lprior += student_t_lupdf(lambda_beta[b,q] | hs_df_beta, 0, 1);
-    //    }
-    //}
-
-    //for (g in 1:G) {
-    //    lprior += inv_gamma_lupdf(caux_gamma[g] | 0.5*hs_df_slab_gamma, 0.5*hs_df_slab_gamma);
-    //    lprior += cauchy_lupdf(tau_gamma[g] | 0, hs_scale_global_gamma^2);
-    //    for (q in 1:Q) {
-    //        lprior += std_normal_lupdf(zgamma[g,q]);
-    //        lprior += student_t_lupdf(lambda_gamma[g,q] | hs_df_gamma, 0, 1);
-    //    }
-    //}
-
-    //for (a in 1:A) {
-    //    for (q in 1:Q) {
-    //        lprior += normal_lupdf(sub_Alpha[a,q] | alpha_prior, 4);
-    //    }
-    //}
-
-    //lprior += lognormal_lupdf(prec | 0, 1);
-    //for (s in 1:S) {
-    //    lprior += normal_lupdf(log_pseudocount[s] | psi[s], 1.0);
-    //}
-
 }
 
 model {
@@ -258,15 +207,13 @@ model {
     vector[L] Y_hat;
     real libsize_s;
     real psi_s;
+    int a_idx;
+    int b_idx;
+    int g_idx;
 
-    // incorporate the log-likelihood for the cubic relationship's fit here
-    target += lcubic;
-
-    t_sd ~ std_normal()T[0,];
-    //t_nu ~ std_normal()T[0,];
-    a_cubic ~ student_t(3, 1.0, 0.5)T[0,];
-    b_cubic ~ student_t(3, 0.0, 0.5);
-    c_cubic ~ student_t(3, 0.0, 0.5);
+    // priors on the relationships between gamma/beta pairs
+    intercept ~ student_t(3, -1.0, 0.5);
+    slope ~ student_t(3, 1.0, 0.5)T[0,];
 
     for (b in 1:B) {
         caux_beta[b] ~ inv_gamma(0.5*hs_df_slab_beta, 0.5*hs_df_slab_beta);
@@ -301,19 +248,37 @@ model {
         param_idxs = param_idx_arr[s];
         libsize_s = log_libsize[s];
         psi_s = psi[s];
+        a_idx = param_idxs[1];
+        b_idx = param_idxs[2];
+        g_idx = param_idxs[3];
 
         for (q in 1:Q) {
 
             if (sample_type == 0) {
-                Y_hat = Alpha[param_idxs[1],q] 
+                Y_hat = Alpha[a_idx,q] 
                     + libsize_s;
             } else if (sample_type == 1) {
-                Y_hat = Alpha[param_idxs[1],q] 
-                    + Beta[param_idxs[2],q] 
+                Y_hat = Alpha[a_idx,q] 
+                    + Beta[b_idx,q] 
                     + libsize_s;
             } else {
-                Y_hat = Alpha[param_idxs[1],q] 
-                    + non_sub[param_idxs[3],q] 
+                Y_hat = Alpha[a_idx,q] 
+                    // here we get the relu for relationship between highest beta vals
+                    // and gamma, and apply them to the expectation.
+                    // This way, Gamma is learning the control-subtracted enrichment of interest.
+                    + control_sub_vals(
+                          // these are just the control enrichments
+                          Beta[b_idx,q],
+                          // this is a list of the indices of the control enrichments for which we
+                          // actually want to subtract beta from gamma all other indices will have
+                          // no subtraction
+                          sub_loci[b_idx,q],
+                          // each gamma/beta relationship has its own intercept and slope.
+                          // fetch them here.
+                          intercept[g_idx],
+                          slope[g_idx]
+                      )
+                    + Gamma[g_idx,q] 
                     + libsize_s;
             }
             Y[s,q] ~ neg_binomial_2_log(log_sum_exp(Y_hat, psi_s), prec[sample_type+1]);
@@ -322,6 +287,38 @@ model {
 }
 
 generated quantities {
+
+    // we also want he non-subbed extract enrichments
+    // So add the Gamma and Betas
+    array[G,Q] vector[L] non_sub;
+    {
+    int sample_type;
+    int a_idx;
+    int b_idx;
+    int g_idx;
+    array[3] int param_idxs;
+
+    for (s in 1:S) {
+        sample_type = sample_x[s];
+        param_idxs = param_idx_arr[s];
+        a_idx = param_idxs[1];
+        b_idx = param_idxs[2];
+        g_idx = param_idxs[3];
+
+        for (q in 1:Q) {
+            if (sample_type == 2) {
+                    non_sub[g_idx,q] = control_sub_vals(
+                          Beta[b_idx,q],
+                          sub_loci[b_idx,q],
+                          intercept[g_idx],
+                          slope[g_idx]
+                    ) + 
+                    Gamma[g_idx,q];
+            }
+        }
+    }
+    }
+
 
     //vector[N] log_lik;
     //array[S,Q] vector[L] post_pred;

@@ -1,0 +1,9 @@
+beta_sub_idx = [1,1]
+
+[input]
+draws_file = "/nfs/corenfs/biochem-freddolino-lab/schroedj/src/IPODerator/R/tests/rank_results/draws/draws-1.csv"
+expt_key_file = "rank_results/data/expt_key.json"
+pos_file_name = "rank_results/data/position_map.txt"
+
+[output]
+out_direc = "/nfs/corenfs/biochem-freddolino-lab/schroedj/src/IPODerator/R/tests/rank_results/draws"

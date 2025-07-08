@@ -8,7 +8,9 @@ import numpy as np
 DATADIR = "data"
 SRCDIR="/corexfs/schroedj/src/IPODerator"
 TARGETDIR = "targets"
+RANK_TARGETDIR = "rank_targets"
 RESULTDIR = "results"
+RANK_RESULTDIR = "rank_results"
 
 #ARGS = "--cfg_file config.toml"
 #FITARGS = "--cfg_file fit_config.toml"
@@ -17,18 +19,22 @@ TESTPARSECSVDIR = "parse_csv_testing"
 TESTPARSEBLOBDIR = "parse_blob_testing"
 
 ARGS = f"--info {os.path.join(DATADIR, 'very_minimal.csv')} "\
-    f"--draws_direc {os.path.join(RESULTDIR, 'draws')} "\
+    f"--data_direc {os.path.join(RESULTDIR, 'data')} "\
     f"--debug_outdir {RESULTDIR} "\
-    f"--debug "\
-    f"--data_file {os.path.join(RESULTDIR, 'test_data.RData')}"
+    f"--debug "
 
-FITARGS = f"--stan_file {os.path.join(SRCDIR, 'stan/sig_noise_alloc.stan')} "\
+RANK_ARGS = f"--info {os.path.join(DATADIR, 'rank_info.csv')} "\
+    f"--data_direc {os.path.join(RANK_RESULTDIR, 'data')} "\
+    f"--debug_outdir {RANK_RESULTDIR} "\
+    f"--debug "
+
+FITARGS = f"--stan_file {os.path.join(SRCDIR, 'stan/test_control_sub.stan')} "\
     f"--draws_direc {os.path.join(FITRESULTDIR, 'draws')} " \
     f"--seed 42 " \
     f"--fit_file {os.path.join(FITRESULTDIR, 'fit.RData')} " \
     f"--debug_outdir {FITRESULTDIR} "\
     f"--debug "\
-    f"--data_file {os.path.join(RESULTDIR, 'test_data.RData')}"
+    f"--data_file {os.path.join(RESULTDIR, 'data.RData')}"
 
 PARSEARGS = f"--cfg-file {os.path.join(TESTPARSECSVDIR, 'draws/config.toml')}"
 
@@ -88,7 +94,7 @@ def parse_enricherator_blob():
     print("=============================")
     print(result.stderr.decode())
 
-def get_par_idx_array():
+def prep_data():
     if os.path.isdir(RESULTDIR):
         rm_files = os.listdir(RESULTDIR)
         for f in rm_files:
@@ -100,17 +106,38 @@ def get_par_idx_array():
     cmd = f"Rscript {SRCDIR}/R/prep_data.R {ARGS}"
     result = subprocess.run(cmd, shell=True, capture_output=True)
     print()
-    print("stdout from get_par_idx_array")
+    print("stdout from prep_data")
     print("=============================")
     print(result.stdout.decode())
     print()
-    print("stderr from get_par_idx_array")
+    print("stderr from prep_data")
     print("=============================")
     print(result.stderr.decode())
 
-#get_par_idx_array()
-#fit_model()
-#parse_csv_to_blob()
+def prep_rank_data():
+    if os.path.isdir(RANK_RESULTDIR):
+        rm_files = os.listdir(RANK_RESULTDIR)
+        for f in rm_files:
+            thingy = os.path.join(RANK_RESULTDIR, f)
+            if os.path.isdir(thingy):
+                shutil.rmtree(thingy)
+            else:
+                os.remove(thingy)
+    cmd = f"Rscript {SRCDIR}/R/prep_data.R {RANK_ARGS}"
+    result = subprocess.run(cmd, shell=True, capture_output=True)
+    print()
+    print("stdout from prep_rank_data")
+    print("=============================")
+    print(result.stdout.decode())
+    print()
+    print("stderr from prep_rank_data")
+    print("=============================")
+    print(result.stderr.decode())
+
+prep_data()
+prep_rank_data()
+fit_model()
+parse_csv_to_blob()
 parse_enricherator_blob()
 
 def test_get_par_num():
@@ -131,15 +158,15 @@ def test_get_par_idx_array():
 
 def test_get_beta_sub_idx():
     # read entire ground truth csv to string
-    target = np.loadtxt(os.path.join(TARGETDIR, "beta_sub_idx.csv"), delimiter=",")
-    result = np.loadtxt(os.path.join(RESULTDIR, "beta_sub_idx.csv"), delimiter=",")
+    target = np.loadtxt(os.path.join(RANK_TARGETDIR, "sub_inds1.csv"), delimiter=",")
+    result = np.loadtxt(os.path.join(RANK_RESULTDIR, "sub_inds1.csv"), delimiter=",")
     assert np.all(target == result)
 
 def test_get_expt_key():
     # read entire ground truth json to list
     with open(os.path.join(TARGETDIR, "expt_key.json"), "r") as target_file:
         target = json.load(target_file)
-    with open(os.path.join(RESULTDIR, "draws/expt_key.json"), "r") as result_file:
+    with open(os.path.join(RESULTDIR, "data/expt_key.json"), "r") as result_file:
         result = json.load(result_file)
     assert np.all(target == result)
 

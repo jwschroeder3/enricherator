@@ -1,0 +1,9 @@
+genotype,sample,rep,strand,file,input_group,control_group,extract_group,sample_x,strand_x,rep_id,sample_id
+H_mNG_No_mCh_wHNS_wSTPA_wHHA_wYDG_exp,control,rep1,both,data/ranks/H-mNG_No-mCh_wHNS_wSTPA_wHHA-wYDG_exp_ChIPmCh_rep1_count_very_minimal.bedgraph,2,1,0,1,1,1,H_mNG_No_mCh_wHNS_wSTPA_wHHA_wYDG_exp.control.rep1.2.1
+H_mNG_No_mCh_wHNS_wSTPA_wHHA_wYDG_exp,input,rep1,both,data/ranks/H-mNG_No-mCh_wHNS_wSTPA_wHHA-wYDG_exp_Input_rep1_count_very_minimal.bedgraph,2,0,0,0,1,1,H_mNG_No_mCh_wHNS_wSTPA_wHHA_wYDG_exp.input.rep1.2.0
+H_mNG_S_mCh_wHNS_wSTPA_Dhha_Dydg_exp,extract,rep1,both,data/ranks/H-mNG_S-mCh_wHNS_wSTPA_Dhha-Dydg_exp_ChIPmCh_rep1_count_very_minimal.bedgraph,4,1,2,2,1,1,H_mNG_S_mCh_wHNS_wSTPA_Dhha_Dydg_exp.extract.rep1.4.1
+H_mNG_S_mCh_wHNS_wSTPA_Dhha_Dydg_exp,input,rep1,both,data/ranks/H-mNG_S-mCh_wHNS_wSTPA_Dhha-Dydg_exp_Input_rep1_count_very_minimal.bedgraph,4,0,0,0,1,1,H_mNG_S_mCh_wHNS_wSTPA_Dhha_Dydg_exp.input.rep1.4.0
+H_mNG_S_mCh_wHNS_wSTPA_wHHA_wYDG_exp,extract,rep1,both,data/ranks/H-mNG_S-mCh_wHNS_wSTPA_wHHA-wYDG_exp_ChIPmCh_rep1_count_very_minimal.bedgraph,1,1,1,2,1,1,H_mNG_S_mCh_wHNS_wSTPA_wHHA_wYDG_exp.extract.rep1.1.1
+H_mNG_S_mCh_wHNS_wSTPA_wHHA_wYDG_exp,input,rep1,both,data/ranks/H-mNG_S-mCh_wHNS_wSTPA_wHHA-wYDG_exp_Input_rep1_count_very_minimal.bedgraph,1,0,0,0,1,1,H_mNG_S_mCh_wHNS_wSTPA_wHHA_wYDG_exp.input.rep1.1.0
+No_mNG_S_mCh_wHNS_wSTPA_wHHA_wYDG_exp,extract,rep1,both,data/ranks/No-mNG_S-mCh_wHNS_wSTPA_wHHA-wYDG_exp_ChIPmCh_rep1_count_very_minimal.bedgraph,3,1,1,2,1,1,No_mNG_S_mCh_wHNS_wSTPA_wHHA_wYDG_exp.extract.rep1.3.1
+No_mNG_S_mCh_wHNS_wSTPA_wHHA_wYDG_exp,input,rep1,both,data/ranks/No-mNG_S-mCh_wHNS_wSTPA_wHHA-wYDG_exp_Input_rep1_count_very_minimal.bedgraph,3,0,0,0,1,1,No_mNG_S_mCh_wHNS_wSTPA_wHHA_wYDG_exp.input.rep1.3.0

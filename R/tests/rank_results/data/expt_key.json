@@ -1,0 +1,43 @@
+{
+    "var_map": [
+        "Alpha",
+        "Beta",
+        "Gamma",
+        "non_sub"
+    ],
+    "geno_map": [
+        [
+            "H_mNG_S_mCh_wHNS_wSTPA_wHHA_wYDG_exp",
+            "H_mNG_No_mCh_wHNS_wSTPA_wHHA_wYDG_exp",
+            "No_mNG_S_mCh_wHNS_wSTPA_wHHA_wYDG_exp",
+            "H_mNG_S_mCh_wHNS_wSTPA_Dhha_Dydg_exp"
+        ],
+        [
+            "H_mNG_No_mCh_wHNS_wSTPA_wHHA_wYDG_exp"
+        ],
+        [
+            "H_mNG_S_mCh_wHNS_wSTPA_wHHA_wYDG_exp_AND_No_mNG_S_mCh_wHNS_wSTPA_wHHA_wYDG_exp",
+            "H_mNG_S_mCh_wHNS_wSTPA_Dhha_Dydg_exp"
+        ],
+        [
+            "H_mNG_S_mCh_wHNS_wSTPA_wHHA_wYDG_exp_AND_No_mNG_S_mCh_wHNS_wSTPA_wHHA_wYDG_exp",
+            "H_mNG_S_mCh_wHNS_wSTPA_Dhha_Dydg_exp"
+        ]
+    ],
+    "strand_map": [
+        "both"
+    ],
+    "sample_num": [
+        500
+    ],
+    "resolution": [
+        5
+    ],
+    "pos_num": [
+        5
+    ],
+    "strand_num": [
+        1
+    ]
+}
+
