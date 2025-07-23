@@ -310,7 +310,15 @@ append_unique_string = function(vec, string) {
   return(vec)
 }
 
-prep_stan_data = function(data_df, norm_method, spikein, spikein_rel_abund=0.05, input_subsample_dist_bp=50, input_frag_len_bp=125, ext_subsample_dist_bp=50, ext_frag_len_bp=50, ipod_subsample_dist_bp=50, ipod_frag_len_bp=50, log_lik=FALSE, frac_genome_enriched=NULL, debug=FALSE, debug_outdir=NULL, tau_coef=1, control_sub_quantile=0.98) {
+set_horseshoe_scale = function(pos_num, sub_L, frac_enriched_prior) {
+    N_per_hs = pos_num
+    coef_num_per_hs = sub_L 
+    num_enriched = sub_L * frac_enriched_prior
+    scale = num_enriched / (sub_L - num_enriched)
+    return(scale)
+}
+
+prep_stan_data = function(data_df, norm_method, spikein, spikein_rel_abund=0.05, input_subsample_dist_bp=50, input_frag_len_bp=125, ext_subsample_dist_bp=50, ext_frag_len_bp=50, ipod_subsample_dist_bp=50, ipod_frag_len_bp=50, log_lik=FALSE, control_frac_genome_enriched=NULL, extract_frac_genome_enriched=NULL, debug=FALSE, debug_outdir=NULL, control_sub_quantile=0.98) {
     # this sort step is VERY USEFUL for arranging data
     # later on to keep size factors
     # associated with correct samples
@@ -366,8 +374,11 @@ prep_stan_data = function(data_df, norm_method, spikein, spikein_rel_abund=0.05,
         A_geno_lut[[unique_inp_genos[i]]] = i
     }
     B_geno_lut = list()
-    for (i in 1:B) {
-        B_geno_lut[[unique_cont_genos[i]]] = i
+    # if we're doing control subtraction, B will be greater than 0
+    if (B > 0) {
+        for (i in 1:B) {
+            B_geno_lut[[unique_cont_genos[i]]] = i
+        }
     }
     G_geno_lut = list()
     for (i in 1:G) {
@@ -478,48 +489,6 @@ prep_stan_data = function(data_df, norm_method, spikein, spikein_rel_abund=0.05,
     # here.
     rank_threshold = floor(control_sub_quantile * pos_num)
     sub_num = pos_num - rank_threshold
-    # allocate array for loci to store
-    sub_loci = array(0, c(B,max(distinct_strand_ids),sub_num))
-    # for each beta, allocate the space to store numerators to get mean rank
-    sum_ranks = array(0, c(B,max(distinct_strand_ids),pos_num))
-    # for each beta, allocate vector for denominators to get mean rank
-    mean_rank_denominators = array(0,c(B, max(distinct_strand_ids)))
-
-    distinct_control_groups = unique(data_df$control_group)
-    for (b in distinct_control_groups) {
-        if (b == 0) {
-            next
-        }
-        for (q in distinct_strand_ids) {
-            # get the samples from data_df that are in this beta/strand combination,
-            # and are control samples
-            in_this_b = data_df$control_group == b
-            in_this_q = data_df$strand_x == q
-            is_control = data_df$sample == "control"
-            in_this_group = in_this_b & in_this_q & is_control
-            group_data = data_df$data[in_this_group]
-
-            for (sample_data in group_data) {
-                ranks = order(sample_data$score)
-                if (debug) {
-                    print(ranks)
-                    print(paste0("dim(ranks): ", dim(ranks)))
-                    print(paste0("dim(sum_ranks): ", dim(sum_ranks)))
-                    print(sum_ranks)
-                }
-                sum_ranks[b,q,] = sum_ranks[b,q,] + ranks
-                mean_rank_denominators[b,q] = mean_rank_denominators[b,q] + 1
-            }
-        }
-    }
-    for (b in 1:B) {
-        for (q in distinct_strand_ids) {
-            ranked_mean_ranks = order(sum_ranks[b,q,] / mean_rank_denominators[b,q])
-            these_loci = which(ranked_mean_ranks > rank_threshold)
-            sub_loci[b,q,] = these_loci
-        }
-    }
-
     # track which gammas to subtract a given beta from
     beta_sub_idx = array()
 
@@ -540,8 +509,6 @@ prep_stan_data = function(data_df, norm_method, spikein, spikein_rel_abund=0.05,
         print(paste0("Writing beta_sub_idx to ", fname))
         write(beta_sub_idx, file=fname, sep=",")
         fname = file.path(debug_outdir, "sub_inds1.csv")
-        print(paste0("Writing sub_loci to ", fname))
-        write(sub_loci[1,1,], file=fname, sep=",")
     }
 
     #geno_names = NA
@@ -572,7 +539,6 @@ prep_stan_data = function(data_df, norm_method, spikein, spikein_rel_abund=0.05,
     stan_list[["info"]] = data_df %>% select(-data)
     stan_list[["gather_log_lik"]] = log_lik
     stan_list[["beta_sub_idx"]] = beta_sub_idx
-    stan_list[["sub_loci"]] = sub_loci
     stan_list[["param_idx_arr"]] = param_idx_arr 
     stan_list[["expt_key"]] = list()
     stan_list[["expt_key"]][["var_map"]] = var_map
@@ -804,17 +770,14 @@ prep_stan_data = function(data_df, norm_method, spikein, spikein_rel_abund=0.05,
     stan_list[["a_col_accessor"]] = v
     stan_list[["a_row_non_zero_number"]] = u
 
-    if (!is.null(frac_genome_enriched)) {
-        N_per_hs = pos_num
-        coef_num_per_hs = b_sub_L 
-        num_enriched = b_sub_L * frac_genome_enriched
-        par_ratio = num_enriched / (b_sub_L - num_enriched)
-        scale = par_ratio * tau_coef
-        #scale = 0.00000000000001 * par_ratio
-        stan_list[["hs_scale_global_beta"]] = scale
-        stan_list[["hs_scale_global_gamma"]] = scale
+    if (!is.null(control_frac_genome_enriched)) {
+        stan_list[["hs_scale_global_beta"]] = set_horseshoe_scale(pos_num, b_sub_L, control_frac_genome_enriched)
     } else {
         stan_list[["hs_scale_global_beta"]] = 1
+    }
+    if (!is.null(extract_frac_genome_enriched)) {
+        stan_list[["hs_scale_global_gamma"]] = set_horseshoe_scale(pos_num, g_sub_L, extract_frac_genome_enriched)
+    } else {
         stan_list[["hs_scale_global_gamma"]] = 1
     }
     print(paste0("hs_scale_global_beta: ", stan_list[["hs_scale_global_beta"]]))

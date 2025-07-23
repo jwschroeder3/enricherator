@@ -10,3 +10,4 @@ R/tests/data
 R/tests/parse_csv_testing
 R/tests/parse_blob_testing
 singularity
+stan/.*

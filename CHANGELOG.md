@@ -3,6 +3,9 @@
 Significant updates the the Enricherator code base will be noted
 in this file.
 
+## [1.0.0]
+
+
 ## [0.3.0] - dev
 
 + introduction of signal-to-noise allocation in a mixture model instead

@@ -50,19 +50,23 @@ option_list = list(
         c("--data_direc"), type="character",
         help="The name of the directory into which prepared data will be written",
     ),
-    make_option(c("--frac_genome_enriched"), type="double", default=NULL,
-        help="Prior expectation for the fraction of the genome enriched (positive and negative) for the signal of interest. Sets the degree of shrinkage applied to enrichment estimates.",
+    make_option(c("--extract_frac_genome_enriched"), type="double", default=NULL,
+        help="Prior expectation for the fraction of the genome enriched (positive and negative) for the extracted signal of interest. Sets the degree of shrinkage applied to enrichment estimates.",
     ),
-    make_option(c("--tau_coef"), type="double", default=1,
-        help="Scaling factor for prior on global shrinkage",
+    make_option(c("--control_frac_genome_enriched"), type="double", default=0.1,
+        help="Prior expectation for the fraction of the genome enriched (positive and negative) for the control signal. Sets the degree of shrinkage applied to enrichment estimates. Default is 0.1, which is appropriate for IPOD experiments, where 'control' is really RNAP ChIP-seq data.",
     ),
     make_option(
-        c("--ext_fragment_length"), type="integer", default=60,
+        c("--control_fragment_length"), type="integer", default=60,
         help="Sets the width of the smoothing kernel applied to sampled betas."
     ),
     make_option(
-        c("--ext_subsample_dist"), type="integer", default=30,
+        c("--control_subsample_dist"), type="integer", default=30,
         help="Distance (in bp) between sampled betas, which will later be mixed using overlapping exponential kernels defined by --ext_fragment_length."
+    ),
+    make_option(
+        c("--control_sub_quantile"), type="double", default=0.98,
+        help="Sets the quantile threshold for the control enrichment values to be used to fit the linear relationship between extract enrichment and control enrichment inferences. Default is 0.98, so a line between the control enrichments in the 98th %-ile the extract enrichments at the same genomic locations will be fit. The function that will be subtracted from the extract enrichments will be 0 from control values of negative infinity to 0, then 0 from control values of 0 to the x-intercept of the fitted line, then the line from control values from the x-intercept of the fitted line to positive infinity. Ignored if no control subtraction is to be performed."
     ),
     make_option(
         c("--input_fragment_length"), type="integer", default=120,
@@ -73,11 +77,11 @@ option_list = list(
         help="Distance (in bp) between sampled alphas, which will later be mixed using overlapping exponential kernels defined by --input_fragment_length."
     ),
     make_option(
-        c("--ipod_fragment_length"), type="integer", default=90,
+        c("--extract_fragment_length"), type="integer", default=90,
         help="Sets the width of the smoothing kernel applied to ipod fits"
     ),
     make_option(
-        c("--ipod_subsample_dist"), type="integer", default=45,
+        c("--extract_subsample_dist"), type="integer", default=45,
         help="Distance (in bp) between sampled ipod factors."
     ),
     make_option(
@@ -191,15 +195,16 @@ stan_list = prep_stan_data(
     opt$spikein_rel_abund,
     opt$input_subsample_dist,
     opt$input_fragment_length,
-    opt$ext_subsample_dist,
-    opt$ext_fragment_length,
-    opt$ipod_subsample_dist,
-    opt$ipod_fragment_length,
+    opt$control_subsample_dist,
+    opt$control_fragment_length,
+    opt$extract_subsample_dist,
+    opt$extract_fragment_length,
     opt$log_lik,
-    opt$frac_genome_enriched,
+    opt$control_frac_genome_enriched,
+    opt$extract_frac_genome_enriched,
     opt$debug,
     opt$debug_outdir,
-    opt$tau_coef
+    opt$control_sub_quantile
 )
 stan_list[["expt_key_file"]] = paste0(opt$data_direc, "/expt_key.json")
 stan_list[["pos_map_file"]] = paste0(opt$data_direc, "/position_map.txt")
