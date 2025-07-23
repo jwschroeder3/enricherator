@@ -53,9 +53,8 @@ mod tests {
         ).unwrap();
         let cfg = Config::from_file(
             hash.get("config").unwrap(),
-            &expt_key,
         ).unwrap();
-        assert_eq!(cfg.input.expt_key_file, String::from("expt_key.json"));
+        assert_eq!(cfg.input.expt_key_file, String::from("test_data/expt_key.json"));
         assert_eq!(cfg.input.draws_file, String::from("draws.csv"));
         assert_eq!(cfg.input.pos_file_name, String::from("position_map.tsv"));
         assert_eq!(cfg.output.out_direc, String::from("test_data/out_direc"));
@@ -131,20 +130,23 @@ mod tests {
         let cfg = ConfigFile::read(
             hash.get("config").unwrap(),
         ).unwrap();
-        assert_eq!(cfg.input.expt_key_file, String::from("expt_key.json"));
+        assert_eq!(cfg.input.expt_key_file, String::from("test_data/expt_key.json"));
         assert_eq!(cfg.input.draws_file, String::from("draws.csv"));
         assert_eq!(cfg.input.pos_file_name, String::from("position_map.tsv"));
         assert_eq!(cfg.output.out_direc, String::from("test_data/out_direc"));
         assert_eq!(cfg.parse.vars[0], String::from("Alpha"));
         assert_eq!(cfg.parse.vars[3], String::from("non_sub"));
         assert_eq!(cfg.parse.threshold, Some(1.0));
+        assert!(cfg.parse.rope.is_none());
         assert_eq!(cfg.geno_contrasts.clone().unwrap().Beta.unwrap()[0], String::from("vpsR-wt"));
         assert_eq!(cfg.geno_contrasts.clone().unwrap().Beta.unwrap()[2], String::from("vpsR - wt -vpsT + wt"));
         assert_eq!(cfg.geno_contrasts.clone().unwrap().Gamma.unwrap()[0], String::from("vpsR-wt"));
         assert_eq!(cfg.geno_contrasts.clone().unwrap().threshold, Some(1.0));
+        assert_eq!(cfg.geno_contrasts.clone().unwrap().rope, Some(0.75));
         assert_eq!(cfg.strand_contrasts.clone().unwrap().Gamma.unwrap()[0], String::from("plus-minus"));
         assert_eq!(cfg.strand_contrasts.clone().unwrap().Gamma.unwrap()[1], String::from("minus-plus"));
         assert!(cfg.strand_contrasts.clone().unwrap().threshold.is_none());
+        assert!(cfg.strand_contrasts.clone().unwrap().rope.is_none());
     }
 
     #[test]
@@ -609,8 +611,24 @@ impl ParamParsers {
 
 impl Config {
     pub fn from_file(fname: &str) -> BoxedResult<Config> {
-        let cfg_file = ConfigFile::read(fname)?;
-        let expt_key = ExptKey::read(&cfg_file.input.expt_key_file)?;
+        let cfg_file_res = ConfigFile::read(fname);
+        let cfg_file = match cfg_file_res {
+            Ok(file) => file,
+            Err(error) => {
+                println!("Error reading ConfigFile");
+                println!("{:?}", error);
+                return Err(error)
+            }
+        };
+        let expt_key_res = ExptKey::read(&cfg_file.input.expt_key_file);
+        let expt_key = match expt_key_res {
+            Ok(file) => file,
+            Err(error) => {
+                println!("Error reading ExptKey");
+                println!("{:?}", error);
+                return Err(error)
+            }
+        };
 
         // if there are geno_contrasts, fetch indices and construct Contrasts
         let geno_contrasts = if let Some(geno_cont) = cfg_file.geno_contrasts {

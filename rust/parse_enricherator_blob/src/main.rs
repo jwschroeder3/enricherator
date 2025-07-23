@@ -146,15 +146,22 @@ fn cubic_interpolation(x: &f32, a: f32, b: f32, c: f32) -> f32 {
     a*x + b*x.powf(2.0) + c*x.powf(3.0)
 }
 
+fn relu_interpolation(x: &f32, a: f32, b: f32) -> f32 {
+    let mut y = a + b*x;
+    if y < 0.0 {
+        y = 0.0
+    }
+    y
+}
+
 fn plot_relationships(
         path: &str,
         geno_name: &str,
         non_sub: Vec<f32>,
         beta: Vec<f32>,
         gamma: Vec<f32>,
-        a: f32,
-        b: f32,
-        c: f32,
+        a: Vec<f32>,
+        b: Vec<f32>,
 ) -> BoxedResult<()> {
 
     let y_min = non_sub.iter().cloned().reduce(f32::min).unwrap() - 0.1;
@@ -165,10 +172,32 @@ fn plot_relationships(
     // get 100 values between x_min and x_max
     let step = x_max / (100 - 1) as f32;
     let line_x: Vec<f32> = (0..100).map(|i| 0.0 + step * i as f32).collect();
-    let line_y: Vec<f32> = line_x.iter().map(|x| cubic_interpolation(x, a, b, c)).collect();
+    // get the y for each x
+    //let mut line_y: Vec<f32> = Vec::new();
+    let mut preds: [f32; 100] = [0.0; 100];
+
+    // iterate over the x values to get the predicted y, given the slope and intercpet,
+    // for each sample, then average over the sampled predictions.
+    let mut denom = 0.0;
+    for (int_i,slope_i) in a.iter().zip(b) {
+        for (j,x_j) in line_x.iter().enumerate() {
+            preds[j] += int_i + slope_i * x_j;
+        }
+        denom += 1.0
+    }
+    for val in preds.iter_mut() {
+        *val = change_to_base_2(&(*val / denom));
+    }
+
+    //let line_y: Vec<f32> = line_x.iter().map(|x| {
+    //    let base_e_y = relu_interpolation(x, a, b);
+    //    change_to_base_2(&base_e_y)
+    //}).collect();
+    // make the line to plot, including the zeros from x_min to origin
     let mut line: Vec<(f32, f32)> = vec![(x_min, 0.0), (0.0,0.0)];
-    let mut curve: Vec<(f32, f32)> = line_x.iter().zip(line_y).map(|(x,y)| (*x as f32,y as f32)).collect();
+    let mut curve: Vec<(f32, f32)> = line_x.iter().zip(preds).map(|(x,y)| (*x as f32,y as f32)).collect();
     line.append(&mut curve);
+
     let points: Vec<(f32,f32)> = beta.iter().zip(non_sub).map(|(x,y)| (*x,y)).collect();
     let gamma_points: Vec<(f32,f32)> = beta.iter().zip(gamma).map(|(x,y)| (*x,y)).collect();
 
@@ -268,14 +297,6 @@ fn main() -> BoxedResult<()> {
     let mut pos_line = String::new();
     let mut pos_map_line : Vec<&str> = Vec::new();
 
-    // will need to gather some info for plotting the fitted cubic relationship
-    // between non_sub and beta. To do this will require gathering beta and non_sub, though.
-    // So, throw a big warning if they're not present in config parse section.
-    let cubic_params = [
-        "a_cubic",
-        "b_cubic",
-        "c_cubic",
-    ];
     // these vecs will store the values for a given genotype
     let mut plot_beta: Vec<f32> = Vec::new();
     let mut plot_nonsub: Vec<f32> = Vec::new();
@@ -300,9 +321,9 @@ fn main() -> BoxedResult<()> {
     let buffer_size: usize = expt_key.sample_num[0] * 4;
     let pos_num: usize = expt_key.pos_num[0];
 
-    let cubics_fname = format!("{out_direc}/cubic_estimates.txt");
-    let mut cubics_file = File::create(&cubics_fname)?;
-    let mut cubics_str = String::new();
+    let relu_fname = format!("{out_direc}/relu_estimates.txt");
+    let mut relu_file = File::create(&relu_fname)?;
+    let mut relu_str = String::new();
 
     // what indices from sorted samples to take the upper and lower 90% credible limits?
     let samp_num: u64 = expt_key.sample_num[0].try_into()?;
@@ -669,12 +690,16 @@ fn main() -> BoxedResult<()> {
     let mut this_nonsub_vec = Vec::new();
     // extract every element for which the beta_order mod 100 == 0
     for (i, (nonsub_vec, gamma_vec)) in geno_plot_nonsubs.iter().zip(geno_plot_gammas).enumerate() {
+        // skip this one if not subtraction was performed
+        if (cfg.beta_sub_idx[i] == 0) {
+            continue
+        }
         let beta_idx = cfg.beta_sub_idx[i] - 1;
         // borrow mutable reference to the inner vec of interest
         let beta_vec = &geno_plot_betas[beta_idx];
         let beta_order = &beta_orders[beta_idx];
 
-        // keep every 100th ordered value
+        // keep every 100th ordered value for plotting
         for (j,val) in beta_order.iter().enumerate() {
             if val % 100 == 0 {
                 this_beta_vec.push(beta_vec[j]);
@@ -685,81 +710,51 @@ fn main() -> BoxedResult<()> {
         
         let geno_name = &geno_names[i];
 
-        // now read the proper values from blob and get their means
-        let param = format!("a_cubic.{geno_name}");
+        // now read the proper intercept and slope values from blob and get their means
+        let param = format!("intercept.{geno_name}");
         println!("Parsing {param}");
         let offset_idx = index.param_ids.iter()
             .position(|s| *s == param)
             .ok_or("Could not parse param_id. No such param_id. Exiting now.")?;
         let this_offset: u64 = index.offsets[offset_idx].try_into()?;
-        let mut samples = blob_file.read_f32_from_position(this_offset)?;
-        // change base of logarithm from e, which stan uses, to 2, which biologists use
-        for samp in samples.iter_mut() {
-            *samp = change_to_base_2(samp);
-        }
-        let sum: f32 = samples.iter().sum();
+        let mut intercept_samples = blob_file.read_f32_from_position(this_offset)?;
+
+        let sum: f32 = intercept_samples.iter().sum();
         let a: f32 = sum / samp_num as f32;
-        cubics_str.push_str(&format!("{},{}\n", &param, &a));
+        relu_str.push_str(&format!("{},{}\n", &param, &a));
 
-        let param = format!("b_cubic.{geno_name}");
+        let param = format!("slope.{geno_name}");
         println!("Parsing {param}");
         let offset_idx = index.param_ids.iter()
             .position(|s| *s == param)
             .ok_or("Could not parse param_id. No such param_id. Exiting now.")?;
         let this_offset: u64 = index.offsets[offset_idx].try_into()?;
-        let mut samples = blob_file.read_f32_from_position(this_offset)?;
-        // change base of logarithm from e, which stan uses, to 2, which biologists use
-        for samp in samples.iter_mut() {
-            *samp = change_to_base_2(samp);
-        }
-        let sum: f32 = samples.iter().sum();
+        let mut slope_samples = blob_file.read_f32_from_position(this_offset)?;
+
+        let sum: f32 = slope_samples.iter().sum();
         let b: f32 = sum / samp_num as f32;
-        cubics_str.push_str(&format!("{},{}\n", &param, &b));
+        relu_str.push_str(&format!("{},{}\n", &param, &b));
 
-        let param = format!("c_cubic.{geno_name}");
-        println!("Parsing {param}");
-        let offset_idx = index.param_ids.iter()
-            .position(|s| *s == param)
-            .ok_or("Could not parse param_id. No such param_id. Exiting now.")?;
-        let this_offset: u64 = index.offsets[offset_idx].try_into()?;
-        let mut samples = blob_file.read_f32_from_position(this_offset)?;
-        // change base of logarithm from e, which stan uses, to 2, which biologists use
-        for samp in samples.iter_mut() {
-            *samp = change_to_base_2(samp);
-        }
-        let sum: f32 = samples.iter().sum();
-        let c: f32 = sum / samp_num as f32;
-        cubics_str.push_str(&format!("{},{}\n", &param, &c));
-
-        // switch back to base-e for plotting relationships,
-        // since that's what was originally used for cubic fit.
-        for val in this_nonsub_vec.iter_mut() {
-            *val = change_to_base_e(val);
-        }
-        for val in this_beta_vec.iter_mut() {
-            *val = change_to_base_e(val);
-        }
-        for val in this_gamma_vec.iter_mut() {
-            *val = change_to_base_e(val);
-        }
-
+        // make plots. Keep in mind that the linear fit was done in natural-log space,
+        // whereas the inferred values have been changed to log-2 space. 
+        // Therefore, the line defined by this intercept and slope is converted to log-2 space
+        // within the plot_relationships function.
         let _ = plot_relationships(
             &out_direc,
             &geno_name,
             this_nonsub_vec.clone(),
             this_beta_vec.clone(),
             this_gamma_vec.clone(),
-            a,
-            b,
-            c,
+            intercept_samples,
+            slope_samples,
         )?;
         this_beta_vec.clear();
         this_gamma_vec.clear();
         this_nonsub_vec.clear();
     }
 
-    println!("Writing cubic relationship esitmates to {}", &cubics_fname);
-    write!(cubics_file, "{}", cubics_str)?;
+    println!("Writing relu relationship esitmates to {}", &relu_fname);
+    write!(relu_file, "{}", relu_str)?;
 
     Ok(())
 }

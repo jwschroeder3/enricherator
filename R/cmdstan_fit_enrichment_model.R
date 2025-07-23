@@ -98,7 +98,7 @@ print("Fitting model using variational inference")
 
 newlist = list()
 include_vars = c(
-    "L","S","B","A","G","Q","alpha_prior","sample_x", "param_idx_arr", "beta_sub_idx",
+    "L","S","B","A","G","Q","C","alpha_prior","sample_x", "param_idx_arr", "beta_sub_idx",
     "Y", "libsize", "hs_df_beta", "hs_df_global_beta", "hs_df_slab_beta",
     "hs_df_gamma", "hs_df_global_gamma", "hs_df_slab_gamma",
     "hs_scale_global_gamma", "hs_scale_slab_gamma", 

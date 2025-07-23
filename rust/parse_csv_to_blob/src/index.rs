@@ -22,7 +22,7 @@ use crate::config::ExptKey;
 ///| p1, g1, q1, l1 | p1, g1, q1, l2 | p2, g1, q1, l1 | p2, g1, q1, l2 |
 ///|________________|________________|________________|________________|
 ///
-/// So we need to write p * g * q * l * s * 4 bytes, plus 3 * s * 4 bytes for cubic relationship
+/// So we need to write p * g * q * l * s * 4 bytes, plus 2 * s * 4 bytes for slope/intercept relationship
 ///
 /// param offset is G * Q * L * S * 4
 /// geno offset is Q * L * S * 4
@@ -137,13 +137,13 @@ impl Index {
             }
         }
 
-        // each Gamma genotype will have an a_cubic, b_cubic, and c_cubic associated
+        // each Gamma genotype will have an intercept and a slope associated
         // with it, so set the offsets for those here. Strand is None, because
         // we don't 
         for (param_idx, (param_name,param_genos)) in var_map.iter().zip(geno_map).enumerate() {
             if param_name == "Gamma" {
                 for (geno_idx,geno_name) in param_genos.iter().enumerate() {
-                    for var in ["a_cubic", "b_cubic", "c_cubic"] {
+                    for var in ["intercept", "slope"] {
                         let param_id = ParamID{
                             parameter: var.to_string(),
                             geno: geno_name.to_string(),

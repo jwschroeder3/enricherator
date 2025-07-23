@@ -29,10 +29,7 @@
     2404000,
     2406000,
     2408000,
-    2410000,
-    2412000,
-    2414000,
-    2416000
+    2410000
   ],
   "param_ids": [
     "Alpha.wt.plus",
@@ -59,16 +56,13 @@
     "non_sub.vpsR.minus",
     "non_sub.vpsT.plus",
     "non_sub.vpsT.minus",
-    "a_cubic.wt",
-    "b_cubic.wt",
-    "c_cubic.wt",
-    "a_cubic.vpsR",
-    "b_cubic.vpsR",
-    "c_cubic.vpsR",
-    "a_cubic.vpsT",
-    "b_cubic.vpsT",
-    "c_cubic.vpsT"
+    "intercept.wt",
+    "slope.wt",
+    "intercept.vpsR",
+    "slope.vpsR",
+    "intercept.vpsT",
+    "slope.vpsT"
   ],
-  "total_bytes": 2418000,
+  "total_bytes": 2412000,
   "buffer_size": 2000
 }

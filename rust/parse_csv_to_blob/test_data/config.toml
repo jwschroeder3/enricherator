@@ -1,5 +1,7 @@
+beta_sub_idx = [1]
+
 [input]
-expt_key_file = "expt_key.json"
+expt_key_file = "test_data/expt_key.json"
 draws_file = "draws.csv"
 pos_file_name = "position_map.tsv"
 
@@ -14,6 +16,7 @@ threshold = 1.0
 Beta = ["vpsR-wt", "vpsT-wt", "vpsR - wt -vpsT + wt"]
 Gamma = ["vpsR-wt", "vpsT-wt"]
 threshold = 1.0
+rope = 0.75
 
 [strand_contrasts]
 Gamma = ["plus-minus", "minus-plus"]

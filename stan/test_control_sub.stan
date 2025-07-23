@@ -37,11 +37,20 @@ functions {
         return signoise;
     }
 
-    vector control_sub_vals(vector control, array[] int sub_idxs, real intercept, real slope) {
-        int K = rows(control);
-        vector[K] sub_values = rep_vector(0.0, K);
-        sub_values[sub_idxs] = intercept + slope * control[sub_idxs];
+    vector control_sub_vals(vector control, array[] int sub_idxs, real intercept, real slope, int C) {
+        // fill a vector with K elements with zeros
+        vector[C] sub_values = rep_vector(0.0, C);
+        // substitute the appropriate values based on sub_idxs with linear relationship
+        sub_values = intercept + slope * control[sub_idxs];
         return sub_values;
+    }
+
+    real relu_interpolate(real x, real intercept, real slope) {
+        real y = intercept + x * slope;
+        if (y < 0.0) {
+            y = 0.0;
+        }
+        return y;
     }
 }
 
@@ -56,7 +65,7 @@ data {
     real alpha_prior;
     array[S,3] int param_idx_arr; // parameter index for each of alpha, beta, gamma
     //array[G] int beta_sub_idx; // for each G, establishes which B to subtract
-    array[G,Q,C] int sub_loci;
+    //array[G,Q,C] int sub_loci;
     array[S] int sample_x; // sample_id for each datum
     array[S,Q,L] int Y; // counts
     array[S] real<lower=0> libsize; // exposure term for each sample
@@ -115,8 +124,9 @@ parameters {
     vector<lower=0>[3] prec; // stratify global precision inference by ChIP vs input vs ipod
     array[A,Q] vector[a_sub_L] sub_Alpha; // one intercept for each genotype/sub-position
 
-    vector<lower=0>[G] intercept;
-    vector[G] slope;
+    vector[G] intercept;
+    vector<lower=0>[G] slope;
+    vector<lower=0>[G] line_sd;
 
     // local parameters for horseshoe prior
     array[G,Q] vector[g_sub_L] zgamma;
@@ -133,7 +143,7 @@ parameters {
 transformed parameters {
     array[A,Q] vector[L] Alpha; // one intercept for each genotype/position combination
     array[B,Q] vector[L] Beta;
-    array[G,Q] vector[L] Gamma;
+    array[G,Q] vector[L] non_sub;
     //array[G,Q] vector[L] non_sub;
 
     //real lprior = 0.0;
@@ -141,7 +151,7 @@ transformed parameters {
 
     {
         vector[b_sub_L] sub_Beta; 
-        vector[g_sub_L] sub_gamma;
+        vector[g_sub_L] sub_ns;
         //vector[L] tmp_Beta;
         //vector[L] tmp_Gamma;
         //vector[L] beta_gr_zero;
@@ -174,14 +184,14 @@ transformed parameters {
                     c2 * square(lambda_gamma[g,q])
                     ./ (c2 + tau_gamma[g]^2 * square(lambda_gamma[g,q]))
                 );
-                sub_gamma = zgamma[g,q] .* lambda_tilde_gamma*tau_gamma[g];
-                Gamma[g,q] = csr_matrix_times_vector(
+                sub_ns = zgamma[g,q] .* lambda_tilde_gamma*tau_gamma[g];
+                non_sub[g,q] = csr_matrix_times_vector(
                     L,
                     g_sub_L,
                     g_weights_vals,
                     g_col_accessor,
                     g_row_non_zero_number,
-                    sub_gamma
+                    sub_ns
                 );
             }
         }
@@ -205,6 +215,10 @@ model {
     int sample_type;
     array[3] int param_idxs;
     vector[L] Y_hat;
+    array[C] int sub_loci;
+    vector[C] line_expect;
+    vector[L] this_ns;
+    vector[L] these_Betas;
     real libsize_s;
     real psi_s;
     int a_idx;
@@ -239,6 +253,7 @@ model {
         }
     }
 
+    line_sd ~ gamma(1, 1);
     prec ~ lognormal(0, 1);
     log_pseudocount ~ normal(psi, 1.0);
 
@@ -253,32 +268,51 @@ model {
         g_idx = param_idxs[3];
 
         for (q in 1:Q) {
+            these_Betas = Beta[b_idx,q];
 
+            // sample_type 0 is input
             if (sample_type == 0) {
                 Y_hat = Alpha[a_idx,q] 
                     + libsize_s;
+            // sample type 1 is control
             } else if (sample_type == 1) {
                 Y_hat = Alpha[a_idx,q] 
-                    + Beta[b_idx,q] 
+                    + these_Betas
                     + libsize_s;
+            // sample type 2 is extract
             } else {
+                this_ns = non_sub[g_idx,q];
+                if (b_idx != 0) {
+                    // this fetches the indices of the Betas to use for getting the relu
+                    // between Beta and non_sub
+                    // first, we do and argsort of this beta
+                    sub_loci = sort_indices_desc(these_Betas)[1:C];
+                    line_expect = control_sub_vals(
+                        // these are just the control enrichments
+                        these_Betas,
+                        // this is a list of the indices of the control enrichments for which we
+                        // actually want to subtract beta from gamma all other indices will have
+                        // no subtraction
+                        sub_loci,
+                        // each gamma/beta relationship has its own intercept and slope.
+                        // fetch them here.
+                        intercept[g_idx],
+                        slope[g_idx],
+                        C
+                    );
+                    // This likelihood gives the pdf of the linear relationship
+                    // between the upper %-ile of the betas and their corresponding non_sub
+                    // values. While it may seem odd to be using the inferred non_sub
+                    // values here, in practice, we have found that what this ends up doing
+                    // is shrinking inferences to the line when the data don't strongly identify
+                    // another outcome for the inferece. For IPOD-HR data, we have seen that
+                    // little, if any, shrinkage of inferred values to the line occurs. But for
+                    // ChIP-seq data, a lot of shrinkage occurs. This seems intuitively correct.
+                    this_ns[sub_loci] ~ student_t(2.0, line_expect, line_sd[g_idx]);
+                }
+
                 Y_hat = Alpha[a_idx,q] 
-                    // here we get the relu for relationship between highest beta vals
-                    // and gamma, and apply them to the expectation.
-                    // This way, Gamma is learning the control-subtracted enrichment of interest.
-                    + control_sub_vals(
-                          // these are just the control enrichments
-                          Beta[b_idx,q],
-                          // this is a list of the indices of the control enrichments for which we
-                          // actually want to subtract beta from gamma all other indices will have
-                          // no subtraction
-                          sub_loci[b_idx,q],
-                          // each gamma/beta relationship has its own intercept and slope.
-                          // fetch them here.
-                          intercept[g_idx],
-                          slope[g_idx]
-                      )
-                    + Gamma[g_idx,q] 
+                    + this_ns
                     + libsize_s;
             }
             Y[s,q] ~ neg_binomial_2_log(log_sum_exp(Y_hat, psi_s), prec[sample_type+1]);
@@ -290,13 +324,17 @@ generated quantities {
 
     // we also want he non-subbed extract enrichments
     // So add the Gamma and Betas
-    array[G,Q] vector[L] non_sub;
+    array[G,Q] vector[L] Gamma;
     {
     int sample_type;
     int a_idx;
     int b_idx;
     int g_idx;
+    real sub_val;
     array[3] int param_idxs;
+    vector[L] these_betas;
+    vector[L] these_gammas;
+    vector[L] these_nonsubs;
 
     for (s in 1:S) {
         sample_type = sample_x[s];
@@ -307,13 +345,17 @@ generated quantities {
 
         for (q in 1:Q) {
             if (sample_type == 2) {
-                    non_sub[g_idx,q] = control_sub_vals(
-                          Beta[b_idx,q],
-                          sub_loci[b_idx,q],
-                          intercept[g_idx],
-                          slope[g_idx]
-                    ) + 
-                    Gamma[g_idx,q];
+                if (b_idx != 0) {
+                    these_betas = Beta[b_idx,q];
+                    these_nonsubs = non_sub[g_idx,q];
+                    for (l in 1:L) {
+                        sub_val = relu_interpolate(these_betas[l], intercept[g_idx], slope[g_idx]);
+                        these_gammas[l] = these_nonsubs[l] - sub_val;
+                    }
+                    Gamma[g_idx,q] = these_gammas;
+                } else {
+                    Gamma[g_idx,q] = non_sub[g_idx,q];
+                }
             }
         }
     }

@@ -36,12 +36,11 @@ fn main() -> BoxedResult<()> {
         "Beta",
         "Gamma",
         "non_sub",
-        "a_cubic",
-        "b_cubic",
-        "c_cubic",
+        "intercept",
+        "slope",
     ];
     let enricherator_params = &vars[0..4];
-    let cubic_params = &vars[4..7];
+    let sub_params = &vars[4..6];
 
     let infname = &cfg.input.draws_file;
     let out_direc: &str = &cfg.output.out_direc;

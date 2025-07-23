@@ -557,12 +557,12 @@ prep_stan_data = function(data_df, norm_method, spikein, spikein_rel_abund=0.05,
     strand_df = data_df %>% select(-data)
     info_df = strand_df %>% filter(!duplicated(sample_id))
     stan_list[["L"]] = pos_num
-    stan_list[["C"]] = sub_num
     stan_list[["S"]] = samp_num
     stan_list[["B"]] = B
     stan_list[["A"]] = A
     stan_list[["G"]] = G
     stan_list[["Q"]] = strand_num
+    stan_list[["C"]] = sub_num
     #stan_list[["geno_x"]] = info_df$geno_x
     #stan_list[["geno_mat"]] = geno_mat
     stan_list[["sample_x"]] = info_df$sample_x
