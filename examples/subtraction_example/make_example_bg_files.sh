@@ -14,9 +14,9 @@ while IFS= read -r line; do
   base=$(basename $infile)
   outfile="count_files/sample_${base}"
   echo "Grabbing region from $infile, placing into $outfile"
-  grep -A 25000 -B 2500 -P "gi|545778205|gb|U00096.3|\t25977500\t" $infile \
+  grep -A 2500 -B 2500 -P "2597750\t2597755" $infile \
     | cut -f 1-4 \
     > $outfile
   echo "Writing row to info file"
   echo "${geno},${samp_type},${rep},${strand},${outfile},${inp_group},${control_group},${ext_group}" >> example_info.csv
-done < $1
+done < /corexfs/schroedj/TEST_IPODERATOR/IPODerator_info.csv

@@ -325,7 +325,8 @@ them to a binary file.
 cd examples/subtraction_example
 direc=$(pwd)/example_results
 
-Rscript $SRCDIR/R/parse_csv_to_blob.R \
+apptainer exec -B $(pwd) /path/to/enricherator.sif \
+    Rscript /src/R/parse_csv_to_blob.R \
     --cfg_file ${direc}/data/config.toml
 ```
 
@@ -352,7 +353,8 @@ Finally, to write the bedgraph files, run the following:
 cd examples/subtraction_example
 direc=$(pwd)/example_results
 
-Rscript $SRCDIR/R/parse_blob_file.R \
+apptainer exec -B $(pwd) /path/to/enricherator.sif \
+    Rscript /src/R/parse_blob_file.R \
     --cfg_file ${direc}/data/config.toml \
 ```
 
