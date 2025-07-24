@@ -1,0 +1,13 @@
+genotype,sample,rep,strand,file,input_group,control_group,extract_group
+wt_m9_min_glu,control,1,both,count_files/sample_wt_m9_min_glu_chip_rep1_bowtie2_sorted_count.bedgraph,1,1,0
+wt_m9_min_glu,control,2,both,count_files/sample_wt_m9_min_glu_chip_rep2_bowtie2_sorted_count.bedgraph,1,1,0
+wt_m9_min_glu,input,1,both,count_files/sample_wt_m9_min_glu_inp_rep1_bowtie2_sorted_count.bedgraph,1,0,0
+wt_m9_min_glu,input,2,both,count_files/sample_wt_m9_min_glu_inp_rep2_bowtie2_sorted_count.bedgraph,1,0,0
+wt_m9_min_glu,extract,1,both,count_files/sample_wt_m9_min_glu_ipod_rep1_bowtie2_sorted_count.bedgraph,1,1,1
+wt_m9_min_glu,extract,2,both,count_files/sample_wt_m9_min_glu_ipod_rep2_bowtie2_sorted_count.bedgraph,1,1,1
+wt_m9_rdm_glu,control,1,both,count_files/sample_wt_m9_rdm_glu_chip_rep1_bowtie2_sorted_count.bedgraph,2,2,0
+wt_m9_rdm_glu,control,2,both,count_files/sample_wt_m9_rdm_glu_chip_rep2_bowtie2_sorted_count.bedgraph,2,2,0
+wt_m9_rdm_glu,input,1,both,count_files/sample_wt_m9_rdm_glu_inp_rep1_bowtie2_sorted_count.bedgraph,2,0,0
+wt_m9_rdm_glu,input,2,both,count_files/sample_wt_m9_rdm_glu_inp_rep2_bowtie2_sorted_count.bedgraph,2,0,0
+wt_m9_rdm_glu,extract,1,both,count_files/sample_wt_m9_rdm_glu_ipod_rep1_bowtie2_sorted_count.bedgraph,2,2,2
+wt_m9_rdm_glu,extract,2,both,count_files/sample_wt_m9_rdm_glu_ipod_rep2_bowtie2_sorted_count.bedgraph,2,2,2

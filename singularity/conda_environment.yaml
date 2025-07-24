@@ -3,7 +3,7 @@ channels:
   - enable_revoked
   - r
   - conda-forge
-  - bioconda
+    #- bioconda
   - defaults
 dependencies:
   - cmdstan >= 2.34.1

@@ -11,3 +11,5 @@ R/tests/parse_csv_testing
 R/tests/parse_blob_testing
 singularity
 stan/.*
+examples/*/example_results/draws*
+examples/*/example_results
