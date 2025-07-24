@@ -211,7 +211,13 @@ stan_list[["pos_map_file"]] = paste0(opt$data_direc, "/position_map.txt")
 stan_list[["config_file"]] = paste0(opt$data_direc, "/config.toml")
 
 print(paste0("Writing covariate key to ", stan_list[["expt_key_file"]]))
-jsonlite::toJSON(stan_list[["expt_key"]]) %>%
+
+# if not doing any subtraction, the Beta geno_map is null, which
+# causes jsonlite to write a "{}" instead of a "[]". So here,
+# we set the null argument to "null", then replace any instance
+# of "null," in the output string to "[],".
+jsonlite::toJSON(stan_list[["expt_key"]], null="null") %>%
+    str_replace("null,", "[],") %>%
     jsonlite::prettify() %>%
     write(stan_list[["expt_key_file"]])
 

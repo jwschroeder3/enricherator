@@ -195,7 +195,13 @@ fn plot_relationships(
     //}).collect();
     // make the line to plot, including the zeros from x_min to origin
     let mut line: Vec<(f32, f32)> = vec![(x_min, 0.0), (0.0,0.0)];
-    let mut curve: Vec<(f32, f32)> = line_x.iter().zip(preds).map(|(x,y)| (*x as f32,y as f32)).collect();
+    let mut curve: Vec<(f32, f32)> = line_x.iter().zip(preds).map(|(x,y)| {
+        let mut yval = y;
+        if y < 0.0 {
+            yval = 0.0;
+        }
+        (*x as f32,yval as f32)
+    }).collect();
     line.append(&mut curve);
 
     let points: Vec<(f32,f32)> = beta.iter().zip(non_sub).map(|(x,y)| (*x,y)).collect();

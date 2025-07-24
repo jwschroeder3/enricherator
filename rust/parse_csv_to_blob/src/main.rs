@@ -109,7 +109,7 @@ fn main() -> BoxedResult<()> {
     let mut col_idx: usize = 0;
     let parser_thread = thread::spawn(move || -> Result<(), ByteIterError> {
         loop {
-            let read_result = reader_rx.recv_timeout(time::Duration::from_secs(5));
+            let read_result = reader_rx.recv_timeout(time::Duration::from_secs(10));
             //let read_result = reader_rx.recv();
             let bytes_read: Vec<u8> = match read_result {
                 Ok(bytes) => bytes,
