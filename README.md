@@ -490,6 +490,39 @@ experimental designs):
 
 Note that all three biological replicates for a given group share group identifiers!
 
+As a bonus, let's look at what an example "parse" and "geno\_contrasts" section
+of your `config.toml` file might look like.
+
+We care about the enrichments of the ALFA-tagged protein over control (Gamma parameter),
+and we also want to record the non-control-subtracted enrichments, just to be safe (non\_sub parameter).
+And of course, the whole point was to compare protein enrichment between conditions B and A.
+Let's say that we're looking for extreme enrichments, so anything with 4-fold (2.0 on the log2 scale)
+enrichment is what we want to consider "enriched". We'll also say that any 2-fold difference in
+enrichment in condition B vs. condition A is something we're interested in, which
+will define our choice of "threshold" in the "geno\_contrasts" section.
+
+Here's what the "parse" and "geno\_contrasts" sections of `config.toml` should look like.
+
+```bash
+[parse]
+# Tell Enricherator to gather Gamma and non_sub parameters from the draws-1.csv file.
+vars = ["Gamma", "non_sub"]
+# Tell Enricherator the threshold for calculating evidence ratios for enrichment. 
+# NOTE: this is on the log2 scale, so the value of 2.0 below is 2^2, so 4-fold enrichment
+threshold = 2.0
+# Set the region of practical equivalence (ROPE) within which there is to be considered NO enrichment.
+rope = 0.5
+
+[geno_contrasts]
+# Get the difference in control-subtracted enrichment between conditions B and A
+# note these names must match the names in the sample sheet csv
+Gamma = ["condition_B - condition_A"]
+# Same as for Gamma contrast above, but for the non-control-subtracted enrichments
+non_sub = ["condition_B - condition_A"]
+threshold = 1.0
+rope = 0.5
+```
+
 ### Example 2: IPOD and RNAP ChIP-seq sharing input DNA
 
 Now consider the following schematic representing a typical IPOD experiment.
