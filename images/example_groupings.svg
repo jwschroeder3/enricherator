@@ -1,0 +1,801 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   xmlns:dc="http://purl.org/dc/elements/1.1/"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   width="210mm"
+   height="297mm"
+   viewBox="0 0 210 297"
+   version="1.1"
+   id="svg8"
+   inkscape:version="1.0.2 (e86c870879, 2021-01-15)"
+   sodipodi:docname="example_groupings.svg">
+  <defs
+     id="defs2">
+    <marker
+       style="overflow:visible;"
+       id="marker2644"
+       refX="0.0"
+       refY="0.0"
+       orient="auto"
+       inkscape:stockid="Arrow1Mend"
+       inkscape:isstock="true">
+      <path
+         transform="scale(0.4) rotate(180) translate(10,0)"
+         style="fill-rule:evenodd;stroke:#000000;stroke-width:1pt;stroke-opacity:1;fill:#000000;fill-opacity:1"
+         d="M 0.0,0.0 L 5.0,-5.0 L -12.5,0.0 L 5.0,5.0 L 0.0,0.0 z "
+         id="path2642" />
+    </marker>
+    <marker
+       style="overflow:visible;"
+       id="Arrow1Mend"
+       refX="0.0"
+       refY="0.0"
+       orient="auto"
+       inkscape:stockid="Arrow1Mend"
+       inkscape:isstock="true"
+       inkscape:collect="always">
+      <path
+         transform="scale(0.4) rotate(180) translate(10,0)"
+         style="fill-rule:evenodd;stroke:#000000;stroke-width:1pt;stroke-opacity:1;fill:#000000;fill-opacity:1"
+         d="M 0.0,0.0 L 5.0,-5.0 L -12.5,0.0 L 5.0,5.0 L 0.0,0.0 z "
+         id="path913" />
+    </marker>
+    <marker
+       style="overflow:visible;"
+       id="Arrow1Lend"
+       refX="0.0"
+       refY="0.0"
+       orient="auto"
+       inkscape:stockid="Arrow1Lend"
+       inkscape:isstock="true">
+      <path
+         transform="scale(0.8) rotate(180) translate(12.5,0)"
+         style="fill-rule:evenodd;stroke:#000000;stroke-width:1pt;stroke-opacity:1;fill:#000000;fill-opacity:1"
+         d="M 0.0,0.0 L 5.0,-5.0 L -12.5,0.0 L 5.0,5.0 L 0.0,0.0 z "
+         id="path907" />
+    </marker>
+    <marker
+       style="overflow:visible"
+       id="Arrow1Mend-8"
+       refX="0"
+       refY="0"
+       orient="auto"
+       inkscape:stockid="Arrow1Mend"
+       inkscape:isstock="true">
+      <path
+         transform="matrix(-0.4,0,0,-0.4,-4,0)"
+         style="fill:#000000;fill-opacity:1;fill-rule:evenodd;stroke:#000000;stroke-width:1pt;stroke-opacity:1"
+         d="M 0,0 5,-5 -12.5,0 5,5 Z"
+         id="path913-1" />
+    </marker>
+    <marker
+       style="overflow:visible"
+       id="Arrow1Mend-89"
+       refX="0"
+       refY="0"
+       orient="auto"
+       inkscape:stockid="Arrow1Mend"
+       inkscape:isstock="true">
+      <path
+         transform="matrix(-0.4,0,0,-0.4,-4,0)"
+         style="fill:#000000;fill-opacity:1;fill-rule:evenodd;stroke:#000000;stroke-width:1pt;stroke-opacity:1"
+         d="M 0,0 5,-5 -12.5,0 5,5 Z"
+         id="path913-3" />
+    </marker>
+    <marker
+       style="overflow:visible"
+       id="Arrow1Mend-8-6"
+       refX="0"
+       refY="0"
+       orient="auto"
+       inkscape:stockid="Arrow1Mend"
+       inkscape:isstock="true">
+      <path
+         transform="matrix(-0.4,0,0,-0.4,-4,0)"
+         style="fill:#000000;fill-opacity:1;fill-rule:evenodd;stroke:#000000;stroke-width:1pt;stroke-opacity:1"
+         d="M 0,0 5,-5 -12.5,0 5,5 Z"
+         id="path913-1-8" />
+    </marker>
+    <marker
+       style="overflow:visible"
+       id="Arrow1Mend-0"
+       refX="0"
+       refY="0"
+       orient="auto"
+       inkscape:stockid="Arrow1Mend"
+       inkscape:isstock="true">
+      <path
+         transform="matrix(-0.4,0,0,-0.4,-4,0)"
+         style="fill:#000000;fill-opacity:1;fill-rule:evenodd;stroke:#000000;stroke-width:1pt;stroke-opacity:1"
+         d="M 0,0 5,-5 -12.5,0 5,5 Z"
+         id="path913-4" />
+    </marker>
+    <marker
+       style="overflow:visible"
+       id="Arrow1Mend-8-8"
+       refX="0"
+       refY="0"
+       orient="auto"
+       inkscape:stockid="Arrow1Mend"
+       inkscape:isstock="true">
+      <path
+         transform="matrix(-0.4,0,0,-0.4,-4,0)"
+         style="fill:#000000;fill-opacity:1;fill-rule:evenodd;stroke:#000000;stroke-width:1pt;stroke-opacity:1"
+         d="M 0,0 5,-5 -12.5,0 5,5 Z"
+         id="path913-1-0" />
+    </marker>
+    <marker
+       style="overflow:visible"
+       id="Arrow1Mend-89-4"
+       refX="0"
+       refY="0"
+       orient="auto"
+       inkscape:stockid="Arrow1Mend"
+       inkscape:isstock="true">
+      <path
+         transform="matrix(-0.4,0,0,-0.4,-4,0)"
+         style="fill:#000000;fill-opacity:1;fill-rule:evenodd;stroke:#000000;stroke-width:1pt;stroke-opacity:1"
+         d="M 0,0 5,-5 -12.5,0 5,5 Z"
+         id="path913-3-2" />
+    </marker>
+    <marker
+       style="overflow:visible"
+       id="Arrow1Mend-8-6-9"
+       refX="0"
+       refY="0"
+       orient="auto"
+       inkscape:stockid="Arrow1Mend"
+       inkscape:isstock="true">
+      <path
+         transform="matrix(-0.4,0,0,-0.4,-4,0)"
+         style="fill:#000000;fill-opacity:1;fill-rule:evenodd;stroke:#000000;stroke-width:1pt;stroke-opacity:1"
+         d="M 0,0 5,-5 -12.5,0 5,5 Z"
+         id="path913-1-8-6" />
+    </marker>
+    <marker
+       style="overflow:visible"
+       id="marker2644-4"
+       refX="0"
+       refY="0"
+       orient="auto"
+       inkscape:stockid="Arrow1Mend"
+       inkscape:isstock="true">
+      <path
+         transform="matrix(-0.4,0,0,-0.4,-4,0)"
+         style="fill:#000000;fill-opacity:1;fill-rule:evenodd;stroke:#000000;stroke-width:1pt;stroke-opacity:1"
+         d="M 0,0 5,-5 -12.5,0 5,5 Z"
+         id="path2642-1" />
+    </marker>
+    <marker
+       style="overflow:visible"
+       id="marker2644-6"
+       refX="0"
+       refY="0"
+       orient="auto"
+       inkscape:stockid="Arrow1Mend"
+       inkscape:isstock="true">
+      <path
+         transform="matrix(-0.4,0,0,-0.4,-4,0)"
+         style="fill:#000000;fill-opacity:1;fill-rule:evenodd;stroke:#000000;stroke-width:1pt;stroke-opacity:1"
+         d="M 0,0 5,-5 -12.5,0 5,5 Z"
+         id="path2642-8" />
+    </marker>
+    <marker
+       style="overflow:visible"
+       id="marker2644-4-3"
+       refX="0"
+       refY="0"
+       orient="auto"
+       inkscape:stockid="Arrow1Mend"
+       inkscape:isstock="true">
+      <path
+         transform="matrix(-0.4,0,0,-0.4,-4,0)"
+         style="fill:#000000;fill-opacity:1;fill-rule:evenodd;stroke:#000000;stroke-width:1pt;stroke-opacity:1"
+         d="M 0,0 5,-5 -12.5,0 5,5 Z"
+         id="path2642-1-8" />
+    </marker>
+  </defs>
+  <sodipodi:namedview
+     id="base"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:pageopacity="0.0"
+     inkscape:pageshadow="2"
+     inkscape:zoom="0.98994949"
+     inkscape:cx="381.67368"
+     inkscape:cy="244.36482"
+     inkscape:document-units="mm"
+     inkscape:current-layer="layer1"
+     inkscape:document-rotation="0"
+     showgrid="false"
+     inkscape:window-width="1920"
+     inkscape:window-height="999"
+     inkscape:window-x="0"
+     inkscape:window-y="27"
+     inkscape:window-maximized="1" />
+  <metadata
+     id="metadata5">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type
+           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+        <dc:title></dc:title>
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+  <g
+     inkscape:label="Layer 1"
+     inkscape:groupmode="layer"
+     id="layer1">
+    <text
+       xml:space="preserve"
+       style="font-size:4.33803px;line-height:1.25;font-family:helvetica;-inkscape-font-specification:helvetica;letter-spacing:0px;word-spacing:0px;stroke-width:0.325352"
+       x="46.907196"
+       y="6.2377133"
+       id="text1306"
+       inkscape:export-xdpi="300"
+       inkscape:export-ydpi="300"><tspan
+         sodipodi:role="line"
+         id="tspan1304"
+         x="46.907196"
+         y="6.2377133"
+         style="font-size:4.33803px;stroke-width:0.325352">IPOD and RNAP ChIP-seq libraries use shared input DNA</tspan></text>
+    <g
+       id="g1636"
+       transform="matrix(0.974934,0,0,0.974934,-19.434438,-2.6844956)"
+       inkscape:export-xdpi="300"
+       inkscape:export-ydpi="300">
+      <g
+         id="g890"
+         transform="matrix(1.2612925,0,0,1.2612925,-11.161492,-5.6370738)">
+        <text
+           xml:space="preserve"
+           style="font-size:2.36361px;line-height:1.25;font-family:helvetica;-inkscape-font-specification:helvetica;letter-spacing:0px;word-spacing:0px;stroke-width:0.264583"
+           x="35.529758"
+           y="34.017857"
+           id="text835"><tspan
+             sodipodi:role="line"
+             id="tspan833"
+             x="35.529758"
+             y="34.017857"
+             style="stroke-width:0.264583">IPOD (extract group)</tspan></text>
+        <ellipse
+           style="fill:none;stroke:#000000;stroke-width:0.3;stroke-miterlimit:10;stroke-dasharray:none;stroke-opacity:1"
+           id="path845"
+           cx="46.304447"
+           cy="33.675961"
+           rx="13.563929"
+           ry="6.6817379" />
+      </g>
+      <g
+         id="g895"
+         transform="matrix(1.2612925,0,0,1.2612925,-12.496361,-4.4572054)">
+        <text
+           xml:space="preserve"
+           style="font-size:2.36361px;line-height:1.25;font-family:helvetica;-inkscape-font-specification:helvetica;letter-spacing:0px;word-spacing:0px;stroke-width:0.264583"
+           x="70.291878"
+           y="33.275055"
+           id="text839"><tspan
+             sodipodi:role="line"
+             id="tspan837"
+             x="70.291878"
+             y="33.275055"
+             style="stroke-width:0.264583">RNAP ChIP-seq (control group)</tspan></text>
+        <ellipse
+           style="fill:none;stroke:#000000;stroke-width:0.349555;stroke-miterlimit:10;stroke-dasharray:none;stroke-opacity:1"
+           id="path845-5"
+           cx="86.595329"
+           cy="32.740517"
+           rx="18.483637"
+           ry="6.6569605" />
+      </g>
+      <g
+         id="g900"
+         transform="matrix(1.2612925,0,0,1.2612925,-9.1898683,2.1163424)">
+        <text
+           xml:space="preserve"
+           style="font-size:2.36361px;line-height:1.25;font-family:helvetica;-inkscape-font-specification:helvetica;letter-spacing:0px;word-spacing:0px;stroke-width:0.264583"
+           x="52.045994"
+           y="50.583302"
+           id="text843"><tspan
+             sodipodi:role="line"
+             id="tspan841"
+             x="52.045994"
+             y="50.583302"
+             style="stroke-width:0.264583">Input DNA (input group)</tspan></text>
+        <ellipse
+           style="fill:none;stroke:#000000;stroke-width:0.3128;stroke-miterlimit:10;stroke-dasharray:none;stroke-opacity:1"
+           id="path845-5-4"
+           cx="64.545593"
+           cy="49.979401"
+           rx="14.76024"
+           ry="6.6753378" />
+      </g>
+      <path
+         style="fill:none;stroke:#000000;stroke-width:0.334242;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;marker-end:url(#Arrow1Mend)"
+         d="m 58.06259,46.422148 4.04526,7.921966"
+         id="path902" />
+      <path
+         style="fill:none;stroke:#000000;stroke-width:0.334242;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;marker-end:url(#Arrow1Mend-8)"
+         d="m 86.623324,46.422148 -4.04526,7.921966"
+         id="path902-2" />
+      <text
+         xml:space="preserve"
+         style="font-size:3.52778px;line-height:1.25;font-family:helvetica;-inkscape-font-specification:helvetica;letter-spacing:0px;word-spacing:0px;stroke-width:0.264583"
+         x="53.483627"
+         y="20.977678"
+         id="text1352"><tspan
+           sodipodi:role="line"
+           id="tspan1350"
+           x="53.483627"
+           y="20.977678"
+           style="font-size:3.52778px;stroke-width:0.264583">Genotype (or condition) A</tspan></text>
+      <ellipse
+         style="fill:none;stroke:#000000;stroke-width:0.264999;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+         id="path1354"
+         cx="75.217262"
+         cy="45.829613"
+         rx="51.215771"
+         ry="33.923363" />
+    </g>
+    <g
+       id="g1581"
+       transform="matrix(0.974934,0,0,0.974934,-122.61495,-55.288134)"
+       inkscape:export-xdpi="300"
+       inkscape:export-ydpi="300">
+      <g
+         id="g890-0"
+         transform="matrix(1.2612925,0,0,1.2612925,200.88315,48.319028)">
+        <text
+           xml:space="preserve"
+           style="font-size:2.36361px;line-height:1.25;font-family:helvetica;-inkscape-font-specification:helvetica;letter-spacing:0px;word-spacing:0px;stroke-width:0.264583"
+           x="35.529758"
+           y="34.017857"
+           id="text835-2"><tspan
+             sodipodi:role="line"
+             id="tspan833-1"
+             x="35.529758"
+             y="34.017857"
+             style="stroke-width:0.264583">IPOD (extract group)</tspan></text>
+        <ellipse
+           style="fill:none;stroke:#000000;stroke-width:0.3;stroke-miterlimit:10;stroke-dasharray:none;stroke-opacity:1"
+           id="path845-0"
+           cx="46.304447"
+           cy="33.675961"
+           rx="13.563929"
+           ry="6.6817379" />
+      </g>
+      <g
+         id="g895-5"
+         transform="matrix(1.2612925,0,0,1.2612925,199.54828,49.498897)">
+        <text
+           xml:space="preserve"
+           style="font-size:2.36361px;line-height:1.25;font-family:helvetica;-inkscape-font-specification:helvetica;letter-spacing:0px;word-spacing:0px;stroke-width:0.264583"
+           x="70.291878"
+           y="33.275055"
+           id="text839-1"><tspan
+             sodipodi:role="line"
+             id="tspan837-1"
+             x="70.291878"
+             y="33.275055"
+             style="stroke-width:0.264583">RNAP ChIP-seq (control group)</tspan></text>
+        <ellipse
+           style="fill:none;stroke:#000000;stroke-width:0.349555;stroke-miterlimit:10;stroke-dasharray:none;stroke-opacity:1"
+           id="path845-5-0"
+           cx="86.595329"
+           cy="32.740517"
+           rx="18.483637"
+           ry="6.6569605" />
+      </g>
+      <g
+         id="g900-8"
+         transform="matrix(1.2612925,0,0,1.2612925,202.85477,56.072444)">
+        <text
+           xml:space="preserve"
+           style="font-size:2.36361px;line-height:1.25;font-family:helvetica;-inkscape-font-specification:helvetica;letter-spacing:0px;word-spacing:0px;stroke-width:0.264583"
+           x="52.045994"
+           y="50.583302"
+           id="text843-5"><tspan
+             sodipodi:role="line"
+             id="tspan841-0"
+             x="52.045994"
+             y="50.583302"
+             style="stroke-width:0.264583">Input DNA (input group)</tspan></text>
+        <ellipse
+           style="fill:none;stroke:#000000;stroke-width:0.3128;stroke-miterlimit:10;stroke-dasharray:none;stroke-opacity:1"
+           id="path845-5-4-6"
+           cx="64.545593"
+           cy="49.979401"
+           rx="14.76024"
+           ry="6.6753378" />
+      </g>
+      <path
+         style="fill:none;stroke:#000000;stroke-width:0.334242;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;marker-end:url(#Arrow1Mend-89)"
+         d="m 270.10723,100.37825 4.04526,7.92197"
+         id="path902-4" />
+      <path
+         style="fill:none;stroke:#000000;stroke-width:0.334242;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;marker-end:url(#Arrow1Mend-8-6)"
+         d="m 298.66796,100.37825 -4.04526,7.92197"
+         id="path902-2-6" />
+      <text
+         xml:space="preserve"
+         style="font-size:3.52778px;line-height:1.25;font-family:helvetica;-inkscape-font-specification:helvetica;letter-spacing:0px;word-spacing:0px;stroke-width:0.264583"
+         x="265.52826"
+         y="74.933777"
+         id="text1352-2"><tspan
+           sodipodi:role="line"
+           id="tspan1350-5"
+           x="265.52826"
+           y="74.933777"
+           style="font-size:3.52778px;stroke-width:0.264583">Genotype (or condition) B</tspan></text>
+      <ellipse
+         style="fill:none;stroke:#000000;stroke-width:0.264999;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+         id="path1354-8"
+         cx="287.2619"
+         cy="99.785713"
+         rx="51.215771"
+         ry="33.923363" />
+    </g>
+    <g
+       id="g3491"
+       transform="translate(-0.534541)"
+       inkscape:export-xdpi="300"
+       inkscape:export-ydpi="300">
+      <g
+         id="g2939"
+         transform="translate(15.875)"
+         inkscape:export-xdpi="300"
+         inkscape:export-ydpi="300">
+        <g
+           id="g2593"
+           transform="translate(0,1.325592)">
+          <text
+             xml:space="preserve"
+             style="font-size:2.36361px;line-height:1.25;font-family:helvetica;-inkscape-font-specification:helvetica;letter-spacing:0px;word-spacing:0px;white-space:pre;inline-size:22.1792;stroke-width:0.264583"
+             x="44.502464"
+             y="34.017857"
+             id="text835-22"
+             transform="matrix(1.2296769,0,0,1.2296769,-17.686547,91.531591)"><tspan
+               x="44.502464"
+               y="34.017857"><tspan
+                 style="text-align:center;text-anchor:middle;stroke-width:0.264583">Anti-ALFA ChIP-seq
+</tspan></tspan><tspan
+               x="44.502464"
+               y="36.972369"><tspan
+                 style="text-align:center;text-anchor:middle;stroke-width:0.264583">(extract group)</tspan></tspan></text>
+          <ellipse
+             style="fill:none;stroke:#000000;stroke-width:0.368903;stroke-miterlimit:10;stroke-dasharray:none;stroke-opacity:1"
+             id="path845-05"
+             cx="50.608528"
+             cy="134.41907"
+             rx="16.679249"
+             ry="8.2163792" />
+        </g>
+        <g
+           id="g2510"
+           transform="translate(0,1.325592)">
+          <text
+             xml:space="preserve"
+             style="font-size:2.90648px;line-height:1.25;font-family:helvetica;-inkscape-font-specification:helvetica;letter-spacing:0px;word-spacing:0px;stroke-width:0.325352"
+             x="35.23806"
+             y="161.96689"
+             id="text843-8"><tspan
+               sodipodi:role="line"
+               id="tspan841-04"
+               x="35.23806"
+               y="161.96689"
+               style="stroke-width:0.325352">Input DNA (input group)</tspan></text>
+          <ellipse
+             style="fill:none;stroke:#000000;stroke-width:0.384643;stroke-miterlimit:10;stroke-dasharray:none;stroke-opacity:1"
+             id="path845-5-4-0"
+             cx="50.608528"
+             cy="161.22429"
+             rx="18.150326"
+             ry="8.2085085" />
+        </g>
+        <text
+           xml:space="preserve"
+           style="font-size:3.43935px;line-height:1.25;font-family:helvetica;-inkscape-font-specification:helvetica;letter-spacing:0px;word-spacing:0px;stroke-width:0.257951"
+           x="26.728165"
+           y="123.75625"
+           id="text1352-9"><tspan
+             sodipodi:role="line"
+             id="tspan1350-62"
+             x="26.728165"
+             y="123.75625"
+             style="font-size:3.43935px;stroke-width:0.257951">Strain with ALFA-tagged protein</tspan></text>
+        <ellipse
+           style="fill:none;stroke:#000000;stroke-width:0.225602;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+           id="path1354-5"
+           cx="51.257896"
+           cy="143.70892"
+           rx="38.054878"
+           ry="33.08942" />
+        <path
+           style="fill:none;stroke:#000000;stroke-width:0.264583px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;marker-end:url(#marker2644)"
+           d="m 49.979402,145.92916 v 6.41447"
+           id="path2634" />
+      </g>
+      <g
+         id="g2907"
+         transform="translate(-15.875)"
+         inkscape:export-xdpi="300"
+         inkscape:export-ydpi="300">
+        <g
+           id="g900-8-3"
+           transform="matrix(1.2296769,0,0,1.2296769,74.520052,99.765775)">
+          <text
+             xml:space="preserve"
+             style="font-size:2.36361px;line-height:1.25;font-family:helvetica;-inkscape-font-specification:helvetica;letter-spacing:0px;word-spacing:0px;stroke-width:0.264583"
+             x="52.045994"
+             y="50.583302"
+             id="text843-5-5"><tspan
+               sodipodi:role="line"
+               id="tspan841-0-1"
+               x="52.045994"
+               y="50.583302"
+               style="stroke-width:0.264583">Input DNA (input group)</tspan></text>
+          <ellipse
+             style="fill:none;stroke:#000000;stroke-width:0.3128;stroke-miterlimit:10;stroke-dasharray:none;stroke-opacity:1"
+             id="path845-5-4-6-7"
+             cx="64.545593"
+             cy="49.979401"
+             rx="14.76024"
+             ry="6.6753378" />
+        </g>
+        <text
+           xml:space="preserve"
+           style="font-size:3.43935px;line-height:1.25;font-family:helvetica;-inkscape-font-specification:helvetica;letter-spacing:0px;word-spacing:0px;stroke-width:0.257951"
+           x="155.09134"
+           y="120.53828"
+           id="text1352-2-1"><tspan
+             sodipodi:role="line"
+             id="tspan1350-5-4"
+             x="155.09134"
+             y="120.53828"
+             style="font-size:3.43935px;text-align:center;text-anchor:middle;stroke-width:0.257951">Isogenic control strain</tspan><tspan
+             sodipodi:role="line"
+             x="155.09134"
+             y="124.83746"
+             style="font-size:3.43935px;text-align:center;text-anchor:middle;stroke-width:0.257951"
+             id="tspan2524">lacking ALFA tag</tspan></text>
+        <ellipse
+           style="fill:none;stroke:#000000;stroke-width:0.203599;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+           id="path1354-8-6"
+           cx="154.67328"
+           cy="143.70892"
+           rx="30.983238"
+           ry="33.100422" />
+        <g
+           id="g2588">
+          <g
+             id="g2500"
+             transform="translate(79.391304,-1.0147442)">
+            <text
+               xml:space="preserve"
+               style="font-size:2.36361px;line-height:1.25;font-family:helvetica;-inkscape-font-specification:helvetica;letter-spacing:0px;word-spacing:0px;white-space:pre;inline-size:27.2104;stroke-width:0.264583"
+               x="83.493858"
+               y="33.275055"
+               id="text839-9"
+               transform="matrix(1.2296769,0,0,1.2296769,-44.837303,93.459741)"><tspan
+                 x="83.493858"
+                 y="33.275055"><tspan
+                   style="text-align:center;text-anchor:middle;stroke-width:0.264583">Anti-ALFA ChIP-seq
+</tspan></tspan><tspan
+                 x="83.493858"
+                 y="36.229567"><tspan
+                   style="text-align:center;text-anchor:middle;stroke-width:0.264583">(control group)</tspan></tspan></text>
+          </g>
+          <ellipse
+             style="fill:none;stroke:#000000;stroke-width:0.368903;stroke-miterlimit:10;stroke-dasharray:none;stroke-opacity:1"
+             id="path845-05-6"
+             cx="153.89027"
+             cy="134.41907"
+             rx="16.679249"
+             ry="8.2163792" />
+        </g>
+        <path
+           style="fill:none;stroke:#000000;stroke-width:0.264583px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;marker-end:url(#marker2644-4)"
+           d="m 153.61494,144.32674 v 6.41447"
+           id="path2634-2" />
+      </g>
+    </g>
+    <g
+       id="g3425"
+       inkscape:export-xdpi="300"
+       inkscape:export-ydpi="300">
+      <g
+         id="g2939-3"
+         transform="translate(15.340459,74.383011)"
+         inkscape:export-xdpi="300"
+         inkscape:export-ydpi="300">
+        <g
+           id="g2593-3"
+           transform="translate(0,1.325592)">
+          <text
+             xml:space="preserve"
+             style="font-size:2.36361px;line-height:1.25;font-family:helvetica;-inkscape-font-specification:helvetica;letter-spacing:0px;word-spacing:0px;white-space:pre;inline-size:22.1792;stroke-width:0.264583"
+             x="44.502464"
+             y="34.017857"
+             id="text835-22-3"
+             transform="matrix(1.2296769,0,0,1.2296769,-17.686547,91.531591)"><tspan
+               x="44.502464"
+               y="34.017857"><tspan
+                 style="text-align:center;text-anchor:middle;stroke-width:0.264583">Anti-ALFA ChIP-seq
+</tspan></tspan><tspan
+               x="44.502464"
+               y="36.972369"><tspan
+                 style="text-align:center;text-anchor:middle;stroke-width:0.264583">(extract group)</tspan></tspan></text>
+          <ellipse
+             style="fill:none;stroke:#000000;stroke-width:0.368903;stroke-miterlimit:10;stroke-dasharray:none;stroke-opacity:1"
+             id="path845-05-8"
+             cx="50.608528"
+             cy="134.41907"
+             rx="16.679249"
+             ry="8.2163792" />
+        </g>
+        <g
+           id="g2510-0"
+           transform="translate(0,1.325592)">
+          <text
+             xml:space="preserve"
+             style="font-size:2.90648px;line-height:1.25;font-family:helvetica;-inkscape-font-specification:helvetica;letter-spacing:0px;word-spacing:0px;stroke-width:0.325352"
+             x="35.23806"
+             y="161.96689"
+             id="text843-8-4"><tspan
+               sodipodi:role="line"
+               id="tspan841-04-7"
+               x="35.23806"
+               y="161.96689"
+               style="stroke-width:0.325352">Input DNA (input group)</tspan></text>
+          <ellipse
+             style="fill:none;stroke:#000000;stroke-width:0.384643;stroke-miterlimit:10;stroke-dasharray:none;stroke-opacity:1"
+             id="path845-5-4-0-6"
+             cx="50.608528"
+             cy="161.22429"
+             rx="18.150326"
+             ry="8.2085085" />
+        </g>
+        <text
+           xml:space="preserve"
+           style="font-size:3.43935px;line-height:1.25;font-family:helvetica;-inkscape-font-specification:helvetica;letter-spacing:0px;word-spacing:0px;stroke-width:0.257951"
+           x="26.728165"
+           y="123.75625"
+           id="text1352-9-8"><tspan
+             sodipodi:role="line"
+             id="tspan1350-62-9"
+             x="26.728165"
+             y="123.75625"
+             style="font-size:3.43935px;stroke-width:0.257951">Strain with ALFA-tagged protein</tspan></text>
+        <ellipse
+           style="fill:none;stroke:#000000;stroke-width:0.225602;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+           id="path1354-5-0"
+           cx="51.257896"
+           cy="143.70892"
+           rx="38.054878"
+           ry="33.08942" />
+        <path
+           style="fill:none;stroke:#000000;stroke-width:0.264583px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;marker-end:url(#marker2644-6)"
+           d="m 49.979402,145.92916 v 6.41447"
+           id="path2634-6" />
+      </g>
+      <g
+         id="g2907-8"
+         transform="translate(-16.409541,74.383011)"
+         inkscape:export-xdpi="300"
+         inkscape:export-ydpi="300">
+        <g
+           id="g900-8-3-7"
+           transform="matrix(1.2296769,0,0,1.2296769,74.520052,99.765775)">
+          <text
+             xml:space="preserve"
+             style="font-size:2.36361px;line-height:1.25;font-family:helvetica;-inkscape-font-specification:helvetica;letter-spacing:0px;word-spacing:0px;stroke-width:0.264583"
+             x="52.045994"
+             y="50.583302"
+             id="text843-5-5-9"><tspan
+               sodipodi:role="line"
+               id="tspan841-0-1-0"
+               x="52.045994"
+               y="50.583302"
+               style="stroke-width:0.264583">Input DNA (input group)</tspan></text>
+          <ellipse
+             style="fill:none;stroke:#000000;stroke-width:0.3128;stroke-miterlimit:10;stroke-dasharray:none;stroke-opacity:1"
+             id="path845-5-4-6-7-3"
+             cx="64.545593"
+             cy="49.979401"
+             rx="14.76024"
+             ry="6.6753378" />
+        </g>
+        <text
+           xml:space="preserve"
+           style="font-size:3.43935px;line-height:1.25;font-family:helvetica;-inkscape-font-specification:helvetica;letter-spacing:0px;word-spacing:0px;stroke-width:0.257951"
+           x="155.09134"
+           y="120.53828"
+           id="text1352-2-1-3"><tspan
+             sodipodi:role="line"
+             id="tspan1350-5-4-3"
+             x="155.09134"
+             y="120.53828"
+             style="font-size:3.43935px;text-align:center;text-anchor:middle;stroke-width:0.257951">Isogenic control strain</tspan><tspan
+             sodipodi:role="line"
+             x="155.09134"
+             y="124.83746"
+             style="font-size:3.43935px;text-align:center;text-anchor:middle;stroke-width:0.257951"
+             id="tspan2524-7">lacking ALFA tag</tspan></text>
+        <ellipse
+           style="fill:none;stroke:#000000;stroke-width:0.203599;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+           id="path1354-8-6-3"
+           cx="154.67328"
+           cy="143.70892"
+           rx="30.983238"
+           ry="33.100422" />
+        <g
+           id="g2588-2">
+          <g
+             id="g2500-6"
+             transform="translate(79.391304,-1.0147442)">
+            <text
+               xml:space="preserve"
+               style="font-size:2.36361px;line-height:1.25;font-family:helvetica;-inkscape-font-specification:helvetica;letter-spacing:0px;word-spacing:0px;white-space:pre;inline-size:27.2104;stroke-width:0.264583"
+               x="83.493858"
+               y="33.275055"
+               id="text839-9-5"
+               transform="matrix(1.2296769,0,0,1.2296769,-44.837303,93.459741)"><tspan
+                 x="83.493858"
+                 y="33.275055"><tspan
+                   style="text-align:center;text-anchor:middle;stroke-width:0.264583">Anti-ALFA ChIP-seq
+</tspan></tspan><tspan
+                 x="83.493858"
+                 y="36.229567"><tspan
+                   style="text-align:center;text-anchor:middle;stroke-width:0.264583">(control group)</tspan></tspan></text>
+          </g>
+          <ellipse
+             style="fill:none;stroke:#000000;stroke-width:0.368903;stroke-miterlimit:10;stroke-dasharray:none;stroke-opacity:1"
+             id="path845-05-6-2"
+             cx="153.89027"
+             cy="134.41907"
+             rx="16.679249"
+             ry="8.2163792" />
+        </g>
+        <path
+           style="fill:none;stroke:#000000;stroke-width:0.264583px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;marker-end:url(#marker2644-4-3)"
+           d="m 153.61494,144.32674 v 6.41447"
+           id="path2634-2-6" />
+      </g>
+    </g>
+    <text
+       xml:space="preserve"
+       style="font-size:4.23333px;line-height:1.25;font-family:helvetica;-inkscape-font-specification:helvetica;letter-spacing:0px;word-spacing:0px;stroke-width:0.264583"
+       x="4.2763124"
+       y="145.66188"
+       id="text3543"
+       inkscape:export-xdpi="300"
+       inkscape:export-ydpi="300"><tspan
+         sodipodi:role="line"
+         id="tspan3541"
+         x="4.2763124"
+         y="145.66188"
+         style="font-size:4.23333px;stroke-width:0.264583">Condition A</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:4.23333px;line-height:1.25;font-family:helvetica;-inkscape-font-specification:helvetica;letter-spacing:0px;word-spacing:0px;stroke-width:0.264583"
+       x="4.3398123"
+       y="218.80989"
+       id="text3543-8"
+       inkscape:export-xdpi="300"
+       inkscape:export-ydpi="300"><tspan
+         sodipodi:role="line"
+         id="tspan3541-7"
+         x="4.3398123"
+         y="218.80989"
+         style="font-size:4.23333px;stroke-width:0.264583">Condition B</tspan></text>
+  </g>
+</svg>

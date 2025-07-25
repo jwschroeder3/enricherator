@@ -424,6 +424,101 @@ for bgfile in ${OUTDIR}/Gamma_*_Kge.bedgraph; do
 done
 ```
 
+## Preparing your own sample info csv file
+
+To run your own Enricherator jobs, we recommend using our example info csv files as templates
+to build out your own csv file. A few notes to clarify the purpose of the final three columns:
+
+* input\_group
+* control\_group
+* extract\_group
+
+The values in these columns must be non-negative integers, as they are indicators used to 
+assign each bedgraph file's
+count data to a specific role in the Enricherator model. Input sequencing counts should
+have a non-zero value in the input\_group column, with zeros for the other two columns.
+Control sequencing counts should have the same number in their input\_group column as the
+input sequencing counts that should be used as their input, a non-zero number in their control\_group
+column, and zero in their extract\_group column. Extract sequencing counts should have
+the same number in their input\_group column as the input data that should be used for this
+particular set of extract data, the same number in their control\_group column as the control
+data that should be used to subtract control enrichments from extract enrichments, and
+their own value denoting to which extract\_group this row's sequencing counts belong.
+
+Here are two examples.
+
+### Example 1: ChIP-seq and control in two conditions
+
+Consider the following schematic for an experiment in which we want to identify changes
+in protein enrichment in Condition B vs. Condition A. We did three biological replicates.
+
+![chip](images/chip_and_control_schematic.png)
+
+Each extract ChIP-seq dataset has its corresponding input DNA dataset, and the same
+is true for each control ChIP-seq dataset. The sample information csv's input, control,
+and extract\_group columns should look like the following (here we're only including the
+necessary columns of an info sheet for the purposes of explaining the groupings, and
+we leave it to the user to fill in the rest for their own purposes, in their own
+experimental designs):
+
+| genotype | sample | rep | input\_group | control\_group | extract\_group |
+| -------- | ------ | --- | ------------ | -------------- | -------------- |
+| condition\_A | input | 1 | 1 | 0 | 0 |
+| condition\_A | input | 2 | 1 | 0 | 0 |
+| condition\_A | input | 3 | 1 | 0 | 0 |
+| condition\_A | control | 1 | 1 | 1 | 0 |
+| condition\_A | control | 2 | 1 | 1 | 0 |
+| condition\_A | control | 3 | 1 | 1 | 0 |
+| condition\_A | input | 1 | 2 | 0 | 0 |
+| condition\_A | input | 2 | 2 | 0 | 0 |
+| condition\_A | input | 3 | 2 | 0 | 0 |
+| condition\_A | extract | 1 | 2 | 1 | 1 |
+| condition\_A | extract | 2 | 2 | 1 | 1 |
+| condition\_A | extract | 3 | 2 | 1 | 1 |
+| condition\_B | input | 1 | 3 | 0 | 0 |
+| condition\_B | input | 2 | 3 | 0 | 0 |
+| condition\_B | input | 3 | 3 | 0 | 0 |
+| condition\_B | control | 1 | 3 | 2 | 0 |
+| condition\_B | control | 2 | 3 | 2 | 0 |
+| condition\_B | control | 3 | 3 | 2 | 0 |
+| condition\_B | input | 1 | 4 | 0 | 0 |
+| condition\_B | input | 2 | 4 | 0 | 0 |
+| condition\_B | input | 3 | 4 | 0 | 0 |
+| condition\_B | extract | 1 | 4 | 2 | 2 |
+| condition\_B | extract | 2 | 4 | 2 | 2 |
+| condition\_B | extract | 3 | 4 | 2 | 2 |
+
+Note that all three biological replicates for a given group share group identifiers!
+
+### Example 2: IPOD and RNAP ChIP-seq sharing input DNA
+
+Now consider the following schematic representing a typical IPOD experiment.
+Here things are a little different, in that the IPOD and RNAP ChIP-seq samples came
+from the same original tube, and thus share input DNA.
+We did two biological replicates this time.
+
+![ipod](images/ipod_schematic.png)
+
+Here's what the salient columns of the sample info file would look like:
+
+| genotype | sample | rep | input\_group | control\_group | extract\_group |
+| -------- | ------ | --- | ------------ | -------------- | -------------- |
+| condition\_A | input | 1 | 1 | 0 | 0 |
+| condition\_A | input | 2 | 1 | 0 | 0 |
+| condition\_A | control | 1 | 1 | 1 | 0 |
+| condition\_A | control | 2 | 1 | 1 | 0 |
+| condition\_A | extract | 1 | 1 | 1 | 1 |
+| condition\_A | extract | 2 | 1 | 1 | 1 |
+| condition\_B | input | 1 | 2 | 0 | 0 |
+| condition\_B | input | 2 | 2 | 0 | 0 |
+| condition\_B | control | 1 | 2 | 2 | 0 |
+| condition\_B | control | 2 | 2 | 2 | 0 |
+| condition\_B | extract | 1 | 2 | 2 | 2 |
+| condition\_B | extract | 2 | 2 | 2 | 2 |
+
+Note how the identifiers in the grouping columns point the conrol and extract
+data within a given condition to the same input DNA. 
+
 [^1]: Schroeder, Jeremy W., and P. Lydia Freddolino. 2024. “Enricherator: A Bayesian Method for Inferring Regularized Genome-Wide Enrichments from Sequencing Count Data.” Journal of Molecular Biology, April, 168567.
 [^2]: Schroeder, Jeremy W., Rebecca L. Hurto, Justin R. Randall, Katherine J. Wozniak, Taylor A. Timko, Taylor M. Nye, Jue D. Wang, Peter L. Freddolino, and Lyle A. Simmons. 2023. “RNase H Genes Cause Distinct Impacts on RNA:DNA Hybrid Formation and Mutagenesis Genome Wide.” Science Advances 9 (30): eadi5945.
 [^3]: Freddolino, P.L., Amemiya, H.M., Goss, T.J., and Tavazoie, S. (2021). Dynamic landscape of protein occupancy across the Escherichia coli chromosome. PLoS Biol. 19, e3001306.
