@@ -70,27 +70,9 @@ The steps of running enricherator include:
 
 We provide a containerized version of Enricherator that should simplify its use. The container
 is build using Apptainer, which will allow the container to run on any Linux operating system
-with Apptainer installed. 
-
-To pull the container from its public repository, install Apptainer by following
-its [online instructions](https://apptainer.org/docs/user/main/quick_start.html).
-
-Once Apptainer is installed, add cloud.sylabs.io as a remote endpoint by running the
-following:
-
-```bash
-apptainer remote add SylabsCloud cloud.sycloud.io
-apptainer remote use SylabsCloud
-```
-
-Now you may pull the Enricherator container from the repository by
-running the following, replacing `<container/path>` with the
-location in which you would like the container to reside:
-
-```bash
-cd </container/path>
-apptainer pull enricherator.sif library://schroedj/appliances/enricherator:latest
-```
+with Apptainer installed. We do not yet have the container posted to a public repository such
+as SylabsCloud, so please reach out the Lydia (lydsf@umich.edu) to obtain the container if
+you would like to use Enricherator.
 
 ## Building Enricherator (only recommended if you cannot use the Apptainer container)
 
